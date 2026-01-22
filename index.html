@@ -194,6 +194,12 @@
             flex: 1;
         }
 
+        .match-date {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-right: 10px;
+        }
+
         .match-league {
             background: rgba(255, 255, 255, 0.2);
             padding: 5px 15px;
@@ -343,35 +349,21 @@
             margin: 20px 0;
         }
 
-        .tracker-section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px;
-            margin-top: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .tracker-title {
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 20px;
+        .success {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid rgba(0, 255, 0, 0.5);
+            padding: 20px;
+            border-radius: 15px;
             text-align: center;
+            margin: 20px 0;
         }
 
-        .tracker-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .roi-positive {
-            color: #00ff88;
-        }
-
-        .roi-negative {
-            color: #ff6b6b;
+        .info-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 0.9rem;
         }
 
         @keyframes fadeIn {
@@ -436,9 +428,10 @@
 
         <div class="controls">
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="loadMatches()">📥 Carica Partite</button>
-                <button class="btn btn-success" onclick="exportToExcel()">📊 Export Excel</button>
-                <button class="btn btn-danger" onclick="clearTracker()">🗑️ Reset Tracker</button>
+                <button class="btn btn-primary" onclick="loadMatches()">📥 Carica Partite Oggi</button>
+                <button class="btn btn-primary" onclick="loadMatchesTomorrow()">📅 Carica Partite Domani</button>
+                <button class="btn btn-success" onclick="exportToExcel()">📊 Export CSV</button>
+                <button class="btn btn-danger" onclick="clearAll()">🗑️ Reset</button>
             </div>
 
             <div class="filters">
@@ -458,29 +451,29 @@
         <div id="matchesContainer" class="matches-grid">
             <div class="loading">
                 <div class="spinner"></div>
-                <p>Premi "Carica Partite" per iniziare</p>
+                <p>Premi "Carica Partite Oggi" per iniziare</p>
+                <div class="info-box">
+                    📅 Data corrente: <strong>22 Gennaio 2026</strong><br>
+                    🏆 Stagione: <strong>2025-26</strong><br>
+                    🔑 API Key: Configurata ✅
+                </div>
             </div>
-        </div>
-
-        <div class="tracker-section" id="trackerSection" style="display:none;">
-            <h2 class="tracker-title">💰 Tracker ROI</h2>
-            <div class="tracker-stats" id="trackerStats"></div>
-            <div id="trackerHistory"></div>
         </div>
     </div>
 
     <script>
         const API_KEY = 'aeb2864a3d4dbb8395fa53c83a876a93';
         let allMatches = [];
-        let betHistory = JSON.parse(localStorage.getItem('betHistory') || '[]');
+        let currentSeason = 2025; // Stagione 2025-26
 
-        // Leghe principali per stagione 2024-25
+        // Leghe principali
         const LEAGUES = {
-            'Serie A': 207,
+            'Serie A': 135,
             'Premier League': 39,
             'LaLiga': 140,
             'Bundesliga': 78,
-            'Ligue 1': 61
+            'Ligue 1': 61,
+            'Champions League': 2
         };
 
         // Funzione fattoriale
@@ -529,33 +522,26 @@
             return probHomeScores * probAwayScores * 100;
         }
 
-        // Calcolo xG migliorato con API data
-        function calculateXG(team, isHome, stats) {
+        // Calcolo xG con statistiche reali
+        function calculateXG(teamStats, isHome) {
             const homeFactor = isHome ? 1.15 : 0.95;
 
-            // Se abbiamo statistiche reali dall API, le usiamo
-            if (stats) {
+            // Usa statistiche reali se disponibili
+            if (teamStats && teamStats.goals) {
                 const avgGoals = isHome ? 
-                    (stats.goals?.for?.average?.home || 1.5) : 
-                    (stats.goals?.for?.average?.away || 1.3);
-                return avgGoals * homeFactor;
+                    (teamStats.goals.for?.average?.home || 1.5) : 
+                    (teamStats.goals.for?.average?.away || 1.3);
+                return parseFloat(avgGoals) * homeFactor;
             }
 
-            // Altrimenti valori di default basati sul nome
-            const eliteTeams = ['Manchester City', 'Real Madrid', 'Liverpool', 'Bayern', 'PSG', 
-                               'Barcelona', 'Inter', 'Napoli', 'Juventus', 'Arsenal'];
-
-            if (eliteTeams.some(t => team.includes(t))) {
-                return 1.9 * homeFactor;
-            }
-
+            // Default
             return 1.5 * homeFactor;
         }
 
         // Calcola tutte le predizioni
-        function calculatePredictions(match, homeStats, awayStats) {
-            const xGHome = calculateXG(match.homeTeam, true, homeStats);
-            const xGAway = calculateXG(match.awayTeam, false, awayStats);
+        function calculatePredictions(match) {
+            const xGHome = match.xGHome || 1.5;
+            const xGAway = match.xGAway || 1.3;
 
             const gg = calculateGG(xGHome, xGAway);
             const over05 = calculateOver(xGHome, xGAway, 0.5);
@@ -622,6 +608,7 @@
                 <div class="match-card">
                     <div class="match-header">
                         <div class="match-teams">${match.homeTeam} vs ${match.awayTeam}</div>
+                        <div class="match-date">${match.date}</div>
                         <div class="match-league">${match.league}</div>
                     </div>
 
@@ -688,18 +675,19 @@
             `;
         }
 
-        // Carica partite da API-Football
-        async function loadMatches() {
+        // Carica partite per una data specifica
+        async function loadMatchesForDate(dateStr) {
             const container = document.getElementById('matchesContainer');
             container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Caricamento partite in corso...</p></div>';
 
             allMatches = [];
-            const today = new Date().toISOString().split('T')[0];
 
             try {
                 for (const [leagueName, leagueId] of Object.entries(LEAGUES)) {
+                    console.log(`Caricamento ${leagueName}...`);
+
                     const response = await fetch(
-                        `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=2024&from=${today}&to=${today}`,
+                        `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${currentSeason}&date=${dateStr}`,
                         {
                             method: 'GET',
                             headers: {
@@ -710,28 +698,74 @@
                     );
 
                     const data = await response.json();
+                    console.log(`${leagueName}:`, data.response?.length || 0, 'partite');
 
                     if (data.response && data.response.length > 0) {
-                        for (const match of data.response.slice(0, 10)) {
+                        for (const match of data.response) {
+                            // Calcola xG con statistiche se disponibili
+                            let xGHome = 1.5;
+                            let xGAway = 1.3;
+
+                            // Prova a ottenere statistiche
+                            try {
+                                const statsResponse = await fetch(
+                                    `https://v3.football.api-sports.io/teams/statistics?league=${leagueId}&season=${currentSeason}&team=${match.teams.home.id}`,
+                                    {
+                                        method: 'GET',
+                                        headers: {
+                                            'x-rapidapi-key': API_KEY,
+                                            'x-rapidapi-host': 'v3.football.api-sports.io'
+                                        }
+                                    }
+                                );
+                                const statsData = await statsResponse.json();
+                                if (statsData.response) {
+                                    xGHome = calculateXG(statsData.response, true);
+                                }
+                            } catch (e) {
+                                console.log('Statistiche non disponibili, uso default');
+                            }
+
                             const matchData = {
                                 homeTeam: match.teams.home.name,
                                 awayTeam: match.teams.away.name,
                                 league: leagueName,
-                                date: new Date(match.fixture.date).toLocaleDateString('it-IT'),
-                                fixtureId: match.fixture.id
+                                date: new Date(match.fixture.date).toLocaleDateString('it-IT', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }),
+                                fixtureId: match.fixture.id,
+                                xGHome: xGHome,
+                                xGAway: xGAway
                             };
 
-                            const predictions = calculatePredictions(matchData, null, null);
+                            const predictions = calculatePredictions(matchData);
                             matchData.predictions = predictions;
                             allMatches.push(matchData);
                         }
                     }
+
+                    // Pausa per evitare rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
                 if (allMatches.length === 0) {
-                    container.innerHTML = '<div class="error">⚠️ Nessuna partita trovata per oggi. Prova domani o verifica la tua API key.</div>';
+                    container.innerHTML = `
+                        <div class="error">
+                            ⚠️ Nessuna partita trovata per il ${dateStr}<br><br>
+                            Possibili cause:<br>
+                            • Nessuna partita programmata per questa data<br>
+                            • Prova con un'altra data (Oggi/Domani)<br>
+                            • Verifica la tua API key<br>
+                        </div>
+                    `;
                     return;
                 }
+
+                container.innerHTML = `<div class="success">✅ ${allMatches.length} partite caricate con successo!</div>`;
 
                 updateStats();
                 renderMatches();
@@ -739,16 +773,34 @@
 
             } catch (error) {
                 console.error('Errore:', error);
-                container.innerHTML = `<div class="error">❌ Errore nel caricamento: ${error.message}</div>`;
+                container.innerHTML = `<div class="error">❌ Errore nel caricamento: ${error.message}<br><br>Verifica la console per dettagli.</div>`;
             }
+        }
+
+        // Carica partite di oggi
+        async function loadMatches() {
+            const today = new Date().toISOString().split('T')[0];
+            console.log('Data di oggi:', today);
+            await loadMatchesForDate(today);
+        }
+
+        // Carica partite di domani
+        async function loadMatchesTomorrow() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dateStr = tomorrow.toISOString().split('T')[0];
+            console.log('Data di domani:', dateStr);
+            await loadMatchesForDate(dateStr);
         }
 
         // Renderizza tutte le partite
         function renderMatches() {
             const container = document.getElementById('matchesContainer');
-            container.innerHTML = allMatches.map(match => 
-                renderMatch(match, match.predictions)
-            ).join('');
+            if (allMatches.length > 0) {
+                container.innerHTML = allMatches.map(match => 
+                    renderMatch(match, match.predictions)
+                ).join('');
+            }
         }
 
         // Aggiorna statistiche
@@ -758,11 +810,6 @@
                 allMatches.filter(m => m.predictions.recommendation.includes('STRONG')).length;
             document.getElementById('betRecommended').textContent = 
                 allMatches.filter(m => m.predictions.recommendation.includes('✅')).length;
-
-            const roi = calculateROI();
-            const roiEl = document.getElementById('roiValue');
-            roiEl.textContent = roi + '%';
-            roiEl.className = 'stat-value ' + (roi >= 0 ? 'roi-positive' : 'roi-negative');
         }
 
         // Popola filtro leghe
@@ -801,55 +848,58 @@
             }
 
             const container = document.getElementById('matchesContainer');
-            container.innerHTML = filtered.map(match => 
-                renderMatch(match, match.predictions)
-            ).join('');
-        }
-
-        // Calcola ROI
-        function calculateROI() {
-            if (betHistory.length === 0) return 0;
-            const totalStake = betHistory.reduce((sum, bet) => sum + bet.stake, 0);
-            const totalReturn = betHistory.reduce((sum, bet) => sum + (bet.result === 'won' ? bet.stake * bet.odds : 0), 0);
-            return ((totalReturn - totalStake) / totalStake * 100).toFixed(2);
-        }
-
-        // Reset tracker
-        function clearTracker() {
-            if (confirm('Vuoi davvero cancellare tutto lo storico?')) {
-                betHistory = [];
-                localStorage.removeItem('betHistory');
-                updateStats();
-                alert('✅ Tracker resettato!');
+            if (filtered.length > 0) {
+                container.innerHTML = filtered.map(match => 
+                    renderMatch(match, match.predictions)
+                ).join('');
+            } else {
+                container.innerHTML = '<div class="error">Nessuna partita trovata con i filtri selezionati</div>';
             }
         }
 
-        // Export Excel (semplificato - scarica CSV)
+        // Reset tutto
+        function clearAll() {
+            if (confirm('Vuoi resettare tutto?')) {
+                allMatches = [];
+                document.getElementById('matchesContainer').innerHTML = `
+                    <div class="loading">
+                        <p>Reset completato! Premi "Carica Partite" per ricominciare</p>
+                    </div>
+                `;
+                updateStats();
+            }
+        }
+
+        // Export CSV
         function exportToExcel() {
             if (allMatches.length === 0) {
                 alert('⚠️ Carica prima le partite!');
                 return;
             }
 
-            let csv = 'Match,Lega,GG%,Over2.5%,MG1-3Casa%,MG1-3Ospite%,Confidence,Consiglio\n';
+            let csv = 'Match,Lega,Data,GG%,Over2.5%,MG1-3Casa%,MG1-3Ospite%,MG2-4Casa%,MG2-4Ospite%,Confidence,Consiglio\n';
 
             allMatches.forEach(match => {
                 const p = match.predictions;
-                csv += `"${match.homeTeam} vs ${match.awayTeam}",${match.league},${p.gg},${p.over25},${p.mg13Home},${p.mg13Away},${p.confidence},"${p.recommendation}"\n`;
+                csv += `"${match.homeTeam} vs ${match.awayTeam}",${match.league},"${match.date}",${p.gg},${p.over25},${p.mg13Home},${p.mg13Away},${p.mg24Home},${p.mg24Away},${p.confidence},"${p.recommendation}"\n`;
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'prophecy_hunter_predictions.csv';
+            a.download = `prophecy_hunter_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
+
+            alert('✅ Export completato!');
         }
 
-        // Auto-load al caricamento pagina
+        // Log iniziale
         window.addEventListener('load', () => {
-            console.log('🚀 Prophecy Hunter Elite caricato!');
-            console.log('API Key configurata:', API_KEY ? '✅' : '❌');
+            console.log('🚀 Prophecy Hunter Elite v3.1 caricato!');
+            console.log('📅 Data corrente:', new Date().toISOString().split('T')[0]);
+            console.log('🏆 Stagione:', currentSeason, '-', currentSeason + 1);
+            console.log('🔑 API Key:', API_KEY ? 'Configurata ✅' : 'Mancante ❌');
         });
     </script>
 </body>
