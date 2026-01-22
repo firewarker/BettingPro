@@ -23,20 +23,16 @@
 
 <script>
 /**
- * PROPHECY HUNTER — API-Football PRO (single-file)
- * Flow:
- * 1) Carica TUTTE le leghe (dinamico) -> /leagues?current=true
- * 2) Seleziona lega -> palinsesto -> /fixtures?league&season&from&to&timezone
- * 3) Seleziona match -> analisi -> /teams/statistics (home/away) + /injuries + /odds (opzionali)
- * 4) Salva pronostico -> tracker localStorage
- * 5) Aggiorna risultati -> /fixtures?ids=ID1-ID2-... (batch)
+ * PROPHECY HUNTER — API-Football PRO
+ * + Corner & Cards predictions
+ * + Fixed search bar (no re-render on every keystroke)
  */
 
 // =====================
 // CONFIG
 // =====================
 const AF_BASE = "https://v3.football.api-sports.io";
-const AF_KEY_HARDCODED = "aeb2864a3d4dbb8395fa53c83a876a93"; // tua PRO key (richiesto: hardcoded)
+const AF_KEY_HARDCODED = "aeb2864a3d4dbb8395fa53c83a876a93";
 const TZ = "Europe/Rome";
 
 const STORAGE = {
@@ -64,7 +60,7 @@ let state = {
   loading: false,
   error: null,
 
-  activeTab: "matches", // matches | analysis | history
+  activeTab: "matches",
   selectedMatch: null,
 
   isAnalyzing: false,
@@ -136,6 +132,8 @@ function categoryIcon(cat) {
   return ({
     esito: "🏁",
     goal: "⚽",
+    corner: "🚩",
+    cards: "🟨",
     odds: "💹",
     injuries: "🩺",
     info: "ℹ️"
@@ -156,6 +154,12 @@ function saveUI() {
 function factorial(n) { let r = 1; for (let i=2; i<=n; i++) r *= i; return r; }
 function poisson(lambda, k) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
 function probToScore(lambda) { return (1 - Math.exp(-lambda)) * 100; }
+
+function poissonOver(lambda, threshold) {
+  let under = 0;
+  for (let k = 0; k <= Math.floor(threshold); k++) under += poisson(lambda, k);
+  return (1 - under) * 100;
+}
 
 function bivariatePoissonOver(lambdaH, lambdaA, threshold) {
   const max = Math.floor(threshold);
@@ -188,7 +192,7 @@ function impliedProb(odd) {
 }
 
 // =====================
-// ODDS PARSER (optional)
+// ODDS PARSER
 // =====================
 function parseOdds(oddsPayload) {
   try {
@@ -209,7 +213,6 @@ function parseOdds(oddsPayload) {
 
     const out = {};
 
-    // 1X2
     const mw = findBet(["Match Winner","1X2","Winner"]);
     if (mw) {
       const map = {};
@@ -224,7 +227,6 @@ function parseOdds(oddsPayload) {
       if (Object.keys(map).length) out["1X2"] = map;
     }
 
-    // BTTS
     const btts = findBet(["Both Teams Score","BTTS"]);
     if (btts) {
       let gg=null, ng=null;
@@ -237,7 +239,6 @@ function parseOdds(oddsPayload) {
       if (gg || ng) out["BTTS"] = { GG: gg, NG: ng };
     }
 
-    // OU
     const ou = findBet(["Goals Over/Under","Over/Under"]);
     if (ou) {
       const m = {};
@@ -264,7 +265,7 @@ function parseOdds(oddsPayload) {
 }
 
 // =====================
-// LEAGUES (dynamic)
+// LEAGUES
 // =====================
 async function loadLeagues(force=false) {
   state.leaguesLoading = true;
@@ -306,7 +307,6 @@ async function loadLeagues(force=false) {
       })
       .filter(x => x.id && x.name && x.season);
 
-    // dedup
     const map = new Map();
     rows.forEach(x => map.set(x.id, x));
     const leagues = [...map.values()].sort((a,b) =>
@@ -330,9 +330,14 @@ async function loadLeagues(force=false) {
 
 window.reloadLeagues = async () => loadLeagues(true);
 
+// FIX: debounce per search (evita re-render continuo)
+let searchTimeout = null;
 window.setLeagueQuery = (v) => {
-  state.leagueQuery = v;
-  render();
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    state.leagueQuery = v;
+    render();
+  }, 300);
 };
 
 window.changeLeague = async (leagueId) => {
@@ -349,7 +354,7 @@ window.changeLeague = async (leagueId) => {
 };
 
 // =====================
-// FIXTURES (palinsesto)
+// FIXTURES
 // =====================
 async function loadMatches() {
   if (!state.selectedLeagueId || !state.selectedSeason) {
@@ -398,7 +403,7 @@ window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); }
 window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
 
 // =====================
-// ANALISI (team stats + injuries + odds)
+// ANALISI
 // =====================
 async function getTeamStats(teamId) {
   const data = await apiCall("/teams/statistics", {
@@ -432,7 +437,6 @@ async function getOddsParsed(fixtureId) {
 }
 
 function normalizeStats(raw) {
-  // fallback robusti
   return {
     played: raw?.fixtures?.played?.total || 0,
     avgGoalsForHome: parseFloat(raw?.goals?.for?.average?.home || raw?.goals?.for?.average?.total || 1.35),
@@ -440,7 +444,6 @@ function normalizeStats(raw) {
     avgGoalsForAway: parseFloat(raw?.goals?.for?.average?.away || raw?.goals?.for?.average?.total || 1.15),
     avgGoalsAgainstAway: parseFloat(raw?.goals?.against?.average?.away || raw?.goals?.against?.average?.total || 1.35),
     bttsRate: parseFloat(raw?.btts?.percentage || 50),
-    // over25: qui metto fallback 50 (puoi migliorarlo usando altri campi se vuoi)
     over25Rate: 50
   };
 }
@@ -457,7 +460,6 @@ function calculateLambda(attackAvg, oppDefenseAvg, leagueAvg, isHome, absenceFac
 }
 
 function buildMarkets(homeStats, awayStats, injuries, oddsParsed) {
-  // stima leagueAvg da dati delle due squadre (semplice ma efficace)
   const leagueAvg = clamp(0.95, (
     homeStats.avgGoalsForHome +
     awayStats.avgGoalsForAway +
@@ -493,12 +495,60 @@ function buildMarkets(homeStats, awayStats, injuries, oddsParsed) {
     ou[line] = { over: clamp(1, over, 99), under: clamp(1, 100-over, 99) };
   });
 
+  // =====================
+  // CORNER PREDICTION
+  // =====================
+  const baseCorner = leagueAvg * 5.2; // ~10-11 corner per partita media
+  const homeAttackFactor = Math.pow(homeStats.avgGoalsForHome / leagueAvg, 0.42);
+  const homeDominance = homeStats.avgGoalsForHome / (homeStats.avgGoalsForHome + homeStats.avgGoalsAgainstHome + 0.1);
+  let homeCorners = baseCorner * homeAttackFactor * (0.7 + homeDominance * 0.6) * 1.15;
+
+  const awayAttackFactor = Math.pow(awayStats.avgGoalsForAway / leagueAvg, 0.42);
+  const awayDominance = awayStats.avgGoalsForAway / (awayStats.avgGoalsForAway + awayStats.avgGoalsAgainstAway + 0.1);
+  let awayCorners = baseCorner * awayAttackFactor * (0.7 + awayDominance * 0.6) * 0.90;
+
+  homeCorners = clamp(3, homeCorners, 8);
+  awayCorners = clamp(3, awayCorners, 8);
+  const totalCorners = homeCorners + awayCorners;
+
+  const cornerPreds = {};
+  [8.5, 9.5, 10.5, 11.5, 12.5].forEach(line => {
+    const diff = totalCorners - line;
+    const prob = 50 + diff * 2.2 * 28;
+    cornerPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
+  });
+
+  // =====================
+  // CARDS PREDICTION
+  // =====================
+  const baseCards = leagueAvg * 2.1; // ~4-5 cards per partita media
+  const homeDefPressure = Math.pow(homeStats.avgGoalsAgainstHome / leagueAvg, 0.35);
+  const homeFrustration = Math.pow(leagueAvg / Math.max(homeStats.avgGoalsForHome, 0.5), 0.25);
+  let homeCards = baseCards * homeDefPressure * homeFrustration * 0.88;
+
+  const awayDefPressure = Math.pow(awayStats.avgGoalsAgainstAway / leagueAvg, 0.35);
+  const awayFrustration = Math.pow(leagueAvg / Math.max(awayStats.avgGoalsForAway, 0.5), 0.25);
+  let awayCards = baseCards * awayDefPressure * awayFrustration * 1.18;
+
+  homeCards = clamp(1, homeCards, 4);
+  awayCards = clamp(1, awayCards, 4);
+  const totalCards = homeCards + awayCards;
+
+  const cardPreds = {};
+  [2.5, 3.5, 4.5, 5.5].forEach(line => {
+    const diff = totalCards - line;
+    const prob = 50 + diff * 1.6 * 30;
+    cardPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
+  });
+
   return {
     xG: { home: lambdaH, away: lambdaA, total: lambdaH + lambdaA },
     result1X2: adj1x2,
     doubleChance: dc,
     btts: { gg: clamp(1, gg, 99), ng: clamp(1, 100-gg, 99) },
     overUnderGoals: ou,
+    corners: { home: homeCorners, away: awayCorners, total: totalCorners, predictions: cornerPreds },
+    cards: { home: homeCards, away: awayCards, total: totalCards, predictions: cardPreds },
     injuries,
     odds: oddsParsed || null
   };
@@ -548,7 +598,7 @@ function generatePredictions(markets, match) {
     category: "goal"
   });
 
-  // Over/Under (linee)
+  // Over/Under Goals
   Object.entries(markets.overUnderGoals).forEach(([line, data]) => {
     const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
     preds.push({
@@ -561,7 +611,33 @@ function generatePredictions(markets, match) {
     });
   });
 
-  // Value bets se odds disponibili
+  // Corner
+  Object.entries(markets.corners.predictions).forEach(([line, data]) => {
+    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
+    preds.push({
+      market: `Corner ${line}`,
+      selection: best.selection,
+      label: `Corner ${best.selection}`,
+      probability: best.prob,
+      confidence: clamp(40, 42 + Math.abs(best.prob - 50) * 0.6, 85),
+      category: "corner"
+    });
+  });
+
+  // Cards
+  Object.entries(markets.cards.predictions).forEach(([line, data]) => {
+    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
+    preds.push({
+      market: `Cartellini ${line}`,
+      selection: best.selection,
+      label: `Cards ${best.selection}`,
+      probability: best.prob,
+      confidence: clamp(40, 40 + Math.abs(best.prob - 50) * 0.55, 82),
+      category: "cards"
+    });
+  });
+
+  // Value bets (odds)
   if (markets.odds?.BTTS?.GG) {
     const odd = markets.odds.BTTS.GG;
     const ip = impliedProb(odd);
@@ -625,7 +701,7 @@ window.analyzeMatch = async (match) => {
     render();
     const oddsParsed = await getOddsParsed(match.id);
 
-    state.analysisStep = "Calcolo algoritmo...";
+    state.analysisStep = "Calcolo algoritmo + corner + cards...";
     render();
     const homeStats = normalizeStats(homeRaw);
     const awayStats = normalizeStats(awayRaw);
@@ -690,9 +766,9 @@ window.savePredictions = () => {
       probability: p.probability,
       confidence: p.confidence,
       odd: p.meta?.odd || null,
-      result: null // won/lost
+      result: null
     })),
-    status: "pending", // pending | won | partial | lost
+    status: "pending",
     createdAt: new Date().toISOString()
   };
 
@@ -795,7 +871,6 @@ window.refreshResults = async () => {
         const entry = state.history.find(e => e.fixtureId === id);
         if (!entry) return;
 
-        // valuta ogni pred
         let allResolved = true;
         let allWon = true;
         let anyWon = false;
@@ -835,7 +910,6 @@ window.clearHistory = () => {
   render();
 };
 
-// manual override (opzionale)
 window.updateHistoryResult = (entryId, predIndex, won) => {
   const entry = state.history.find(e => e.id === entryId);
   if (!entry) return;
@@ -889,10 +963,10 @@ function render() {
             <span class="text-2xl">🔮</span>
             <div>
               <h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER</h1>
-              <div class="text-[11px] text-emerald-700 font-extrabold">API-Football PRO • All Leagues</div>
+              <div class="text-[11px] text-emerald-700 font-extrabold">API-Football PRO • Corner & Cards</div>
             </div>
           </div>
-          <button onclick="window.resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
+          <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
         </div>
 
         <div class="mb-2">
@@ -901,14 +975,14 @@ function render() {
               class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold"
               placeholder="Cerca lega o paese..."
               value="${escapeHtml(state.leagueQuery || "")}"
-              oninput="window.setLeagueQuery(this.value)"
+              oninput="setLeagueQuery(this.value)"
             />
-            <button onclick="window.reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
-              ${state.leaguesLoading ? "..." : "Ricarica"}
+            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
+              ${state.leaguesLoading ? "..." : "↻"}
             </button>
           </div>
 
-          <select onchange="window.changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
+          <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
             ${
               state.leagues.length
                 ? state.leagues
@@ -917,9 +991,9 @@ function render() {
                       if (!q) return true;
                       return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q);
                     })
-                    .slice(0, 300)
+                    .slice(0, 200)
                     .map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>
-                      ${l.country ? l.country + " — " : ""}${l.name} (season ${l.season})
+                      ${l.country ? l.country + " — " : ""}${l.name} (${l.season})
                     </option>`)
                     .join("")
                 : `<option>Carica leghe...</option>`
@@ -929,11 +1003,11 @@ function render() {
           <div class="grid grid-cols-2 gap-2 mt-2">
             <div class="bg-white rounded-xl p-2 border">
               <div class="text-[11px] text-gray-500 font-bold mb-1">Da</div>
-              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="window.setFrom(this.value)" />
+              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" />
             </div>
             <div class="bg-white rounded-xl p-2 border">
               <div class="text-[11px] text-gray-500 font-bold mb-1">A</div>
-              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="window.setTo(this.value)" />
+              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" />
             </div>
           </div>
 
@@ -949,7 +1023,6 @@ function render() {
     </header>
   `;
 
-  // CONTENT
   let content = "";
 
   // MATCHES TAB
@@ -959,7 +1032,7 @@ function render() {
       <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
         <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
           <span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span>
-          <button onclick="window.loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
+          <button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
         </div>
         <div class="px-4 py-2 text-xs text-gray-600 font-semibold">
           Range: <span class="mono">${state.from}</span> → <span class="mono">${state.to}</span> • TZ: <span class="mono">${TZ}</span>
@@ -1047,7 +1120,7 @@ function render() {
         <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
           <p class="text-5xl mb-3">🧠</p>
           <p class="font-black">Seleziona una partita</p>
-          <p class="text-gray-500 text-sm font-semibold mt-1">Vai su “PARTITE” e tocca un match.</p>
+          <p class="text-gray-500 text-sm font-semibold mt-1">Vai su "PARTITE" e tocca un match.</p>
         </div>
       `;
     } else {
@@ -1080,14 +1153,20 @@ function render() {
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 mt-2">
+          <div class="grid grid-cols-3 gap-2 mt-2">
             <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">Assenze (injuries)</p>
-              <p class="font-black text-sm">Casa ${a.markets.injuries.home} • Away ${a.markets.injuries.away}</p>
+              <p class="text-white/70 text-xs font-bold">Corner</p>
+              <p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p>
+              <p class="text-[10px] text-white/60">${a.markets.corners.home.toFixed(1)} - ${a.markets.corners.away.toFixed(1)}</p>
             </div>
             <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">Odds</p>
-              <p class="font-black text-sm">${a.markets.odds ? "Disponibili" : "Non disponibili"}</p>
+              <p class="text-white/70 text-xs font-bold">Cards</p>
+              <p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p>
+              <p class="text-[10px] text-white/60">${a.markets.cards.home.toFixed(1)} - ${a.markets.cards.away.toFixed(1)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">Injuries</p>
+              <p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p>
             </div>
           </div>
         </div>
@@ -1102,13 +1181,13 @@ function render() {
 
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
           <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
-            <span class="font-black text-white text-sm">TOP PICK</span>
+            <span class="font-black text-white text-sm">🏆 TOP PICK</span>
             <span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span>
           </div>
           <div class="p-4">
             <div class="flex items-center justify-between gap-2">
               <div class="min-w-0">
-                <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(top.label)}</p>
+                <p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p>
                 <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • Prob ${top.probability.toFixed(1)}%</p>
               </div>
               <div class="text-right">
@@ -1125,7 +1204,7 @@ function render() {
 
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
           <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center">
-            <span class="font-black text-white text-sm">PRONOSTICI (filtrati)</span>
+            <span class="font-black text-white text-sm">TUTTI I PRONOSTICI</span>
             <span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span>
           </div>
 
@@ -1163,7 +1242,7 @@ function render() {
           <div class="p-3">
             <button onclick="savePredictions()"
               class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">
-              SALVA ${a.selectedPredictions.length} PRONOSTICI
+              💾 SALVA ${a.selectedPredictions.length} PRONOSTICI
             </button>
           </div>
         </div>
@@ -1198,7 +1277,7 @@ function render() {
 
     content = `
       <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-4 text-white mb-3 shadow-lg">
-        <h3 class="font-black mb-3 text-center text-sm">Statistiche Tracker</h3>
+        <h3 class="font-black mb-3 text-center text-sm">📊 Statistiche Tracker</h3>
         <div class="grid grid-cols-4 gap-2 text-center mb-3">
           <div class="bg-white/10 rounded-lg p-2"><p class="text-xl font-black">${stats.total}</p><p class="text-xs text-white/70 font-bold">Tot</p></div>
           <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">Vinti</p></div>
@@ -1211,8 +1290,8 @@ function render() {
         </div>
 
         <div class="flex gap-2 mt-3">
-          <button onclick="window.refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">AGGIORNA RISULTATI</button>
-          <button onclick="window.clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">SVUOTA</button>
+          <button onclick="refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">♻️ AGGIORNA</button>
+          <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">🗑️ SVUOTA</button>
         </div>
       </div>
 
@@ -1285,12 +1364,11 @@ function render() {
       ${content}
     </main>
     <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center">
-      <span class="font-black">API-Football PRO</span>
-      <span class="mono">league=${state.selectedLeagueId ?? "-"} season=${state.selectedSeason ?? "-"}</span>
+      <span class="font-black">API-Football PRO v2</span>
+      <span class="mono">league=${state.selectedLeagueId ?? "-"} • ${state.selectedSeason ?? "-"}</span>
     </footer>
   `;
 
-  // expose state for onclick usage in template
   window.state = state;
 }
 
@@ -1309,13 +1387,11 @@ function escapeHtml(s) {
 (async function init() {
   await loadLeagues(false);
 
-  // se leagues caricate ma nessuna selezione (edge case)
   if (!state.selectedLeagueId && state.leagues.length) {
     state.selectedLeagueId = state.leagues[0].id;
     state.selectedSeason = state.leagues[0].season;
   }
 
-  // carica palinsesto subito
   if (state.selectedLeagueId && state.selectedSeason) {
     await loadMatches();
   }
