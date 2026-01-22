@@ -35,21 +35,67 @@
         const DB_KEY = 'proBettingTrackerV3';
 
         // ============================================================
-        // 📊 CAMPIONATI DISPONIBILI (Espandibili)
+        // 📊 CAMPIONATI DISPONIBILI (TUTTI I PRINCIPALI MONDIALI)
         // ============================================================
         const LEAGUES = {
-            // TOP EUROPEI
-            135: { name: "Serie A", country: "Italia", flag: "🇮🇹", season: 2024 },
-            140: { name: "La Liga", country: "Spagna", flag: "🇪🇸", season: 2024 },
-            39: { name: "Premier League", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2024 },
-            78: { name: "Bundesliga", country: "Germania", flag: "🇩🇪", season: 2024 },
-            61: { name: "Ligue 1", country: "Francia", flag: "🇫🇷", season: 2024 },
-            // ALTRE COMPETIZIONI
-            2: { name: "Champions League", country: "Europa", flag: "🏆", season: 2024 },
-            3: { name: "Europa League", country: "Europa", flag: "🏆", season: 2024 },
-            94: { name: "Primeira Liga", country: "Portogallo", flag: "🇵🇹", season: 2024 },
-            88: { name: "Eredivisie", country: "Olanda", flag: "🇳🇱", season: 2024 },
-            144: { name: "Jupiler Pro League", country: "Belgio", flag: "🇧🇪", season: 2024 }
+            // 🏆 TOP 5 EUROPEI
+            135: { name: "Serie A", country: "Italia", flag: "🇮🇹", season: 2025, category: "Top Europei" },
+            140: { name: "La Liga", country: "Spagna", flag: "🇪🇸", season: 2025, category: "Top Europei" },
+            39: { name: "Premier League", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Top Europei" },
+            78: { name: "Bundesliga", country: "Germania", flag: "🇩🇪", season: 2025, category: "Top Europei" },
+            61: { name: "Ligue 1", country: "Francia", flag: "🇫🇷", season: 2025, category: "Top Europei" },
+
+            // 🏆 COPPE EUROPEE
+            2: { name: "Champions League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
+            3: { name: "Europa League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
+            848: { name: "Conference League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
+
+            // 🌍 ALTRI CAMPIONATI EUROPEI
+            94: { name: "Primeira Liga", country: "Portogallo", flag: "🇵🇹", season: 2025, category: "Altri Europei" },
+            88: { name: "Eredivisie", country: "Olanda", flag: "🇳🇱", season: 2025, category: "Altri Europei" },
+            144: { name: "Jupiler Pro League", country: "Belgio", flag: "🇧🇪", season: 2025, category: "Altri Europei" },
+            203: { name: "Süper Lig", country: "Turchia", flag: "🇹🇷", season: 2025, category: "Altri Europei" },
+            235: { name: "Premier League", country: "Russia", flag: "🇷🇺", season: 2025, category: "Altri Europei" },
+            179: { name: "Premiership", country: "Scozia", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", season: 2025, category: "Altri Europei" },
+            106: { name: "Superliga", country: "Danimarca", flag: "🇩🇰", season: 2025, category: "Altri Europei" },
+            113: { name: "Allsvenskan", country: "Svezia", flag: "🇸🇪", season: 2025, category: "Altri Europei" },
+            119: { name: "Superligaen", country: "Norvegia", flag: "🇳🇴", season: 2025, category: "Altri Europei" },
+            197: { name: "Super League", country: "Grecia", flag: "🇬🇷", season: 2025, category: "Altri Europei" },
+            271: { name: "Super League", country: "Svizzera", flag: "🇨🇭", season: 2025, category: "Altri Europei" },
+            218: { name: "Bundesliga", country: "Austria", flag: "🇦🇹", season: 2025, category: "Altri Europei" },
+
+            // 🌎 AMERICHE
+            253: { name: "MLS", country: "USA", flag: "🇺🇸", season: 2025, category: "Americhe" },
+            71: { name: "Brasileirão Serie A", country: "Brasile", flag: "🇧🇷", season: 2025, category: "Americhe" },
+            128: { name: "Liga Profesional", country: "Argentina", flag: "🇦🇷", season: 2025, category: "Americhe" },
+            262: { name: "Liga MX", country: "Messico", flag: "🇲🇽", season: 2025, category: "Americhe" },
+
+            // 🌏 ASIA & OCEANIA
+            188: { name: "J1 League", country: "Giappone", flag: "🇯🇵", season: 2025, category: "Asia & Oceania" },
+            292: { name: "K League 1", country: "Corea del Sud", flag: "🇰🇷", season: 2025, category: "Asia & Oceania" },
+            307: { name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦", season: 2025, category: "Asia & Oceania" },
+            357: { name: "A-League", country: "Australia", flag: "🇦🇺", season: 2025, category: "Asia & Oceania" },
+
+            // 🌍 AFRICA
+            301: { name: "Premier League", country: "Egitto", flag: "🇪🇬", season: 2025, category: "Africa" },
+            288: { name: "Botola Pro", country: "Marocco", flag: "🇲🇦", season: 2025, category: "Africa" },
+
+            // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 INGHILTERRA (TUTTE LE DIVISIONI)
+            40: { name: "Championship", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
+            41: { name: "League One", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
+            42: { name: "League Two", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
+
+            // 🇮🇹 ITALIA (TUTTE LE DIVISIONI)
+            136: { name: "Serie B", country: "Italia", flag: "🇮🇹", season: 2025, category: "Italia" },
+
+            // 🇪🇸 SPAGNA (TUTTE LE DIVISIONI)
+            141: { name: "La Liga 2", country: "Spagna", flag: "🇪🇸", season: 2025, category: "Spagna" },
+
+            // 🇩🇪 GERMANIA (TUTTE LE DIVISIONI)
+            79: { name: "Bundesliga 2", country: "Germania", flag: "🇩🇪", season: 2025, category: "Germania" },
+
+            // 🇫🇷 FRANCIA (TUTTE LE DIVISIONI)
+            62: { name: "Ligue 2", country: "Francia", flag: "🇫🇷", season: 2025, category: "Francia" }
         };
 
         // ============================================================
@@ -64,6 +110,9 @@
                     }
                 });
                 const data = await response.json();
+
+                console.log('API Response:', data);
+
                 if (data.errors && Object.keys(data.errors).length > 0) {
                     console.error('API Error:', data.errors);
                     return null;
@@ -84,6 +133,24 @@
             localStorage.setItem(DB_KEY, JSON.stringify(db));
         }
 
+        function getDateRange() {
+            const today = new Date();
+            const futureDate = new Date();
+            futureDate.setDate(today.getDate() + 15);
+
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            return {
+                from: formatDate(today),
+                to: formatDate(futureDate)
+            };
+        }
+
         // ============================================================
         // 🧮 ALGORITMO PREDITTIVO AVANZATO
         // ============================================================
@@ -99,15 +166,19 @@
                 'BTTS_NO': { label: 'NG (No Entrambe)', score: 0, factors: [] }
             };
 
-            // STATISTICHE PARTITA
+            // STATISTICHE PARTITA (solo se già giocata o in corso)
             if (statistics && statistics.length === 2) {
                 const homeStats = statistics.find(s => s.team.id === fixture.teams.home.id);
                 const awayStats = statistics.find(s => s.team.id === fixture.teams.away.id);
 
                 if (homeStats && awayStats) {
-                    // POSSESSO PALLA
-                    const homePossession = parseInt(homeStats.statistics.find(s => s.type === 'Ball Possession')?.value || 50);
-                    const awayPossession = parseInt(awayStats.statistics.find(s => s.type === 'Ball Possession')?.value || 50);
+                    const getStat = (stats, type) => {
+                        const stat = stats.statistics.find(s => s.type === type);
+                        return stat ? (parseInt(stat.value) || 0) : 0;
+                    };
+
+                    const homePossession = getStat(homeStats, 'Ball Possession');
+                    const awayPossession = getStat(awayStats, 'Ball Possession');
 
                     if (homePossession > awayPossession + 10) {
                         predictions['1'].score += 15;
@@ -117,9 +188,8 @@
                         predictions['2'].factors.push(`Possesso: ${awayPossession}%`);
                     }
 
-                    // TIRI IN PORTA
-                    const homeShotsOnGoal = parseInt(homeStats.statistics.find(s => s.type === 'Shots on Goal')?.value || 0);
-                    const awayShotsOnGoal = parseInt(awayStats.statistics.find(s => s.type === 'Shots on Goal')?.value || 0);
+                    const homeShotsOnGoal = getStat(homeStats, 'Shots on Goal');
+                    const awayShotsOnGoal = getStat(awayStats, 'Shots on Goal');
 
                     if (homeShotsOnGoal > awayShotsOnGoal + 3) {
                         predictions['1'].score += 12;
@@ -129,10 +199,8 @@
                         predictions['2'].factors.push(`Tiri: ${awayShotsOnGoal} vs ${homeShotsOnGoal}`);
                     }
 
-                    // CORNER
-                    const homeCorners = parseInt(homeStats.statistics.find(s => s.type === 'Corner Kicks')?.value || 0);
-                    const awayCorners = parseInt(awayStats.statistics.find(s => s.type === 'Corner Kicks')?.value || 0);
-                    const totalCorners = homeCorners + awayCorners;
+                    const homeCorners = getStat(homeStats, 'Corner Kicks');
+                    const awayCorners = getStat(awayStats, 'Corner Kicks');
 
                     if (homeCorners > awayCorners + 3) {
                         predictions['1'].score += 8;
@@ -142,11 +210,8 @@
                         predictions['2'].factors.push(`Corner: ${awayCorners}-${homeCorners}`);
                     }
 
-                    // CARTELLINI
-                    const homeYellow = parseInt(homeStats.statistics.find(s => s.type === 'Yellow Cards')?.value || 0);
-                    const awayYellow = parseInt(awayStats.statistics.find(s => s.type === 'Yellow Cards')?.value || 0);
-                    const homeRed = parseInt(homeStats.statistics.find(s => s.type === 'Red Cards')?.value || 0);
-                    const awayRed = parseInt(awayStats.statistics.find(s => s.type === 'Red Cards')?.value || 0);
+                    const homeRed = getStat(homeStats, 'Red Cards');
+                    const awayRed = getStat(awayStats, 'Red Cards');
 
                     if (homeRed > 0) {
                         predictions['2'].score += 20;
@@ -155,18 +220,6 @@
                     if (awayRed > 0) {
                         predictions['1'].score += 20;
                         predictions['1'].factors.push(`Espulso in trasferta`);
-                    }
-
-                    // ATTACCHI PERICOLOSI
-                    const homeDangerousAttacks = parseInt(homeStats.statistics.find(s => s.type === 'Dangerous Attacks')?.value || 0);
-                    const awayDangerousAttacks = parseInt(awayStats.statistics.find(s => s.type === 'Dangerous Attacks')?.value || 0);
-
-                    if (homeDangerousAttacks + awayDangerousAttacks > 50) {
-                        predictions['OVER_2.5'].score += 10;
-                        predictions['BTTS_YES'].score += 8;
-                    } else if (homeDangerousAttacks + awayDangerousAttacks < 30) {
-                        predictions['UNDER_2.5'].score += 10;
-                        predictions['BTTS_NO'].score += 8;
                     }
                 }
             }
@@ -178,8 +231,8 @@
                 let totalGoals = 0, bothScored = 0;
 
                 last5.forEach(match => {
-                    const homeGoals = match.goals.home;
-                    const awayGoals = match.goals.away;
+                    const homeGoals = match.goals.home || 0;
+                    const awayGoals = match.goals.away || 0;
                     totalGoals += homeGoals + awayGoals;
 
                     if (homeGoals > 0 && awayGoals > 0) bothScored++;
@@ -230,7 +283,7 @@
             // QUOTE (Se disponibili)
             if (odds && odds.length > 0) {
                 const mainOdds = odds.find(o => o.bookmakers && o.bookmakers.length > 0);
-                if (mainOdds) {
+                if (mainOdds && mainOdds.bookmakers[0]) {
                     const bookmaker = mainOdds.bookmakers[0];
                     const matchWinner = bookmaker.bets.find(b => b.name === 'Match Winner');
                     const goalsOU = bookmaker.bets.find(b => b.name === 'Goals Over/Under');
@@ -241,7 +294,6 @@
                         const drawOdd = parseFloat(matchWinner.values.find(v => v.value === 'Draw')?.odd || 0);
                         const awayOdd = parseFloat(matchWinner.values.find(v => v.value === 'Away')?.odd || 0);
 
-                        // Quote basse = probabilità alta secondo bookmaker
                         if (homeOdd < 2.0 && homeOdd > 0) {
                             predictions['1'].score += 15;
                             predictions['1'].factors.push(`Quota favorita: ${homeOdd}`);
@@ -310,9 +362,6 @@
                 }
             }
 
-            // FORMA RECENTE (ultimi risultati)
-            // Questo richiede dati aggiuntivi che possiamo ottenere dalla form della squadra
-
             // FATTORE CASA
             predictions['1'].score += 10;
             predictions['1'].factors.push('Fattore casa');
@@ -348,13 +397,14 @@
         class App {
             constructor() {
                 this.state = {
-                    selectedLeague: 135, // Serie A default
+                    selectedLeague: 135,
                     fixtures: [],
                     loading: false,
                     selectedMatch: null,
                     matchDetails: null,
-                    view: 'fixtures', // 'fixtures' or 'match-detail'
-                    db: getDB()
+                    view: 'fixtures',
+                    db: getDB(),
+                    filterCategory: 'all'
                 };
                 this.render();
             }
@@ -364,15 +414,21 @@
 
                 const league = this.state.selectedLeague;
                 const leagueData = LEAGUES[league];
+                const dates = getDateRange();
 
-                // Carica partite (prossime 10 partite)
-                const fixtures = await apiCall(`/fixtures?league=${league}&season=${leagueData.season}&next=10`);
+                console.log(`Loading fixtures for league ${league}, season ${leagueData.season}`);
+                console.log(`Date range: ${dates.from} to ${dates.to}`);
 
-                if (fixtures) {
+                // Usa date range invece di "next"
+                const fixtures = await apiCall(`/fixtures?league=${league}&season=${leagueData.season}&from=${dates.from}&to=${dates.to}`);
+
+                if (fixtures && fixtures.length > 0) {
+                    // Ordina per data
+                    fixtures.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
                     this.setState({ fixtures, loading: false });
                 } else {
                     this.setState({ loading: false });
-                    alert('Errore nel caricamento delle partite. Controlla la chiave API.');
+                    alert(`Nessuna partita trovata per ${leagueData.name} nei prossimi 15 giorni. Prova un altro campionato.`);
                 }
             }
 
@@ -444,7 +500,21 @@
             }
 
             renderFixtures() {
-                const { selectedLeague, fixtures, loading, db } = this.state;
+                const { selectedLeague, fixtures, loading, db, filterCategory } = this.state;
+
+                // Raggruppa leghe per categoria
+                const categories = {};
+                Object.keys(LEAGUES).forEach(id => {
+                    const league = LEAGUES[id];
+                    if (!categories[league.category]) {
+                        categories[league.category] = [];
+                    }
+                    categories[league.category].push({ id, ...league });
+                });
+
+                const filteredLeagues = filterCategory === 'all' 
+                    ? Object.keys(LEAGUES) 
+                    : categories[filterCategory].map(l => l.id);
 
                 return `
                     <div class="min-h-screen p-4">
@@ -452,6 +522,7 @@
                         <div class="max-w-6xl mx-auto mb-6 bg-white rounded-xl shadow-lg p-6">
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">🎯 PRO BETTING ANALYZER</h1>
                             <p class="text-gray-600">Algoritmo predittivo con statistiche avanzate, quote, infortuni e arbitro</p>
+                            <p class="text-sm text-green-600 mt-2">✅ API-Football PRO attiva | 50+ Campionati Disponibili</p>
 
                             <!-- STATS -->
                             <div class="mt-4 grid grid-cols-3 gap-4">
@@ -470,18 +541,31 @@
                             </div>
                         </div>
 
+                        <!-- CATEGORY FILTER -->
+                        <div class="max-w-6xl mx-auto mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Filtra per Categoria:</label>
+                            <select id="categoryFilter" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none">
+                                <option value="all">🌍 Tutte le Categorie (50+ Campionati)</option>
+                                ${Object.keys(categories).map(cat => `
+                                    <option value="${cat}" ${cat === filterCategory ? 'selected' : ''}>
+                                        ${cat} (${categories[cat].length} campionati)
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+
                         <!-- LEAGUE SELECTOR -->
                         <div class="max-w-6xl mx-auto mb-6">
                             <label class="block text-gray-700 font-semibold mb-2">Seleziona Campionato:</label>
                             <select id="leagueSelect" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none">
-                                ${Object.keys(LEAGUES).map(id => `
+                                ${filteredLeagues.map(id => `
                                     <option value="${id}" ${id == selectedLeague ? 'selected' : ''}>
-                                        ${LEAGUES[id].flag} ${LEAGUES[id].name} (${LEAGUES[id].country})
+                                        ${LEAGUES[id].flag} ${LEAGUES[id].name} (${LEAGUES[id].country}) - Stagione ${LEAGUES[id].season}
                                     </option>
                                 `).join('')}
                             </select>
                             <button id="loadBtn" class="mt-3 w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">
-                                📊 CARICA PARTITE
+                                📊 CARICA PARTITE (Prossimi 15 giorni)
                             </button>
                         </div>
 
@@ -496,7 +580,7 @@
                         <!-- FIXTURES LIST -->
                         ${!loading && fixtures.length > 0 ? `
                             <div class="max-w-6xl mx-auto">
-                                <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Palinsesto Partite</h2>
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Palinsesto Partite (${fixtures.length} partite trovate)</h2>
                                 <div class="space-y-3">
                                     ${fixtures.map(f => this.renderFixtureCard(f)).join('')}
                                 </div>
@@ -506,6 +590,7 @@
                         ${!loading && fixtures.length === 0 ? `
                             <div class="max-w-6xl mx-auto text-center py-12 bg-white rounded-xl shadow">
                                 <p class="text-gray-500 text-lg">Seleziona un campionato e clicca "Carica Partite"</p>
+                                <p class="text-sm text-gray-400 mt-2">Disponibili partite nei prossimi 15 giorni</p>
                             </div>
                         ` : ''}
                     </div>
@@ -517,23 +602,30 @@
                 const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
+                const status = fixture.fixture.status.short;
+                const statusText = status === 'NS' ? 'Non iniziata' : 
+                                 status === 'FT' ? 'Finita' : 
+                                 status === 'LIVE' ? '⚡ LIVE' : status;
+
                 return `
                     <div class="match-card bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg" data-fixture-id="${fixture.fixture.id}">
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-sm text-gray-500">${dateStr} - ${timeStr}</span>
-                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${fixture.league.name}</span>
+                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${fixture.league.name} | ${statusText}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-3 flex-1">
-                                        <img src="${fixture.teams.home.logo}" class="w-8 h-8" alt="${fixture.teams.home.name}">
+                                        <img src="${fixture.teams.home.logo}" class="w-8 h-8" alt="${fixture.teams.home.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Crect fill=%22%23ddd%22 width=%2232%22 height=%2232%22/%3E%3C/svg%3E'">
                                         <span class="font-semibold text-gray-800">${fixture.teams.home.name}</span>
                                     </div>
-                                    <div class="px-4 text-gray-400 font-bold">VS</div>
+                                    <div class="px-4 text-gray-400 font-bold">
+                                        ${fixture.goals.home !== null ? `${fixture.goals.home} - ${fixture.goals.away}` : 'VS'}
+                                    </div>
                                     <div class="flex items-center space-x-3 flex-1 justify-end">
                                         <span class="font-semibold text-gray-800">${fixture.teams.away.name}</span>
-                                        <img src="${fixture.teams.away.logo}" class="w-8 h-8" alt="${fixture.teams.away.name}">
+                                        <img src="${fixture.teams.away.logo}" class="w-8 h-8" alt="${fixture.teams.away.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Crect fill=%22%23ddd%22 width=%2232%22 height=%2232%22/%3E%3C/svg%3E'">
                                     </div>
                                 </div>
                             </div>
@@ -556,6 +648,7 @@
                             <div class="text-center">
                                 <div class="loader border-4 border-green-500 border-t-transparent rounded-full w-16 h-16 mx-auto mb-4"></div>
                                 <p class="text-gray-600 text-lg">Analisi in corso...</p>
+                                <p class="text-sm text-gray-500 mt-2">Caricamento statistiche, H2H, quote e infortuni</p>
                             </div>
                         </div>
                     `;
@@ -580,12 +673,14 @@
                                 </div>
                                 <div class="flex items-center justify-center space-x-8">
                                     <div class="text-center">
-                                        <img src="${selectedMatch.teams.home.logo}" class="w-20 h-20 mx-auto mb-2" alt="">
+                                        <img src="${selectedMatch.teams.home.logo}" class="w-20 h-20 mx-auto mb-2" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23ddd%22 width=%2280%22 height=%2280%22/%3E%3C/svg%3E'">
                                         <div class="font-bold text-lg">${selectedMatch.teams.home.name}</div>
                                     </div>
-                                    <div class="text-3xl font-bold text-gray-400">VS</div>
+                                    <div class="text-3xl font-bold text-gray-400">
+                                        ${selectedMatch.goals.home !== null ? `${selectedMatch.goals.home} - ${selectedMatch.goals.away}` : 'VS'}
+                                    </div>
                                     <div class="text-center">
-                                        <img src="${selectedMatch.teams.away.logo}" class="w-20 h-20 mx-auto mb-2" alt="">
+                                        <img src="${selectedMatch.teams.away.logo}" class="w-20 h-20 mx-auto mb-2" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23ddd%22 width=%2280%22 height=%2280%22/%3E%3C/svg%3E'">
                                         <div class="font-bold text-lg">${selectedMatch.teams.away.name}</div>
                                     </div>
                                 </div>
@@ -598,7 +693,7 @@
                                     <div class="text-3xl font-bold mb-2">${bestPred.label}</div>
                                     <div class="text-xl mb-4">Affidabilità: ${prediction.confidence} (${prediction.score} punti)</div>
                                     <div class="text-sm opacity-90">
-                                        ${bestPred.factors.length > 0 ? `Basato su: ${bestPred.factors.join(' • ')}` : ''}
+                                        ${bestPred.factors.length > 0 ? `Basato su: ${bestPred.factors.join(' • ')}` : 'Analisi basata su fattore casa e dati storici'}
                                     </div>
                                 </div>
                             </div>
@@ -623,9 +718,9 @@
                                                     <div class="bg-green-500 h-2 rounded-full" style="width: ${percentage}%"></div>
                                                 </div>
                                                 <div class="text-xs text-gray-600">
-                                                    ${pred.factors.length > 0 ? pred.factors.join(' • ') : 'Nessun fattore rilevante'}
+                                                    ${pred.factors.length > 0 ? pred.factors.join(' • ') : 'Nessun fattore rilevante disponibile'}
                                                 </div>
-                                                ${isBest ? '<div class="mt-2 text-green-600 font-bold text-sm">✓ CONSIGLIATO</div>' : ''}
+                                                ${isBest ? '<div class="mt-2 text-green-600 font-bold text-sm">✓ CONSIGLIATO DALL'ALGORITMO</div>' : ''}
                                             </div>
                                         `;
                                     }).join('')}
@@ -646,7 +741,7 @@
                                         ${this.renderStatComparison(statistics, 'Fouls', '')}
                                     </div>
                                 </div>
-                            ` : ''}
+                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Statistiche non ancora disponibili (partita non iniziata)</p></div>'}
 
                             <!-- H2H -->
                             ${h2h && h2h.length > 0 ? `
@@ -658,13 +753,13 @@
                                             return `
                                                 <div class="flex items-center justify-between border-b pb-2">
                                                     <span class="text-sm text-gray-500">${date}</span>
-                                                    <span class="font-semibold">${match.teams.home.name} ${match.goals.home} - ${match.goals.away} ${match.teams.away.name}</span>
+                                                    <span class="font-semibold">${match.teams.home.name} ${match.goals.home || 0} - ${match.goals.away || 0} ${match.teams.away.name}</span>
                                                 </div>
                                             `;
                                         }).join('')}
                                     </div>
                                 </div>
-                            ` : ''}
+                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Nessuno scontro diretto recente disponibile</p></div>'}
 
                             <!-- INJURIES -->
                             ${injuries && injuries.length > 0 ? `
@@ -685,7 +780,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            ` : ''}
+                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Nessun infortunio segnalato</p></div>'}
 
                             <!-- SAVE PREDICTION -->
                             <div class="bg-white rounded-xl shadow-lg p-6">
@@ -735,6 +830,14 @@
             }
 
             attachEvents() {
+                // Category filter
+                const categoryFilter = document.getElementById('categoryFilter');
+                if (categoryFilter) {
+                    categoryFilter.addEventListener('change', (e) => {
+                        this.setState({ filterCategory: e.target.value });
+                    });
+                }
+
                 // League selector
                 const leagueSelect = document.getElementById('leagueSelect');
                 if (leagueSelect) {
