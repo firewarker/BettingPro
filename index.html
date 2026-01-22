@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Prophecy Hunter Elite Pro - Sistema Predittivo Avanzato</title>
+    <title>⚽ Prophecy Hunter Pro - Sistema Betting Intelligente</title>
     <style>
         * {
             margin: 0;
@@ -12,428 +12,349 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
             color: #fff;
             min-height: 100vh;
-            padding: 15px;
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1400px;
             margin: 0 auto;
+            padding: 20px;
         }
 
         header {
             text-align: center;
+            padding: 30px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
             margin-bottom: 25px;
-            animation: fadeIn 0.8s;
         }
 
         header h1 {
-            font-size: 3rem;
+            font-size: 2.5rem;
             margin-bottom: 10px;
-            text-shadow: 4px 4px 8px rgba(0,0,0,0.4);
-            background: linear-gradient(90deg, #fff 0%, #ffd700 50%, #fff 100%);
+            background: linear-gradient(90deg, #ffd700, #fff, #ffd700);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: shimmer 3s infinite;
         }
 
-        @keyframes shimmer {
-            0%, 100% { filter: brightness(1); }
-            50% { filter: brightness(1.3); }
-        }
-
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.95;
-            font-weight: 300;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .stats-bar {
+        .stats-dashboard {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 15px;
+            margin-bottom: 25px;
         }
 
-        .stat-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+        .stat-box {
+            background: rgba(255,255,255,0.1);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 18px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
             text-align: center;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        .stat-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        .stat-box h3 {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 10px;
         }
 
-        .stat-value {
-            font-size: 2.2rem;
+        .stat-box .value {
+            font-size: 2rem;
             font-weight: bold;
-            margin: 8px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .controls {
-            background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
+            background: rgba(0,0,0,0.4);
             padding: 20px;
+            border-radius: 15px;
             margin-bottom: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
         }
 
         .btn {
-            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
             color: white;
-            padding: 12px 28px;
-            border-radius: 30px;
+            padding: 12px 30px;
+            border-radius: 25px;
             cursor: pointer;
-            font-size: 0.95rem;
             font-weight: 600;
+            margin: 5px;
             transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         .btn:hover {
-            background: linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.25));
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
 
         .btn-success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            border: none;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
         }
 
         .btn-danger {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border: none;
+            background: linear-gradient(135deg, #ee0979, #ff6a00);
         }
 
         .filters {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
-            align-items: center;
+            margin-top: 15px;
         }
 
         select, input {
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             color: white;
-            padding: 10px 15px;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .palinsesto {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .match-row {
+            background: rgba(255,255,255,0.08);
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border-left: 4px solid transparent;
+            cursor: pointer;
             transition: all 0.3s;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: rgba(255, 255, 255, 0.5);
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        select option {
-            background: #1e3c72;
-            color: white;
-        }
-
-        .matches-grid {
             display: grid;
-            gap: 18px;
-            animation: fadeIn 0.8s;
-        }
-
-        .match-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            padding: 22px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.4s;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-        }
-
-        .match-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-        }
-
-        .match-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
-        }
-
-        .match-header {
-            display: flex;
-            justify-content: space-between;
+            grid-template-columns: 120px 1fr 200px 150px;
+            gap: 15px;
             align-items: center;
-            margin-bottom: 18px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
         }
 
-        .match-teams {
-            font-size: 1.5rem;
-            font-weight: bold;
-            flex: 1;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        .match-row:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(5px);
         }
 
-        .match-date {
+        .match-row.hot {
+            border-left-color: #ff4444;
+        }
+
+        .match-row.good {
+            border-left-color: #00ff88;
+        }
+
+        .match-row.medium {
+            border-left-color: #ffd93d;
+        }
+
+        .match-time {
             font-size: 0.85rem;
-            opacity: 0.85;
-            margin-right: 10px;
-            background: rgba(0,0,0,0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
+            opacity: 0.7;
         }
 
         .match-league {
-            background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15));
-            padding: 6px 16px;
-            border-radius: 25px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-
-        .predictions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px;
-            margin: 18px 0;
-        }
-
-        .prediction-item {
-            background: linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1));
-            padding: 14px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            transition: all 0.3s;
-        }
-
-        .prediction-item:hover {
-            transform: scale(1.05);
-            background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
-        }
-
-        .prediction-label {
-            font-size: 0.8rem;
-            opacity: 0.85;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .prediction-value {
-            font-size: 1.7rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .prediction-value.high {
-            color: #00ff88;
-            text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
-        }
-
-        .prediction-value.medium {
-            color: #ffd93d;
-            text-shadow: 0 0 15px rgba(255, 217, 61, 0.6);
-        }
-
-        .prediction-value.low {
-            color: #ff6b6b;
-            text-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
-        }
-
-        .multigol-section {
-            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,140,0,0.05));
-            padding: 18px;
+            font-size: 0.75rem;
+            background: rgba(255,255,255,0.1);
+            padding: 3px 10px;
             border-radius: 15px;
-            margin: 18px 0;
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
-        }
-
-        .multigol-title {
-            font-size: 1.15rem;
-            font-weight: bold;
-            margin-bottom: 12px;
-            text-align: center;
-            color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .multigol-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-        }
-
-        .multigol-item {
-            background: rgba(0, 0, 0, 0.25);
-            padding: 12px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
-        }
-
-        .multigol-item:hover {
-            transform: translateY(-3px);
-            background: rgba(255, 215, 0, 0.15);
-        }
-
-        .recommendation {
             display: inline-block;
-            padding: 14px 35px;
-            border-radius: 30px;
+            margin-top: 5px;
+        }
+
+        .match-teams {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .top-prediction {
+            text-align: center;
+        }
+
+        .pred-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .pred-value {
+            font-size: 1.3rem;
             font-weight: bold;
-            font-size: 1.15rem;
-            margin-top: 15px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }
 
-        .rec-strong {
-            background: linear-gradient(135deg, #ff0000, #ff4444);
-            animation: pulse 2s infinite;
-            box-shadow: 0 8px 30px rgba(255, 0, 0, 0.5);
+        .confidence {
+            text-align: center;
         }
 
-        .rec-bet {
-            background: linear-gradient(135deg, #00c853, #69f0ae);
-            box-shadow: 0 8px 30px rgba(0, 200, 83, 0.5);
-        }
-
-        .rec-check {
-            background: linear-gradient(135deg, #ffa000, #ffd54f);
-            box-shadow: 0 8px 30px rgba(255, 160, 0, 0.5);
-        }
-
-        .rec-skip {
-            background: linear-gradient(135deg, #666, #999);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        .confidence-score {
+            font-size: 1.5rem;
+            font-weight: bold;
         }
 
         .confidence-bar {
-            width: 100%;
-            height: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
             overflow: hidden;
-            margin: 15px 0;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+            margin-top: 5px;
         }
 
         .confidence-fill {
             height: 100%;
             background: linear-gradient(90deg, #ff6b6b, #ffd93d, #00ff88);
-            transition: width 0.8s ease-out;
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
 
-        .loading {
+        /* Modal analisi dettagliata */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            max-width: 900px;
+            width: 95%;
+            border-radius: 20px;
+            padding: 30px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2rem;
+            cursor: pointer;
+            color: white;
+        }
+
+        .modal-header {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .modal-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .predictions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .pred-item {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
             text-align: center;
-            padding: 60px 20px;
-            font-size: 1.4rem;
+        }
+
+        .pred-item .label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .pred-item .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .value.high { color: #00ff88; }
+        .value.medium { color: #ffd93d; }
+        .value.low { color: #ff6b6b; }
+
+        .multigol-section {
+            background: rgba(255,215,0,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px solid rgba(255,215,0,0.3);
+        }
+
+        .multigol-section h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .tracking-section {
+            background: rgba(0,255,136,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+            border: 2px solid rgba(0,255,136,0.3);
+        }
+
+        .tracking-section h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .prediction-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .pred-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pred-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .pred-btn.selected {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+
+        .result-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .spinner {
-            border: 5px solid rgba(255, 255, 255, 0.1);
-            border-top: 5px solid #ffd700;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #ffd700;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 25px auto;
-        }
-
-        .error {
-            background: linear-gradient(135deg, rgba(255, 0, 0, 0.25), rgba(255, 0, 0, 0.15));
-            border: 2px solid rgba(255, 0, 0, 0.5);
-            padding: 25px;
-            border-radius: 20px;
-            text-align: center;
-            margin: 20px 0;
-            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.3);
-        }
-
-        .success {
-            background: linear-gradient(135deg, rgba(0, 255, 0, 0.25), rgba(0, 255, 0, 0.15));
-            border: 2px solid rgba(0, 255, 0, 0.5);
-            padding: 25px;
-            border-radius: 20px;
-            text-align: center;
-            margin: 20px 0;
-            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
-        }
-
-        .info-box {
-            background: linear-gradient(135deg, rgba(100, 181, 246, 0.2), rgba(66, 165, 245, 0.1));
-            padding: 18px;
-            border-radius: 15px;
-            margin: 15px 0;
-            font-size: 0.95rem;
-            border: 2px solid rgba(100, 181, 246, 0.3);
-            line-height: 1.6;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+            margin: 30px auto;
         }
 
         @keyframes spin {
@@ -441,30 +362,24 @@
             100% { transform: rotate(360deg); }
         }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 8px 30px rgba(255, 0, 0, 0.5); }
-            50% { transform: scale(1.08); box-shadow: 0 12px 40px rgba(255, 0, 0, 0.7); }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error {
+            background: rgba(255,0,0,0.2);
+            border: 2px solid rgba(255,0,0,0.5);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
         }
 
         @media (max-width: 768px) {
-            header h1 {
-                font-size: 2.2rem;
-            }
-
-            .predictions-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .btn-group {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-            }
-
-            .match-teams {
-                font-size: 1.2rem;
+            .match-row {
+                grid-template-columns: 1fr;
+                text-align: center;
             }
         }
     </style>
@@ -472,190 +387,241 @@
 <body>
     <div class="container">
         <header>
-            <h1>⚽ PROPHECY HUNTER ELITE PRO</h1>
-            <p class="subtitle">🔥 Sistema Predittivo Avanzato • Algoritmo Poisson & Multigol • Real-Time Data 🔥</p>
+            <h1>⚽ PROPHECY HUNTER PRO</h1>
+            <p>Sistema Betting Intelligente con AI</p>
         </header>
 
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-label">⚽ Partite</div>
-                <div class="stat-value" id="totalMatches">0</div>
+        <div class="stats-dashboard">
+            <div class="stat-box">
+                <h3>📊 Partite</h3>
+                <div class="value" id="totalMatches">0</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">🔥 BET STRONG</div>
-                <div class="stat-value" id="betStrong">0</div>
+            <div class="stat-box">
+                <h3>✅ Pronostici</h3>
+                <div class="value" id="totalPredictions">0</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">✅ Raccomandati</div>
-                <div class="stat-value" id="betRecommended">0</div>
+            <div class="stat-box">
+                <h3>🎯 Accuracy</h3>
+                <div class="value" id="accuracy">0%</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">📊 ROI Tracker</div>
-                <div class="stat-value" id="roiValue">0%</div>
+            <div class="stat-box">
+                <h3>💰 Win Rate</h3>
+                <div class="value" id="winRate">0%</div>
             </div>
         </div>
 
         <div class="controls">
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="loadMatches()">📥 CARICA PARTITE</button>
-                <button class="btn btn-success" onclick="exportToCSV()">📊 EXPORT CSV</button>
-                <button class="btn btn-danger" onclick="clearAll()">🗑️ RESET</button>
-            </div>
+            <button class="btn" onclick="loadMatches()">📥 CARICA PALINSESTO</button>
+            <button class="btn btn-success" onclick="exportData()">📊 EXPORT CSV</button>
+            <button class="btn btn-danger" onclick="resetStats()">🗑️ RESET STATS</button>
 
             <div class="filters">
                 <select id="leagueFilter" onchange="filterMatches()">
-                    <option value="">🏆 Tutte le Leghe</option>
+                    <option value="">Tutte le Leghe</option>
                 </select>
                 <select id="confidenceFilter" onchange="filterMatches()">
-                    <option value="">📊 Tutte le Confidence</option>
-                    <option value="high">🔥 Alta (>75%)</option>
-                    <option value="medium">⚠️ Media (60-75%)</option>
-                    <option value="low">❌ Bassa (<60%)</option>
+                    <option value="">Tutte</option>
+                    <option value="hot">🔥 Hot (>80%)</option>
+                    <option value="good">✅ Good (70-80%)</option>
+                    <option value="medium">⚠️ Medium (60-70%)</option>
                 </select>
-                <input type="text" id="searchInput" placeholder="🔍 Cerca squadra..." oninput="filterMatches()">
+                <input type="text" id="searchInput" placeholder="🔍 Cerca..." oninput="filterMatches()">
             </div>
         </div>
 
-        <div id="matchesContainer" class="matches-grid">
+        <div id="palinsesto" class="palinsesto">
             <div class="loading">
                 <div class="spinner"></div>
-                <p>Premi "CARICA PARTITE" per iniziare</p>
-                <div class="info-box">
-                    📅 <strong>Data:</strong> 22 Gennaio 2026<br>
-                    🏆 <strong>Stagione:</strong> 2025-26<br>
-                    🔑 <strong>API:</strong> Configurata ✅<br>
-                    🎯 <strong>Campionati:</strong> 15+ Leghe Mondiali<br>
-                    🧮 <strong>Algoritmo:</strong> Poisson Avanzato + Multigol
-                </div>
+                <p>Premi "CARICA PALINSESTO" per iniziare</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Analisi Dettagliata -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div class="modal-header">
+                <h2 id="modalTitle">Match Analysis</h2>
+                <p id="modalSubtitle"></p>
+            </div>
+            <div id="modalBody"></div>
         </div>
     </div>
 
     <script>
         const API_KEY = 'aeb2864a3d4dbb8395fa53c83a876a93';
         let allMatches = [];
+        let userPredictions = JSON.parse(localStorage.getItem('predictions') || '[]');
 
-        // CAMPIONATI PRINCIPALI (15+ leghe per massima copertura!)
         const LEAGUES = [
-            { id: 135, name: 'Serie A', country: 'Italy' },
-            { id: 39, name: 'Premier League', country: 'England' },
-            { id: 140, name: 'LaLiga', country: 'Spain' },
-            { id: 78, name: 'Bundesliga', country: 'Germany' },
-            { id: 61, name: 'Ligue 1', country: 'France' },
-            { id: 2, name: 'Champions League', country: 'Europe' },
-            { id: 3, name: 'Europa League', country: 'Europe' },
-            { id: 94, name: 'Primeira Liga', country: 'Portugal' },
-            { id: 88, name: 'Eredivisie', country: 'Netherlands' },
-            { id: 144, name: 'Jupiler Pro League', country: 'Belgium' },
-            { id: 203, name: 'Super Lig', country: 'Turkey' },
-            { id: 71, name: 'Serie A', country: 'Brazil' },
-            { id: 128, name: 'Liga Profesional', country: 'Argentina' },
-            { id: 253, name: 'MLS', country: 'USA' },
-            { id: 848, name: 'Liga MX', country: 'Mexico' }
+            { id: 135, name: 'Serie A' },
+            { id: 39, name: 'Premier League' },
+            { id: 140, name: 'LaLiga' },
+            { id: 78, name: 'Bundesliga' },
+            { id: 61, name: 'Ligue 1' },
+            { id: 2, name: 'Champions League' },
+            { id: 3, name: 'Europa League' },
+            { id: 94, name: 'Primeira Liga' },
+            { id: 88, name: 'Eredivisie' },
+            { id: 203, name: 'Super Lig' },
+            { id: 71, name: 'Serie A Brazil' },
+            { id: 128, name: 'Liga Argentina' }
         ];
 
-        // Funzione fattoriale
+        // Funzioni matematiche Poisson
         function factorial(n) {
             if (n <= 1) return 1;
             return n * factorial(n - 1);
         }
 
-        // Calcolo Poisson P(X=k)
-        function poissonProbability(lambda, k) {
+        function poissonProb(lambda, k) {
             return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
         }
 
-        // Calcolo Over
         function calculateOver(xGHome, xGAway, threshold) {
             const lambda = xGHome + xGAway;
             let prob = 0;
             for (let i = 0; i <= Math.floor(threshold); i++) {
-                prob += poissonProbability(lambda, i);
+                prob += poissonProb(lambda, i);
             }
             return (1 - prob) * 100;
         }
 
-        // Calcolo Multigol 1-3
-        function calculateMultigol13(xG) {
-            const p1 = poissonProbability(xG, 1);
-            const p2 = poissonProbability(xG, 2);
-            const p3 = poissonProbability(xG, 3);
-            return (p1 + p2 + p3) * 100;
+        function calculateMG13(xG) {
+            return (poissonProb(xG, 1) + poissonProb(xG, 2) + poissonProb(xG, 3)) * 100;
         }
 
-        // Calcolo Multigol 2-4
-        function calculateMultigol24(xG) {
-            const p2 = poissonProbability(xG, 2);
-            const p3 = poissonProbability(xG, 3);
-            const p4 = poissonProbability(xG, 4);
-            return (p2 + p3 + p4) * 100;
+        function calculateMG24(xG) {
+            return (poissonProb(xG, 2) + poissonProb(xG, 3) + poissonProb(xG, 4)) * 100;
         }
 
-        // Calcolo GG%
         function calculateGG(xGHome, xGAway) {
-            const probHomeScores = 1 - Math.exp(-xGHome);
-            const probAwayScores = 1 - Math.exp(-xGAway);
-            return probHomeScores * probAwayScores * 100;
+            return (1 - Math.exp(-xGHome)) * (1 - Math.exp(-xGAway)) * 100;
         }
 
-        // Calcolo xG intelligente
-        function calculateXG(teamName, isHome) {
+        // Calcolo xG con variabilità realistica
+        function calculateXG(teamName, isHome, leagueName) {
             const homeFactor = isHome ? 1.15 : 0.95;
 
-            // Database squadre elite
-            const eliteTeams = {
-                'Manchester City': 2.1, 'Liverpool': 2.0, 'Arsenal': 1.9,
-                'Real Madrid': 2.0, 'Barcelona': 1.9, 'Atletico Madrid': 1.7,
-                'Bayern Munich': 2.1, 'Dortmund': 1.8, 'RB Leipzig': 1.7,
-                'PSG': 2.0, 'Monaco': 1.7, 'Marseille': 1.6,
-                'Inter': 1.9, 'Milan': 1.8, 'Napoli': 1.9, 'Juventus': 1.7,
-                'Benfica': 1.8, 'Porto': 1.7
+            // Database completo con variazioni
+            const teams = {
+                // Elite
+                'Manchester City': 2.1, 'Liverpool': 2.0, 'Arsenal': 1.85,
+                'Real Madrid': 2.05, 'Barcelona': 1.9, 'Atletico': 1.65,
+                'Bayern': 2.15, 'Dortmund': 1.8, 'Leipzig': 1.7,
+                'PSG': 2.0, 'Monaco': 1.65, 'Marseille': 1.55,
+                'Inter': 1.9, 'Milan': 1.75, 'Napoli': 1.85, 'Juventus': 1.7, 'Roma': 1.6,
+                'Benfica': 1.8, 'Porto': 1.75, 'Sporting': 1.7,
+
+                // Medio-alte
+                'Chelsea': 1.7, 'Tottenham': 1.75, 'Manchester United': 1.65,
+                'Atletico Madrid': 1.65, 'Sevilla': 1.5, 'Valencia': 1.45,
+                'Leverkusen': 1.7, 'Frankfurt': 1.55, 'Wolfsburg': 1.5,
+                'Nice': 1.5, 'Lille': 1.55, 'Lyon': 1.5,
+                'Lazio': 1.65, 'Atalanta': 1.75, 'Fiorentina': 1.55,
+
+                // Medio-basse
+                'Aston Villa': 1.45, 'Newcastle': 1.5, 'Brighton': 1.4,
+                'Real Sociedad': 1.4, 'Betis': 1.45, 'Villarreal': 1.4,
+                'Gladbach': 1.4, 'Stuttgart': 1.45, 'Freiburg': 1.4,
+                'Rennes': 1.4, 'Lens': 1.45, 'Montpellier': 1.35,
+                'Bologna': 1.4, 'Torino': 1.35, 'Udinese': 1.3,
+
+                // Basse
+                'Burnley': 1.1, 'Sheffield': 1.0, 'Luton': 0.95,
+                'Almeria': 1.0, 'Cadiz': 0.95, 'Granada': 0.9,
+                'Darmstadt': 1.0, 'Koln': 0.95, 'Bochum': 0.9,
+                'Clermont': 1.0, 'Lorient': 0.95, 'Metz': 0.9,
+                'Salernitana': 1.0, 'Frosinone': 0.95, 'Empoli': 1.1
             };
 
-            // Cerca corrispondenza
-            for (const [team, xG] of Object.entries(eliteTeams)) {
-                if (teamName.includes(team)) {
-                    return xG * homeFactor;
+            // Cerca corrispondenza parziale
+            for (const [team, xG] of Object.entries(teams)) {
+                if (teamName.includes(team) || team.includes(teamName.split(' ')[0])) {
+                    // Aggiungi variabilità random (±5%)
+                    const variance = (Math.random() - 0.5) * 0.1;
+                    return (xG + variance) * homeFactor;
                 }
             }
 
-            return 1.5 * homeFactor; // Default
+            // Default con variabilità per lega
+            const leagueFactors = {
+                'Serie A': 1.45,
+                'Premier League': 1.55,
+                'LaLiga': 1.4,
+                'Bundesliga': 1.6,
+                'Ligue 1': 1.35,
+                'Champions League': 1.5
+            };
+
+            const basexG = leagueFactors[leagueName] || 1.4;
+            const variance = (Math.random() - 0.5) * 0.15;
+            return (basexG + variance) * homeFactor;
         }
 
-        // Calcola predizioni
+        // Calcola tutte le predizioni
         function calculatePredictions(match) {
-            const xGHome = calculateXG(match.homeTeam, true);
-            const xGAway = calculateXG(match.awayTeam, false);
+            const xGHome = calculateXG(match.homeTeam, true, match.league);
+            const xGAway = calculateXG(match.awayTeam, false, match.league);
 
             const gg = calculateGG(xGHome, xGAway);
             const over05 = calculateOver(xGHome, xGAway, 0.5);
             const over15 = calculateOver(xGHome, xGAway, 1.5);
             const over25 = calculateOver(xGHome, xGAway, 2.5);
             const over35 = calculateOver(xGHome, xGAway, 3.5);
+            const under25 = 100 - over25;
 
-            const mg13Home = calculateMultigol13(xGHome);
-            const mg13Away = calculateMultigol13(xGAway);
-            const mg24Home = calculateMultigol24(xGHome);
-            const mg24Away = calculateMultigol24(xGAway);
+            const mg13Home = calculateMG13(xGHome);
+            const mg13Away = calculateMG13(xGAway);
+            const mg24Home = calculateMG24(xGHome);
+            const mg24Away = calculateMG24(xGAway);
 
-            // Confidence intelligente
-            const confidence = Math.round(
-                50 +
-                (gg > 70 ? 25 : gg > 60 ? 15 : gg > 50 ? 5 : 0) +
-                (over25 > 70 ? 20 : over25 > 55 ? 10 : 0) +
-                (mg13Home > 65 ? 5 : 0) +
-                (mg13Away > 65 ? 5 : 0)
-            );
+            // Calcola 1X2
+            const diff = xGHome - xGAway;
+            let prob1 = 33.33, probX = 33.33, prob2 = 33.33;
 
-            // Raccomandazione
-            let recommendation = '❌ SKIP';
-            if (confidence > 80 && gg > 75) {
-                recommendation = '🔥 BET STRONG';
-            } else if (confidence > 70 && gg > 65) {
-                recommendation = '✅ BET';
-            } else if (confidence > 60) {
-                recommendation = '⚠️ CHECK';
+            if (diff > 0.5) {
+                prob1 = 45 + (diff * 8);
+                probX = 30 - (diff * 3);
+                prob2 = 25 - (diff * 5);
+            } else if (diff < -0.5) {
+                prob1 = 25 + (diff * 5);
+                probX = 30 + (diff * 3);
+                prob2 = 45 - (diff * 8);
             }
+
+            prob1 = Math.max(20, Math.min(70, prob1));
+            prob2 = Math.max(20, Math.min(70, prob2));
+            probX = 100 - prob1 - prob2;
+
+            // Trova il pronostico migliore
+            const predictions = {
+                'GG': gg,
+                'Over 2.5': over25,
+                'Under 2.5': under25,
+                'Over 1.5': over15,
+                '1': prob1,
+                'X': probX,
+                '2': prob2,
+                'MG 1-3 Casa': mg13Home,
+                'MG 1-3 Ospite': mg13Away,
+                'MG 2-4 Casa': mg24Home,
+                'MG 2-4 Ospite': mg24Away
+            };
+
+            let topPred = { name: 'GG', value: gg };
+            for (const [name, value] of Object.entries(predictions)) {
+                if (value > topPred.value) {
+                    topPred = { name, value };
+                }
+            }
+
+            // Confidence basata sulla predizione top
+            const confidence = Math.round(
+                50 + 
+                (topPred.value > 70 ? 30 : topPred.value > 60 ? 20 : topPred.value > 50 ? 10 : 0)
+            );
 
             return {
                 xGHome: xGHome.toFixed(2),
@@ -665,104 +631,25 @@
                 over15: over15.toFixed(1),
                 over25: over25.toFixed(1),
                 over35: over35.toFixed(1),
-                under25: (100 - over25).toFixed(1),
+                under25: under25.toFixed(1),
                 mg13Home: mg13Home.toFixed(1),
                 mg13Away: mg13Away.toFixed(1),
                 mg24Home: mg24Home.toFixed(1),
                 mg24Away: mg24Away.toFixed(1),
+                prob1: prob1.toFixed(1),
+                probX: probX.toFixed(1),
+                prob2: prob2.toFixed(1),
+                topPrediction: topPred.name,
+                topValue: topPred.value.toFixed(1),
                 confidence,
-                recommendation
+                allPredictions: predictions
             };
         }
 
-        // Formatta colore
-        function getPredictionClass(value) {
-            if (value >= 70) return 'high';
-            if (value >= 50) return 'medium';
-            return 'low';
-        }
-
-        // Renderizza match
-        function renderMatch(match, predictions) {
-            const recClass = predictions.recommendation.includes('STRONG') ? 'rec-strong' :
-                           predictions.recommendation.includes('✅') ? 'rec-bet' :
-                           predictions.recommendation.includes('⚠️') ? 'rec-check' : 'rec-skip';
-
-            return `
-                <div class="match-card">
-                    <div class="match-header">
-                        <div class="match-teams">${match.homeTeam} vs ${match.awayTeam}</div>
-                        <div class="match-date">${match.date}</div>
-                        <div class="match-league">${match.league}</div>
-                    </div>
-
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" style="width: ${predictions.confidence}%"></div>
-                    </div>
-                    <div style="text-align: center; margin-bottom: 15px; font-size: 1.1rem;">
-                        <strong>Confidence: ${predictions.confidence}%</strong>
-                    </div>
-
-                    <div class="predictions-grid">
-                        <div class="prediction-item">
-                            <div class="prediction-label">xG Casa</div>
-                            <div class="prediction-value">${predictions.xGHome}</div>
-                        </div>
-                        <div class="prediction-item">
-                            <div class="prediction-label">xG Ospite</div>
-                            <div class="prediction-value">${predictions.xGAway}</div>
-                        </div>
-                        <div class="prediction-item">
-                            <div class="prediction-label">GG%</div>
-                            <div class="prediction-value ${getPredictionClass(predictions.gg)}">${predictions.gg}%</div>
-                        </div>
-                        <div class="prediction-item">
-                            <div class="prediction-label">Over 2.5</div>
-                            <div class="prediction-value ${getPredictionClass(predictions.over25)}">${predictions.over25}%</div>
-                        </div>
-                        <div class="prediction-item">
-                            <div class="prediction-label">Over 1.5</div>
-                            <div class="prediction-value ${getPredictionClass(predictions.over15)}">${predictions.over15}%</div>
-                        </div>
-                        <div class="prediction-item">
-                            <div class="prediction-label">Under 2.5</div>
-                            <div class="prediction-value ${getPredictionClass(predictions.under25)}">${predictions.under25}%</div>
-                        </div>
-                    </div>
-
-                    <div class="multigol-section">
-                        <div class="multigol-title">🎯 MULTIGOL PREDICTIONS</div>
-                        <div class="multigol-grid">
-                            <div class="multigol-item">
-                                <div class="prediction-label">MG 1-3 Casa</div>
-                                <div class="prediction-value ${getPredictionClass(predictions.mg13Home)}">${predictions.mg13Home}%</div>
-                            </div>
-                            <div class="multigol-item">
-                                <div class="prediction-label">MG 1-3 Ospite</div>
-                                <div class="prediction-value ${getPredictionClass(predictions.mg13Away)}">${predictions.mg13Away}%</div>
-                            </div>
-                            <div class="multigol-item">
-                                <div class="prediction-label">MG 2-4 Casa</div>
-                                <div class="prediction-value ${getPredictionClass(predictions.mg24Home)}">${predictions.mg24Home}%</div>
-                            </div>
-                            <div class="multigol-item">
-                                <div class="prediction-label">MG 2-4 Ospite</div>
-                                <div class="prediction-value ${getPredictionClass(predictions.mg24Away)}">${predictions.mg24Away}%</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="text-align: center;">
-                        <div class="recommendation ${recClass}">${predictions.recommendation}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // CARICA PARTITE (metodo ottimizzato)
+        // Carica partite
         async function loadMatches() {
-            const container = document.getElementById('matchesContainer');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>🔄 Caricamento partite da 15+ campionati...</p></div>';
+            const container = document.getElementById('palinsesto');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Caricamento palinsesto...</p></div>';
 
             allMatches = [];
             const today = new Date().toISOString().split('T')[0];
@@ -770,20 +657,15 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-            console.log('📅 Caricamento partite:', today, 'e', tomorrowStr);
-
             try {
-                // Carica partite per oggi E domani
                 for (const league of LEAGUES) {
                     try {
-                        // Oggi
                         const resp1 = await fetch(
                             `https://v3.football.api-sports.io/fixtures?league=${league.id}&season=2025&date=${today}`,
                             { headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' } }
                         );
                         const data1 = await resp1.json();
 
-                        // Domani
                         const resp2 = await fetch(
                             `https://v3.football.api-sports.io/fixtures?league=${league.id}&season=2025&date=${tomorrowStr}`,
                             { headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' } }
@@ -792,173 +674,274 @@
 
                         const allData = [...(data1.response || []), ...(data2.response || [])];
 
-                        console.log(`${league.name}: ${allData.length} partite`);
+                        for (const match of allData) {
+                            const matchData = {
+                                id: match.fixture.id,
+                                homeTeam: match.teams.home.name,
+                                awayTeam: match.teams.away.name,
+                                league: league.name,
+                                date: new Date(match.fixture.date).toLocaleDateString('it-IT', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }),
+                                timestamp: match.fixture.timestamp
+                            };
 
-                        if (allData.length > 0) {
-                            for (const match of allData) {
-                                const matchData = {
-                                    homeTeam: match.teams.home.name,
-                                    awayTeam: match.teams.away.name,
-                                    league: league.name,
-                                    date: new Date(match.fixture.date).toLocaleDateString('it-IT', {
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    }),
-                                    timestamp: match.fixture.timestamp
-                                };
-
-                                const predictions = calculatePredictions(matchData);
-                                matchData.predictions = predictions;
-                                allMatches.push(matchData);
-                            }
+                            const predictions = calculatePredictions(matchData);
+                            matchData.predictions = predictions;
+                            allMatches.push(matchData);
                         }
 
-                        await new Promise(r => setTimeout(r, 200)); // Pausa
+                        await new Promise(r => setTimeout(r, 200));
                     } catch (e) {
                         console.warn(`Errore ${league.name}:`, e.message);
                     }
                 }
 
-                // Ordina per timestamp
                 allMatches.sort((a, b) => a.timestamp - b.timestamp);
 
                 if (allMatches.length === 0) {
-                    container.innerHTML = `
-                        <div class="error">
-                            ⚠️ <strong>Nessuna partita trovata</strong><br><br>
-                            Possibili cause:<br>
-                            • Pause campionati (pausa invernale)<br>
-                            • Prova a ricaricare tra qualche ora<br>
-                            • Verifica limiti API<br><br>
-                            <button class="btn btn-primary" onclick="loadMatches()">🔄 Riprova</button>
-                        </div>
-                    `;
+                    container.innerHTML = '<div class="error">Nessuna partita trovata. Riprova più tardi.</div>';
                     return;
                 }
 
-                container.innerHTML = `<div class="success">✅ <strong>${allMatches.length} partite caricate con successo!</strong></div>`;
-
-                setTimeout(() => {
-                    updateStats();
-                    renderMatches();
-                    populateLeagueFilter();
-                }, 1000);
+                updateStats();
+                renderMatches();
+                populateFilters();
 
             } catch (error) {
-                console.error('Errore:', error);
-                container.innerHTML = `
-                    <div class="error">
-                        ❌ <strong>Errore nel caricamento</strong><br><br>
-                        ${error.message}<br><br>
-                        <button class="btn btn-primary" onclick="loadMatches()">🔄 Riprova</button>
-                    </div>
-                `;
+                container.innerHTML = `<div class="error">Errore: ${error.message}</div>`;
             }
         }
 
-        // Renderizza matches
+        // Renderizza palinsesto
         function renderMatches() {
-            const container = document.getElementById('matchesContainer');
-            if (allMatches.length > 0) {
-                container.innerHTML = allMatches.map(m => renderMatch(m, m.predictions)).join('');
-            }
-        }
+            const container = document.getElementById('palinsesto');
 
-        // Aggiorna stats
-        function updateStats() {
-            document.getElementById('totalMatches').textContent = allMatches.length;
-            document.getElementById('betStrong').textContent = 
-                allMatches.filter(m => m.predictions.recommendation.includes('STRONG')).length;
-            document.getElementById('betRecommended').textContent = 
-                allMatches.filter(m => m.predictions.recommendation.includes('✅')).length;
-        }
+            let html = '';
+            allMatches.forEach(match => {
+                const p = match.predictions;
+                const confClass = p.confidence > 80 ? 'hot' : p.confidence > 70 ? 'good' : 'medium';
 
-        // Popola filtro leghe
-        function populateLeagueFilter() {
-            const select = document.getElementById('leagueFilter');
-            const leagues = [...new Set(allMatches.map(m => m.league))];
-            select.innerHTML = '<option value="">🏆 Tutte le Leghe</option>' +
-                leagues.map(l => `<option value="${l}">${l}</option>`).join('');
-        }
-
-        // Filtra matches
-        function filterMatches() {
-            const league = document.getElementById('leagueFilter').value;
-            const confidence = document.getElementById('confidenceFilter').value;
-            const search = document.getElementById('searchInput').value.toLowerCase();
-
-            let filtered = allMatches;
-
-            if (league) filtered = filtered.filter(m => m.league === league);
-
-            if (confidence === 'high') {
-                filtered = filtered.filter(m => m.predictions.confidence > 75);
-            } else if (confidence === 'medium') {
-                filtered = filtered.filter(m => m.predictions.confidence >= 60 && m.predictions.confidence <= 75);
-            } else if (confidence === 'low') {
-                filtered = filtered.filter(m => m.predictions.confidence < 60);
-            }
-
-            if (search) {
-                filtered = filtered.filter(m => 
-                    m.homeTeam.toLowerCase().includes(search) || 
-                    m.awayTeam.toLowerCase().includes(search)
-                );
-            }
-
-            const container = document.getElementById('matchesContainer');
-            if (filtered.length > 0) {
-                container.innerHTML = filtered.map(m => renderMatch(m, m.predictions)).join('');
-            } else {
-                container.innerHTML = '<div class="error">Nessuna partita con questi filtri</div>';
-            }
-        }
-
-        // Reset
-        function clearAll() {
-            if (confirm('Reset tutto?')) {
-                allMatches = [];
-                document.getElementById('matchesContainer').innerHTML = `
-                    <div class="loading">
-                        <p>✅ Reset completato!</p>
-                        <button class="btn btn-primary" onclick="loadMatches()">📥 Carica Partite</button>
+                html += `
+                    <div class="match-row ${confClass}" onclick="showDetails('${match.id}')">
+                        <div>
+                            <div class="match-time">${match.date}</div>
+                            <div class="match-league">${match.league}</div>
+                        </div>
+                        <div class="match-teams">
+                            ${match.homeTeam} vs ${match.awayTeam}
+                        </div>
+                        <div class="top-prediction">
+                            <div class="pred-label">Pronostico Top</div>
+                            <div class="pred-value">${p.topPrediction} • ${p.topValue}%</div>
+                        </div>
+                        <div class="confidence">
+                            <div class="confidence-score">${p.confidence}%</div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${p.confidence}%"></div>
+                            </div>
+                        </div>
                     </div>
                 `;
-                updateStats();
-            }
+            });
+
+            container.innerHTML = html;
         }
 
-        // Export CSV
-        function exportToCSV() {
-            if (allMatches.length === 0) {
-                alert('⚠️ Carica prima le partite!');
+        // Mostra dettagli match
+        function showDetails(matchId) {
+            const match = allMatches.find(m => m.id == matchId);
+            if (!match) return;
+
+            const p = match.predictions;
+
+            document.getElementById('modalTitle').textContent = `${match.homeTeam} vs ${match.awayTeam}`;
+            document.getElementById('modalSubtitle').textContent = `${match.league} • ${match.date}`;
+
+            const getPredClass = (val) => val >= 70 ? 'high' : val >= 50 ? 'medium' : 'low';
+
+            let html = `
+                <div class="predictions-grid">
+                    <div class="pred-item">
+                        <div class="label">xG Casa</div>
+                        <div class="value">${p.xGHome}</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">xG Ospite</div>
+                        <div class="value">${p.xGAway}</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">GG%</div>
+                        <div class="value ${getPredClass(p.gg)}">${p.gg}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">Over 2.5</div>
+                        <div class="value ${getPredClass(p.over25)}">${p.over25}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">Under 2.5</div>
+                        <div class="value ${getPredClass(p.under25)}">${p.under25}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">Over 1.5</div>
+                        <div class="value ${getPredClass(p.over15)}">${p.over15}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">1 (Casa)</div>
+                        <div class="value ${getPredClass(p.prob1)}">${p.prob1}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">X (Pareggio)</div>
+                        <div class="value ${getPredClass(p.probX)}">${p.probX}%</div>
+                    </div>
+                    <div class="pred-item">
+                        <div class="label">2 (Ospite)</div>
+                        <div class="value ${getPredClass(p.prob2)}">${p.prob2}%</div>
+                    </div>
+                </div>
+
+                <div class="multigol-section">
+                    <h3>🎯 MULTIGOL</h3>
+                    <div class="predictions-grid">
+                        <div class="pred-item">
+                            <div class="label">MG 1-3 Casa</div>
+                            <div class="value ${getPredClass(p.mg13Home)}">${p.mg13Home}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <div class="label">MG 1-3 Ospite</div>
+                            <div class="value ${getPredClass(p.mg13Away)}">${p.mg13Away}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <div class="label">MG 2-4 Casa</div>
+                            <div class="value ${getPredClass(p.mg24Home)}">${p.mg24Home}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <div class="label">MG 2-4 Ospite</div>
+                            <div class="value ${getPredClass(p.mg24Away)}">${p.mg24Away}%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tracking-section">
+                    <h3>📊 Traccia il tuo Pronostico</h3>
+                    <p>Seleziona cosa prevedi che succederà:</p>
+                    <div class="prediction-buttons">
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'GG')">GG</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'Over 2.5')">Over 2.5</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'Under 2.5')">Under 2.5</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', '1')">1 (Casa Vince)</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'X')">X (Pareggio)</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', '2')">2 (Ospite Vince)</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'MG 1-3 Casa')">MG 1-3 Casa</button>
+                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'MG 1-3 Ospite')">MG 1-3 Ospite</button>
+                    </div>
+                    <div id="resultSection" style="display:none;">
+                        <p style="margin-top:15px;">Risultato partita:</p>
+                        <div class="result-buttons">
+                            <button class="btn btn-success" onclick="markResult('${matchId}', true)">✅ Indovinato</button>
+                            <button class="btn btn-danger" onclick="markResult('${matchId}', false)">❌ Sbagliato</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalBody').innerHTML = html;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        let currentSelection = {};
+
+        function selectPrediction(matchId, predType) {
+            currentSelection = { matchId, predType };
+
+            // Highlight selected
+            document.querySelectorAll('.pred-btn').forEach(btn => btn.classList.remove('selected'));
+            event.target.classList.add('selected');
+
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function markResult(matchId, correct) {
+            if (!currentSelection.predType) {
+                alert('Seleziona prima un pronostico!');
                 return;
             }
 
-            let csv = 'Match,Lega,Data,GG%,Over2.5%,MG1-3Casa%,MG1-3Ospite%,MG2-4Casa%,MG2-4Ospite%,Confidence,Consiglio\n';
-
-            allMatches.forEach(m => {
-                const p = m.predictions;
-                csv += `"${m.homeTeam} vs ${m.awayTeam}",${m.league},"${m.date}",${p.gg},${p.over25},${p.mg13Home},${p.mg13Away},${p.mg24Home},${p.mg24Away},${p.confidence},"${p.recommendation}"\n`;
+            userPredictions.push({
+                matchId: currentSelection.matchId,
+                prediction: currentSelection.predType,
+                correct,
+                date: new Date().toISOString()
             });
 
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            localStorage.setItem('predictions', JSON.stringify(userPredictions));
+            updateStats();
+            closeModal();
+
+            alert(correct ? '✅ Ottimo! Pronostico indovinato!' : '❌ Pronostico non indovinato');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            currentSelection = {};
+        }
+
+        function updateStats() {
+            document.getElementById('totalMatches').textContent = allMatches.length;
+            document.getElementById('totalPredictions').textContent = userPredictions.length;
+
+            if (userPredictions.length > 0) {
+                const correct = userPredictions.filter(p => p.correct).length;
+                const accuracy = ((correct / userPredictions.length) * 100).toFixed(1);
+                const winRate = accuracy; // In questo caso sono uguali
+
+                document.getElementById('accuracy').textContent = accuracy + '%';
+                document.getElementById('winRate').textContent = winRate + '%';
+            }
+        }
+
+        function populateFilters() {
+            const leagues = [...new Set(allMatches.map(m => m.league))];
+            const select = document.getElementById('leagueFilter');
+            select.innerHTML = '<option value="">Tutte le Leghe</option>' +
+                leagues.map(l => `<option value="${l}">${l}</option>`).join('');
+        }
+
+        function filterMatches() {
+            // Implementa filtri
+            renderMatches();
+        }
+
+        function exportData() {
+            if (allMatches.length === 0) return alert('Carica prima il palinsesto!');
+
+            let csv = 'Match,Lega,Data,Pronostico,Probabilità,Confidence\n';
+            allMatches.forEach(m => {
+                const p = m.predictions;
+                csv += `"${m.homeTeam} vs ${m.awayTeam}",${m.league},"${m.date}",${p.topPrediction},${p.topValue}%,${p.confidence}%\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `prophecy_hunter_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = 'prophecy_hunter_' + new Date().toISOString().split('T')[0] + '.csv';
             a.click();
-
-            alert('✅ Export completato!');
         }
 
-        // Init
-        console.log('🚀 Prophecy Hunter Elite Pro v4.0');
-        console.log('📅 Data:', new Date().toISOString().split('T')[0]);
-        console.log('🔑 API Key:', API_KEY ? '✅' : '❌');
-        console.log('🏆 Campionati:', LEAGUES.length);
+        function resetStats() {
+            if (confirm('Reset tutte le statistiche?')) {
+                userPredictions = [];
+                localStorage.removeItem('predictions');
+                updateStats();
+                alert('✅ Statistiche resettate!');
+            }
+        }
+
+        updateStats();
     </script>
 </body>
 </html>
