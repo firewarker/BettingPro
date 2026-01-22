@@ -1,678 +1,1457 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PROPHECY HUNTER v3</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; }
-    .loader { animation: spin 1s linear infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
-    .tab-active { border-bottom: 3px solid #10b981; color: #10b981; background: #ecfdf5; }
-    .hot { animation: glow 2s infinite; }
-    @keyframes glow { 0%,100%{ box-shadow:0 0 6px rgba(16,185,129,.55);} 50%{ box-shadow:0 0 18px rgba(16,185,129,.85);} }
-    .mono { font-family: ui-monospace, monospace; }
-  </style>
-</head>
-<body class="bg-gray-100">
-  <div id="root"></div>
-<script>
-const AF_BASE = "https://v3.football.api-sports.io";
-const AF_KEY = "aeb2864a3d4dbb8395fa53c83a876a93";
-const TZ = "Europe/Rome";
-const STORAGE = { leaguesCache: "ph_leagues_v3", history: "ph_history_v3", ui: "ph_ui_v3" };
-
-// TOP COUNTRIES (filtra solo leghe principali per evitare localStorage pieno)
-const TOP_COUNTRIES = ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Netherlands", "Belgium", "Turkey", "Greece", "Scotland", "Austria", "Switzerland", "Russia", "Brazil", "Argentina", "USA", "Mexico", "World", "Europe"];
-
-let state = {
-  leagues: [], leaguesLoading: false, leaguesError: null,
-  leagueQuery: "", _leagueQueryTemp: "",
-  selectedLeagueId: null, selectedSeason: null,
-  from: new Date().toISOString().slice(0,10),
-  to: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0,10); })(),
-  matches: [], loading: false, error: null,
-  activeTab: "matches", selectedMatch: null,
-  isAnalyzing: false, analysisStep: "", analysisData: null,
-  minConfidence: 60,
-  history: JSON.parse(localStorage.getItem(STORAGE.history) || "[]"),
-  historyFilter: "all"
-};
-
-try {
-  const ui = JSON.parse(localStorage.getItem(STORAGE.ui) || "{}");
-  if (ui.from) state.from = ui.from;
-  if (ui.to) state.to = ui.to;
-  if (typeof ui.minConfidence === "number") state.minConfidence = ui.minConfidence;
-} catch(e) {}
-
-function clamp(min, v, max) { return Math.max(min, Math.min(max, v)); }
-function escapeHtml(s) { return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll("\"","&quot;").replaceAll("'","&#039;"); }
-
-function formatDate(iso) {
-  const d = new Date(iso);
-  return { date: d.toLocaleDateString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit" }), time: d.toLocaleTimeString("it-IT", { hour:"2-digit", minute:"2-digit" }) };
-}
-
-function badge(value, size="sm") {
-  const v = parseFloat(value);
-  let cls = "bg-red-100 text-red-700";
-  if (v >= 70) cls = "bg-green-100 text-green-700";
-  else if (v >= 55) cls = "bg-amber-100 text-amber-700";
-  const sizeClass = (size==="lg") ? "px-3 py-1.5 text-sm" : "px-2 py-0.5 text-xs";
-  return `<span class="rounded-xl font-black ${cls} ${sizeClass}">${Math.round(v)}</span>`;
-}
-
-function categoryIcon(cat) {
-  return ({ esito: "🏁", goal: "⚽", corner: "🚩", cards: "🟨", odds: "💹", h2h: "🔁", form: "📈" }[cat] || "📌");
-}
-
-function saveUI() {
-  try {
-    localStorage.setItem(STORAGE.ui, JSON.stringify({ from: state.from, to: state.to, minConfidence: state.minConfidence }));
-  } catch(e) { console.warn("localStorage pieno (UI):", e); }
-}
-
-async function apiCall(path, params = {}) {
-  const url = new URL(AF_BASE + path);
-  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v); });
-  const res = await fetch(url.toString(), { method: "GET", headers: { "x-rapidapi-key": AF_KEY, "x-rapidapi-host": "v3.football.api-sports.io" } });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  if (data?.errors && Object.keys(data.errors).length) throw new Error(JSON.stringify(data.errors));
-  return data;
-}
-
-function factorial(n) { let r = 1; for (let i=2; i<=n; i++) r *= i; return r; }
-function poisson(lambda, k) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
-function probToScore(lambda) { return (1 - Math.exp(-lambda)) * 100; }
-function bivariatePoissonOver(lambdaH, lambdaA, threshold) {
-  const max = Math.floor(threshold); let probUnder = 0;
-  for (let h=0; h<=max; h++) for (let a=0; a<=max; a++) if (h + a <= max) probUnder += poisson(lambdaH, h) * poisson(lambdaA, a);
-  return (1 - probUnder) * 100;
-}
-function calculate1X2(lambdaH, lambdaA) {
-  let home=0, draw=0, away=0;
-  for (let h=0; h<=10; h++) for (let a=0; a<=10; a++) {
-    const p = poisson(lambdaH, h) * poisson(lambdaA, a);
-    if (h > a) home += p; else if (h === a) draw += p; else away += p;
-  }
-  return { home: home*100, draw: draw*100, away: away*100 };
-}
-function impliedProb(odd) { const o = parseFloat(odd); if (!o || o <= 1.0001) return null; return (1 / o) * 100; }
-
-async function loadLeagues(force=false) {
-  state.leaguesLoading = true; state.leaguesError = null; render();
-  try {
-    if (!force) {
-      const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
-      if (cachedRaw) {
-        try {
-          const cached = JSON.parse(cachedRaw);
-          if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
-            state.leagues = cached.data;
-            if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
-            state.leaguesLoading = false; render(); return;
-          }
-        } catch(e) { console.warn("Cache corrotta, ricarico..."); }
-      }
-    }
-
-    const data = await apiCall("/leagues", { current: "true" });
-    const rows = (data.response || [])
-      .filter(r => {
-        // FILTRO: solo leghe dei paesi TOP per evitare localStorage pieno
-        const country = r.country?.name;
-        return TOP_COUNTRIES.includes(country);
-      })
-      .map(r => {
-        const seasons = r.seasons || [];
-        const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
-        return { id: r.league?.id, name: r.league?.name, country: r.country?.name, season };
-      })
-      .filter(x => x.id && x.name && x.season);
-
-    const map = new Map(); rows.forEach(x => map.set(x.id, x));
-    const leagues = [...map.values()].sort((a,b) => (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || ""));
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRO BETTING DASHBOARD HYBRID v3.0 | VVF Lentini</title>
     
-    state.leagues = leagues;
-    if (!state.selectedLeagueId && leagues.length) { state.selectedLeagueId = leagues[0].id; state.selectedSeason = leagues[0].season; }
-
-    // Salva solo se non supera quota (gestisci errore)
-    try {
-      localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
-    } catch(e) {
-      console.warn("localStorage pieno, uso solo sessione corrente:", e);
-      // Se quota exceeded, NON salvare ma continua comunque
-    }
-  } catch (e) { 
-    state.leaguesError = "Errore leghe: " + e.message; 
-  }
-  finally { state.leaguesLoading = false; render(); }
-}
-
-window.reloadLeagues = async () => loadLeagues(true);
-
-let searchTimeout = null;
-window.setLeagueQueryInput = (value) => {
-  state._leagueQueryTemp = value;
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => { state.leagueQuery = value; render(); }, 400);
-};
-
-window.changeLeague = async (leagueId) => {
-  const id = parseInt(leagueId, 10); const l = state.leagues.find(x => x.id === id); if (!l) return;
-  state.selectedLeagueId = l.id; state.selectedSeason = l.season;
-  state.matches = []; state.selectedMatch = null; state.analysisData = null; state.activeTab = "matches";
-  await loadMatches();
-};
-
-async function loadMatches() {
-  if (!state.selectedLeagueId || !state.selectedSeason) { state.error = "Seleziona una lega."; render(); return; }
-  state.loading = true; state.error = null; render();
-  try {
-    const data = await apiCall("/fixtures", { league: state.selectedLeagueId, season: state.selectedSeason, from: state.from, to: state.to, timezone: TZ });
-    state.matches = (data.response || []).map(f => ({
-      id: f.fixture?.id, utcDate: f.fixture?.date, status: f.fixture?.status?.short,
-      referee: f.fixture?.referee, venue: f.fixture?.venue?.name,
-      homeTeam: { id: f.teams?.home?.id, name: f.teams?.home?.name },
-      awayTeam: { id: f.teams?.away?.id, name: f.teams?.away?.name },
-      score: { fullTime: { home: f.goals?.home, away: f.goals?.away } }
-    })).filter(m => m.id && m.homeTeam?.id && m.awayTeam?.id);
-    state.matches.sort((a,b) => (new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
-    if (!state.matches.length) state.error = "Nessuna partita trovata.";
-  } catch (e) { state.error = "Errore: " + e.message; }
-  finally { state.loading = false; render(); }
-}
-
-window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); };
-window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
-
-async function getTeamStats(teamId) {
-  const data = await apiCall("/teams/statistics", { league: state.selectedLeagueId, season: state.selectedSeason, team: teamId });
-  return data.response || null;
-}
-
-async function getH2H(homeId, awayId) {
-  try {
-    const data = await apiCall("/fixtures/headtohead", { h2h: `${homeId}-${awayId}`, last: 10 });
-    const matches = data.response || [];
-    return {
-      total: matches.length,
-      homeWins: matches.filter(m => m.teams?.home?.winner === true && m.teams?.home?.id === homeId).length,
-      awayWins: matches.filter(m => m.teams?.away?.winner === true && m.teams?.away?.id === awayId).length,
-      draws: matches.filter(m => m.teams?.home?.winner === false && m.teams?.away?.winner === false).length
-    };
-  } catch(e) { return { total: 0, homeWins: 0, awayWins: 0, draws: 0 }; }
-}
-
-async function getLastMatches(teamId) {
-  try {
-    const data = await apiCall("/fixtures", { team: teamId, last: 5, timezone: TZ });
-    const matches = (data.response || []).filter(m => ["FT","AET","PEN"].includes(m.fixture?.status?.short));
-    if (!matches.length) return { formScore: 50 };
-    let wins = 0, draws = 0;
-    matches.forEach(m => {
-      const isHome = m.teams?.home?.id === teamId;
-      const scored = isHome ? (m.goals?.home || 0) : (m.goals?.away || 0);
-      const conceded = isHome ? (m.goals?.away || 0) : (m.goals?.home || 0);
-      if (scored > conceded) wins++; else if (scored === conceded) draws++;
-    });
-    return { formScore: (wins * 3 + draws) / (matches.length * 3) * 100 };
-  } catch(e) { return { formScore: 50 }; }
-}
-
-async function getInjuriesCount(fixtureId, homeId, awayId) {
-  try {
-    const data = await apiCall("/injuries", { fixture: fixtureId });
-    const rows = data.response || [];
-    return { home: rows.filter(r => r.team?.id === homeId).length, away: rows.filter(r => r.team?.id === awayId).length };
-  } catch(e) { return { home: 0, away: 0 }; }
-}
-
-async function getOddsParsed(fixtureId) {
-  try {
-    const data = await apiCall("/odds", { fixture: fixtureId, timezone: TZ });
-    const r = data?.response?.[0]; if (!r) return null;
-    const bkm = r.bookmakers?.[0]; if (!bkm) return null;
-    const findBet = (names) => {
-      const bets = bkm.bets || [];
-      for (const n of names) {
-        const hit = bets.find(x => (x.name||"").toLowerCase().includes(n.toLowerCase()));
-        if (hit) return hit;
-      }
-      return null;
-    };
-    const out = {};
-    const mw = findBet(["Match Winner","1X2"]);
-    if (mw) {
-      const map = {};
-      for (const v of (mw.values || [])) {
-        const key = (v.value || "").toString().toUpperCase();
-        const odd = parseFloat(v.odd); if (!odd) continue;
-        if (["1","HOME"].includes(key)) map["1"] = odd;
-        else if (["X","DRAW"].includes(key)) map["X"] = odd;
-        else if (["2","AWAY"].includes(key)) map["2"] = odd;
-      }
-      if (Object.keys(map).length) out["1X2"] = map;
-    }
-    const btts = findBet(["Both Teams Score","BTTS"]);
-    if (btts) {
-      let gg=null, ng=null;
-      for (const v of (btts.values || [])) {
-        const key = (v.value || "").toString().toLowerCase();
-        const odd = parseFloat(v.odd);
-        if (key.includes("yes")) gg = odd;
-        if (key.includes("no")) ng = odd;
-      }
-      if (gg || ng) out["BTTS"] = { GG: gg, NG: ng };
-    }
-    return Object.keys(out).length ? out : null;
-  } catch(e) { return null; }
-}
-
-function normalizeStats(raw) {
-  return {
-    avgGoalsForHome: parseFloat(raw?.goals?.for?.average?.home || raw?.goals?.for?.average?.total || 1.35),
-    avgGoalsAgainstHome: parseFloat(raw?.goals?.against?.average?.home || raw?.goals?.against?.average?.total || 1.15),
-    avgGoalsForAway: parseFloat(raw?.goals?.for?.average?.away || raw?.goals?.for?.average?.total || 1.15),
-    avgGoalsAgainstAway: parseFloat(raw?.goals?.against?.average?.away || raw?.goals?.against?.average?.total || 1.35),
-    bttsRate: parseFloat(raw?.btts?.percentage || 50)
-  };
-}
-
-function calculateLambda(attackAvg, oppDefenseAvg, leagueAvg, isHome, formFactor=1, absenceFactor=1, h2hFactor=1) {
-  const a = parseFloat(attackAvg) || leagueAvg;
-  const d = parseFloat(oppDefenseAvg) || leagueAvg;
-  let lambda = leagueAvg * (a / leagueAvg) * (d / leagueAvg);
-  lambda *= isHome ? 1.12 : 0.88;
-  lambda *= formFactor * absenceFactor * h2hFactor;
-  return clamp(0.25, lambda, 4.5);
-}
-
-function buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm) {
-  const leagueAvg = clamp(0.95, (homeStats.avgGoalsForHome + awayStats.avgGoalsForAway + homeStats.avgGoalsAgainstHome + awayStats.avgGoalsAgainstAway) / 4, 2.2);
-  const homeFormFactor = homeForm ? clamp(0.85, 0.85 + (homeForm.formScore / 100) * 0.30, 1.15) : 1;
-  const awayFormFactor = awayForm ? clamp(0.85, 0.85 + (awayForm.formScore / 100) * 0.30, 1.15) : 1;
-  const homeAbsFactor = clamp(0.70, 1 - (injuries.home * 0.04), 1);
-  const awayAbsFactor = clamp(0.70, 1 - (injuries.away * 0.04), 1);
-  const homeH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.homeWins / h2h.total) * 0.15, 1.08) : 1;
-  const awayH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.awayWins / h2h.total) * 0.15, 1.08) : 1;
-
-  const lambdaH = calculateLambda(homeStats.avgGoalsForHome, awayStats.avgGoalsAgainstAway, leagueAvg, true, homeFormFactor, homeAbsFactor, homeH2HFactor);
-  const lambdaA = calculateLambda(awayStats.avgGoalsForAway, homeStats.avgGoalsAgainstHome, leagueAvg, false, awayFormFactor, awayAbsFactor, awayH2HFactor);
-
-  const r1x2 = calculate1X2(lambdaH, lambdaA);
-  const s = r1x2.home + r1x2.draw + r1x2.away;
-  let adj1x2 = { home: r1x2.home/s*100, draw: r1x2.draw/s*100, away: r1x2.away/s*100 };
-
-  if (oddsParsed?.["1X2"]) {
-    const implHome = impliedProb(oddsParsed["1X2"]["1"]);
-    const implDraw = impliedProb(oddsParsed["1X2"]["X"]);
-    const implAway = impliedProb(oddsParsed["1X2"]["2"]);
-    if (implHome && implDraw && implAway) {
-      adj1x2.home = adj1x2.home * 0.70 + implHome * 0.30;
-      adj1x2.draw = adj1x2.draw * 0.70 + implDraw * 0.30;
-      adj1x2.away = adj1x2.away * 0.70 + implAway * 0.30;
-      const total = adj1x2.home + adj1x2.draw + adj1x2.away;
-      adj1x2.home = adj1x2.home / total * 100;
-      adj1x2.draw = adj1x2.draw / total * 100;
-      adj1x2.away = adj1x2.away / total * 100;
-    }
-  }
-
-  const dc = { "1X": adj1x2.home + adj1x2.draw, "X2": adj1x2.draw + adj1x2.away, "12": adj1x2.home + adj1x2.away };
-
-  const homeScores = probToScore(lambdaH);
-  const awayScores = probToScore(lambdaA);
-  let gg = (homeScores/100) * (awayScores/100) * 100;
-  const histBtts = (homeStats.bttsRate + awayStats.bttsRate) / 2;
-  gg = gg * 0.75 + histBtts * 0.25;
-
-  if (oddsParsed?.BTTS?.GG) {
-    const implGG = impliedProb(oddsParsed.BTTS.GG);
-    if (implGG) gg = gg * 0.70 + implGG * 0.30;
-  }
-
-  const ou = {};
-  [0.5,1.5,2.5,3.5,4.5].forEach(line => {
-    let over = bivariatePoissonOver(lambdaH, lambdaA, line);
-    ou[line] = { over: clamp(1, over, 99), under: clamp(1, 100-over, 99) };
-  });
-
-  const baseCorner = leagueAvg * 5.2;
-  let homeCorners = baseCorner * Math.pow(homeStats.avgGoalsForHome / leagueAvg, 0.42) * 1.15;
-  let awayCorners = baseCorner * Math.pow(awayStats.avgGoalsForAway / leagueAvg, 0.42) * 0.90;
-  homeCorners = clamp(3, homeCorners, 8); awayCorners = clamp(3, awayCorners, 8);
-  const totalCorners = homeCorners + awayCorners;
-  const cornerPreds = {};
-  [8.5, 9.5, 10.5, 11.5, 12.5].forEach(line => {
-    const prob = 50 + (totalCorners - line) * 2.2 * 28;
-    cornerPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
-  });
-
-  const baseCards = leagueAvg * 2.1;
-  let homeCards = baseCards * Math.pow(homeStats.avgGoalsAgainstHome / leagueAvg, 0.35) * 0.88;
-  let awayCards = baseCards * Math.pow(awayStats.avgGoalsAgainstAway / leagueAvg, 0.35) * 1.18;
-  homeCards = clamp(1, homeCards, 4); awayCards = clamp(1, awayCards, 4);
-  const totalCards = homeCards + awayCards;
-  const cardPreds = {};
-  [2.5, 3.5, 4.5, 5.5].forEach(line => {
-    const prob = 50 + (totalCards - line) * 1.6 * 30;
-    cardPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
-  });
-
-  return {
-    xG: { home: lambdaH, away: lambdaA, total: lambdaH + lambdaA },
-    result1X2: adj1x2, doubleChance: dc,
-    btts: { gg: clamp(1, gg, 99), ng: clamp(1, 100-gg, 99) },
-    overUnderGoals: ou,
-    corners: { home: homeCorners, away: awayCorners, total: totalCorners, predictions: cornerPreds },
-    cards: { home: homeCards, away: awayCards, total: totalCards, predictions: cardPreds },
-    injuries, h2h, homeForm, awayForm, odds: oddsParsed || null
-  };
-}
-
-function generatePredictions(markets, match) {
-  const home = match.homeTeam.name; const away = match.awayTeam.name;
-  const preds = [];
-
-  const best1x2 = [
-    { selection: "1", prob: markets.result1X2.home, label: home },
-    { selection: "X", prob: markets.result1X2.draw, label: "Pareggio" },
-    { selection: "2", prob: markets.result1X2.away, label: away }
-  ].sort((a,b)=>b.prob-a.prob)[0];
-  preds.push({ market: "1X2", selection: best1x2.selection, label: best1x2.label, probability: best1x2.prob, confidence: clamp(35, 40 + Math.abs(best1x2.prob - 33) * 0.9, 85), category: "esito" });
-
-  const dc = Object.entries(markets.doubleChance).map(([k,v]) => ({ selection:k, prob:v })).sort((a,b)=>b.prob-a.prob)[0];
-  preds.push({ market: "Doppia Chance", selection: dc.selection, label: dc.selection, probability: dc.prob, confidence: clamp(42, 45 + Math.abs(dc.prob - 50) * 0.6, 88), category: "esito" });
-
-  const btts = markets.btts.gg >= 50 ? { selection:"GG", prob: markets.btts.gg, label:"Goal/Goal" } : { selection:"NG", prob: markets.btts.ng, label:"No Goal" };
-  preds.push({ market: "GG/NG", selection: btts.selection, label: btts.label, probability: btts.prob, confidence: clamp(40, 45 + Math.abs(btts.prob - 50) * 0.8, 87), category: "goal" });
-
-  Object.entries(markets.overUnderGoals).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Goal ${line}`, selection: best.selection, label: best.selection, probability: best.prob, confidence: clamp(40, 45 + Math.abs(best.prob - 50) * 0.7, 87), category: "goal" });
-  });
-
-  Object.entries(markets.corners.predictions).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Corner ${line}`, selection: best.selection, label: `Corner ${best.selection}`, probability: best.prob, confidence: clamp(40, 42 + Math.abs(best.prob - 50) * 0.65, 85), category: "corner" });
-  });
-
-  Object.entries(markets.cards.predictions).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Cartellini ${line}`, selection: best.selection, label: `Cards ${best.selection}`, probability: best.prob, confidence: clamp(40, 40 + Math.abs(best.prob - 50) * 0.6, 83), category: "cards" });
-  });
-
-  if (markets.odds?.BTTS?.GG) {
-    const odd = markets.odds.BTTS.GG; const ip = impliedProb(odd); const edge = (ip == null) ? null : (markets.btts.gg - ip);
-    if (edge != null && edge > 0) preds.push({ market: "Value", selection: "GG", label: `GG (quota ${odd})`, probability: markets.btts.gg, confidence: clamp(40, 50 + edge * 1.4, 92), category: "odds", meta: { odd, implied: ip, edge } });
-  }
-
-  preds.sort((a,b)=>b.confidence-a.confidence);
-  return preds;
-}
-
-function pickTop(preds) {
-  const safe = preds.filter(p => !p.meta || p.meta.edge == null || p.meta.edge >= 0);
-  return safe[0] || preds[0];
-}
-
-window.analyzeMatch = async (match) => {
-  state.isAnalyzing = true; state.selectedMatch = match; state.analysisData = null; state.activeTab = "analysis"; state.error = null; state.analysisStep = "Statistiche..."; render();
-  try {
-    const [homeRaw, awayRaw] = await Promise.all([ getTeamStats(match.homeTeam.id), getTeamStats(match.awayTeam.id) ]);
-    state.analysisStep = "H2H e forma..."; render();
-    const [h2h, homeForm, awayForm] = await Promise.all([ getH2H(match.homeTeam.id, match.awayTeam.id), getLastMatches(match.homeTeam.id), getLastMatches(match.awayTeam.id) ]);
-    state.analysisStep = "Infortuni..."; render();
-    const injuries = await getInjuriesCount(match.id, match.homeTeam.id, match.awayTeam.id);
-    state.analysisStep = "Quote..."; render();
-    const oddsParsed = await getOddsParsed(match.id);
-    state.analysisStep = "Calcolo..."; render();
-    const homeStats = normalizeStats(homeRaw); const awayStats = normalizeStats(awayRaw);
-    const markets = buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm);
-    const predictions = generatePredictions(markets, match); const top = pickTop(predictions);
-    state.analysisData = { match, homeStats, awayStats, markets, predictions, selectedPredictions: [], topPick: top };
-  } catch (e) { state.error = "Errore: " + e.message; }
-  finally { state.isAnalyzing = false; state.analysisStep = ""; render(); }
-};
-
-window.togglePrediction = (idx) => {
-  if (!state.analysisData) return;
-  const pred = state.analysisData.predictions[idx];
-  const exists = state.analysisData.selectedPredictions.findIndex(p => p.market === pred.market && p.selection === pred.selection);
-  if (exists >= 0) state.analysisData.selectedPredictions.splice(exists, 1);
-  else state.analysisData.selectedPredictions.push(pred);
-  render();
-};
-
-window.savePredictions = () => {
-  if (!state.analysisData || !state.analysisData.selectedPredictions.length) { alert("Seleziona almeno un pronostico!"); return; }
-  const m = state.analysisData.match; const league = state.leagues.find(l => l.id === state.selectedLeagueId);
-  const entry = {
-    id: Date.now(), fixtureId: m.id, date: m.utcDate,
-    leagueId: state.selectedLeagueId, leagueName: league ? `${league.country ? league.country + " — " : ""}${league.name}` : String(state.selectedLeagueId),
-    season: state.selectedSeason, homeTeam: m.homeTeam.name, awayTeam: m.awayTeam.name,
-    predictions: state.analysisData.selectedPredictions.map(p => ({ market: p.market, selection: p.selection, label: p.label, probability: p.probability, confidence: p.confidence, odd: p.meta?.odd || null, result: null })),
-    status: "pending", createdAt: new Date().toISOString()
-  };
-  state.history.unshift(entry); 
-  try {
-    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-  } catch(e) { console.warn("localStorage pieno (history):", e); }
-  state.analysisData.selectedPredictions = []; state.activeTab = "history"; render();
-};
-
-function getHistoryStats() {
-  const resolved = state.history.filter(e => e.status !== "pending");
-  const won = resolved.filter(e => e.status === "won").length; const partial = resolved.filter(e => e.status === "partial").length; const lost = resolved.filter(e => e.status === "lost").length;
-  const winRate = resolved.length ? (won / resolved.length) * 100 : 0;
-  let predTotal = 0, predWon = 0;
-  state.history.forEach(e => { (e.predictions || []).forEach(p => { if (p.result != null) { predTotal++; if (p.result === "won") predWon++; } }); });
-  const predHitRate = predTotal ? (predWon / predTotal) * 100 : 0;
-  return { total: state.history.length, resolved: resolved.length, won, partial, lost, winRate: winRate.toFixed(1), predTotal, predWon, predHitRate: predHitRate.toFixed(1) };
-}
-
-function isPickWinner(selection, goalsH, goalsA) {
-  const gh = goalsH ?? 0; const ga = goalsA ?? 0; const tot = gh + ga; const s = (selection || "").toUpperCase().trim();
-  if (s === "GG") return (gh > 0 && ga > 0); if (s === "NG") return !(gh > 0 && ga > 0);
-  if (s === "1") return gh > ga; if (s === "X") return gh === ga; if (s === "2") return gh < ga;
-  if (s === "1X") return gh >= ga; if (s === "X2") return gh <= ga; if (s === "12") return gh !== ga;
-  if (s.startsWith("OVER")) { const line = parseFloat(s.replace("OVER","").trim()); if (!Number.isFinite(line)) return null; return tot > line; }
-  if (s.startsWith("UNDER")) { const line = parseFloat(s.replace("UNDER","").trim()); if (!Number.isFinite(line)) return null; return tot < line; }
-  return null;
-}
-
-function chunk(arr, size) { const out = []; for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size)); return out; }
-
-window.refreshResults = async () => {
-  const pending = state.history.filter(e => e.status === "pending"); if (!pending.length) { alert("Nessun pronostico pending."); return; }
-  try {
-    const batches = chunk(pending.map(e => e.fixtureId), 20);
-    for (const ids of batches) {
-      const data = await apiCall("/fixtures", { ids: ids.join("-"), timezone: TZ });
-      const fixtures = data.response || [];
-      fixtures.forEach(f => {
-        const id = f.fixture?.id; const st = f.fixture?.status?.short;
-        const finished = ["FT","AET","PEN"].includes(st); if (!finished) return;
-        const gh = f.goals?.home; const ga = f.goals?.away;
-        const entry = state.history.find(e => e.fixtureId === id); if (!entry) return;
-        let allResolved = true; let allWon = true; let anyWon = false;
-        entry.predictions.forEach(p => { if (p.result != null) return; const w = isPickWinner(p.selection, gh, ga); if (w === null) { allResolved = false; allWon = false; return; } p.result = w ? "won" : "lost"; });
-        entry.predictions.forEach(p => { if (p.result == null) allResolved = false; if (p.result !== "won") allWon = false; if (p.result === "won") anyWon = true; });
-        if (allResolved) entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
-      });
-    }
-    try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
-    render();
-  } catch (e) { alert("Errore: " + e.message); }
-};
-
-window.setHistoryFilter = (f) => { state.historyFilter = f; render(); };
-window.clearHistory = () => { 
-  if (!confirm("Cancellare tutto?")) return; 
-  state.history = []; 
-  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
-  render(); 
-};
-window.updateHistoryResult = (entryId, predIndex, won) => {
-  const entry = state.history.find(e => e.id === entryId); if (!entry) return;
-  const p = entry.predictions?.[predIndex]; if (!p) return;
-  p.result = won ? "won" : "lost";
-  const allResolved = entry.predictions.every(x => x.result != null);
-  if (allResolved) { const allWon = entry.predictions.every(x => x.result === "won"); const anyWon = entry.predictions.some(x => x.result === "won"); entry.status = allWon ? "won" : (anyWon ? "partial" : "lost"); } else entry.status = "pending";
-  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
-  render();
-};
-
-window.setTab = (tab) => { state.activeTab = tab; render(); };
-window.resetApp = () => { 
-  if (!confirm("Reset?")) return; 
-  try {
-    localStorage.removeItem(STORAGE.leaguesCache); 
-    localStorage.removeItem(STORAGE.history); 
-    localStorage.removeItem(STORAGE.ui); 
-  } catch(e) {}
-  location.reload(); 
-};
-window.setMinConfidence = (v) => { state.minConfidence = parseInt(v, 10); saveUI(); render(); };
-
-function render() {
-  const root = document.getElementById("root");
-  const league = state.leagues.find(l => l.id === state.selectedLeagueId);
-  const searchInputValue = state._leagueQueryTemp !== undefined ? state._leagueQueryTemp : state.leagueQuery;
-
-  const header = `
-    <header class="bg-white shadow-md sticky top-0 z-40">
-      <div class="px-4 py-3 max-w-lg mx-auto">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">🔮</span>
-            <div><h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1><div class="text-[11px] text-emerald-700 font-extrabold">Top Leagues Only</div></div>
-          </div>
-          <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151a3d;
+            --accent-fire: #ff3366;
+            --accent-ice: #00d9ff;
+            --accent-gold: #ffd700;
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 51, 102, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 217, 255, 0.1) 0%, transparent 50%);
+            animation: pulse 10s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, var(--accent-fire), var(--accent-ice));
+            border-radius: 20px;
+        }
+        
+        .header h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.8rem, 5vw, 3.5rem);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        
+        .header p {
+            margin-top: 0.5rem;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            flex: 1;
+            min-width: 100px;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            border-color: var(--accent-ice);
+            transform: translateY(-2px);
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent-fire), var(--accent-ice));
+            border-color: transparent;
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .section {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(255, 51, 102, 0.3);
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, var(--accent-fire), #ff1744);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 51, 102, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .loading.active { display: block; }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent-fire);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .results { display: none; }
+        .results.active { display: block; }
+        
+        .pred-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .pred-item {
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .pred-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-ice);
+            margin-top: 0.5rem;
+        }
+        
+        .pred-value.high { color: var(--success); }
+        .pred-value.medium { color: var(--warning); }
+        .pred-value.low { color: var(--danger); }
+        
+        .history-item {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .history-item.correct { 
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .history-item.incorrect { 
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+        
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0.2rem;
+            font-weight: 600;
+        }
+        
+        .btn-correct { background: var(--success); color: white; }
+        .btn-incorrect { background: var(--danger); color: white; }
+        .btn-delete { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+        
+        .api-status {
+            margin-top: 1rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            display: none;
+            text-align: center;
+        }
+        .api-status.show { display: block; }
+        .api-status.success { background: rgba(16,185,129,0.2); color: var(--success); border: 2px solid var(--success); }
+        .api-status.error { background: rgba(239,68,68,0.2); color: var(--danger); border: 2px solid var(--danger); }
+        
+        .drop-zone {
+            border: 3px dashed rgba(0, 217, 255, 0.3);
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0, 217, 255, 0.05);
+        }
+        
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--accent-ice);
+            background: rgba(0, 217, 255, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .csv-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .csv-card {
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .csv-card.loaded {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-left: 0.5rem;
+        }
+        
+        .badge.success { background: var(--success); color: white; }
+        .badge.warning { background: var(--warning); color: white; }
+        .badge.danger { background: var(--danger); color: white; }
+        
+        @media (max-width: 768px) {
+            .container { padding: 0.5rem; }
+            .pred-grid { grid-template-columns: repeat(2, 1fr); }
+            .tabs { font-size: 0.85rem; }
+            .tab { padding: 0.8rem; min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ PRO BETTING DASHBOARD</h1>
+            <p>🔥 HYBRID System v3.0 - API + FootyStats 💎</p>
         </div>
-        <div class="mb-2">
-          <div class="flex gap-2">
-            <input id="leagueSearchInput" class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold" placeholder="Cerca lega..." value="${escapeHtml(searchInputValue)}" oninput="setLeagueQueryInput(this.value)" />
-            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">${state.leaguesLoading ? "..." : "↻"}</button>
-          </div>
-          <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
-            ${state.leagues.length ? state.leagues.filter(l => { const q = (state.leagueQuery || "").toLowerCase().trim(); if (!q) return true; return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q); }).slice(0, 200).map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>${l.country ? l.country + " — " : ""}${l.name} (${l.season})</option>`).join("") : `<option>Carica...</option>`}
-          </select>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">Da</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" /></div>
-            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">A</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" /></div>
-          </div>
-          ${state.leaguesError ? `<div class="mt-2 text-xs font-bold text-red-600">${escapeHtml(state.leaguesError)}</div>` : ""}
-        </div>
-        <div class="flex border-t">
-          <button onclick="setTab('matches')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='matches' ? 'tab-active' : 'text-gray-500'}">PARTITE</button>
-          <button onclick="setTab('analysis')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='analysis' ? 'tab-active' : 'text-gray-500'}">ANALISI</button>
-          <button onclick="setTab('history')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='history' ? 'tab-active' : 'text-gray-500'}">TRACKER</button>
-        </div>
-      </div>
-    </header>
-  `;
 
-  let content = "";
-
-  if (state.activeTab === "matches") {
-    const leagueLabel = league ? `${league.country ? league.country + " — " : ""}${league.name}` : "Lega";
-    const topBar = `<div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3"><div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span><button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button></div></div>`;
-    if (state.loading) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black">Caricamento...</p></div>`;
-    else if (state.error) content = `${topBar}<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><p class="text-red-600 font-black mb-2">Errore</p><p class="text-gray-600 text-sm font-semibold">${escapeHtml(state.error)}</p></div>`;
-    else if (!state.matches.length) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">📭</p><p class="font-black">Nessuna partita</p></div>`;
-    else content = `${topBar}<div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="divide-y max-h-[62vh] overflow-y-auto">${state.matches.map((m, i) => { const {date, time} = formatDate(m.utcDate); const st = m.status || "-"; const isDone = ["FT","AET","PEN"].includes(st); const stBadge = isDone ? `<span class="px-2 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-black">${st}</span>` : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-black">${st}</span>`; const score = (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ? `${m.score.fullTime.home}-${m.score.fullTime.away}` : "—"; return `<div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer" onclick="analyzeMatch(state.matches[${i}])"><div class="flex items-center gap-3"><div class="w-16 text-center"><p class="text-xs text-gray-500 font-bold">${date}</p><p class="font-black text-sm">${time}</p></div><div class="flex-1 min-w-0"><p class="font-black text-sm text-gray-900 truncate">${escapeHtml(m.homeTeam.name)} <span class="text-gray-400">vs</span> ${escapeHtml(m.awayTeam.name)}</p></div><div class="text-right"><div class="text-xs font-black text-gray-700">${stBadge}</div><div class="text-sm font-black mt-1">${score}</div></div></div></div>`; }).join("")}</div></div>`;
-  }
-
-  if (state.activeTab === "analysis") {
-    if (state.isAnalyzing) content = `<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black mb-2">Analisi...</p><p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p></div>`;
-    else if (!state.analysisData) content = `<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">🧠</p><p class="font-black">Seleziona una partita</p></div>`;
-    else {
-      const a = state.analysisData; const m = a.match; const {date, time} = formatDate(m.utcDate);
-      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence); const top = a.topPick;
-      const h2h = a.markets.h2h || {}; const homeForm = a.markets.homeForm || {}; const awayForm = a.markets.awayForm || {};
-      content = `
-        <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-4 text-white mb-3 shadow-lg">
-          <div class="text-center"><p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p><p class="text-white/70 text-xs font-semibold">${date} ${time}</p></div>
-          <div class="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Casa</p><p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Tot</p><p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Away</p><p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p></div>
-          </div>
-          <div class="grid grid-cols-3 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🔁 H2H</p><p class="font-black text-sm">${h2h.homeWins||0}-${h2h.draws||0}-${h2h.awayWins||0}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">📈 Forma</p><p class="font-black text-sm">${homeForm.formScore?homeForm.formScore.toFixed(0):50} - ${awayForm.formScore?awayForm.formScore.toFixed(0):50}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🩺 Inj</p><p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p></div>
-          </div>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🚩 Corner</p><p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🟨 Cards</p><p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p></div>
-          </div>
+        <div class="tabs">
+            <div class="tab" onclick="switchTab('import')">📊 Import CSV</div>
+            <div class="tab active" onclick="switchTab('fixtures')">📅 Palinsesto</div>
+            <div class="tab" onclick="switchTab('analyze')">🎯 Analizza</div>
+            <div class="tab" onclick="switchTab('history')">📈 Storico</div>
+            <div class="tab" onclick="switchTab('settings')">⚙️ Impostazioni</div>
         </div>
-        <div class="bg-white rounded-xl p-3 mb-3 flex items-center justify-between shadow">
-          <span class="text-sm font-black">Min Conf</span>
-          <div class="flex items-center gap-2"><input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" /><span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span></div>
-        </div>
-        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">🏆 TOP PICK</span><span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span></div>
-          <div class="p-4">
-            <div class="flex items-center justify-between gap-2">
-              <div class="min-w-0"><p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • ${top.probability.toFixed(1)}%</p></div>
+
+        <!-- Import CSV -->
+        <div id="import-tab" class="tab-content">
+            <div class="section">
+                <h3>📊 Import Dati FootyStats</h3>
+                <p style="margin: 1rem 0; opacity: 0.8;">
+                    Importa i file CSV da FootyStats per avere predizioni corner e cards PRECISE!<br>
+                    <strong>Aggiorna 1 volta/settimana (domenica sera)</strong>
+                </p>
+                
+                <div class="drop-zone" id="dropZone">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                    <h3>Trascina qui i CSV</h3>
+                    <p style="margin: 1rem 0;">oppure</p>
+                    <input type="file" id="csvInput" accept=".csv" multiple style="display: none;">
+                    <button class="btn" onclick="document.getElementById('csvInput').click()" style="max-width: 300px; margin: 1rem auto;">
+                        📂 Seleziona File CSV
+                    </button>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">
+                        Carica: italy-serie-a-teams-*.csv e italy-serie-a-teams2-*.csv
+                    </p>
+                </div>
+                
+                <div class="csv-status" id="csvStatus">
+                    <div class="csv-card" id="card-teams">
+                        <h4>📄 Teams Stats</h4>
+                        <p id="status-teams" style="margin-top: 0.5rem; opacity: 0.7;">⏳ Non caricato</p>
+                    </div>
+                    <div class="csv-card" id="card-teams2">
+                        <h4>📄 Teams2 Stats</h4>
+                        <p id="status-teams2" style="margin-top: 0.5rem; opacity: 0.7;">⏳ Non caricato</p>
+                    </div>
+                </div>
+                
+                <div id="importSummary" style="display: none; margin-top: 2rem; padding: 1.5rem; background: rgba(16,185,129,0.1); border: 2px solid var(--success); border-radius: 10px;">
+                    <h3 style="color: var(--success);">✅ Dati Importati!</h3>
+                    <div style="margin-top: 1rem;">
+                        <p><strong>Squadre caricate:</strong> <span id="teamsCount">0</span></p>
+                        <p><strong>Data import:</strong> <span id="importDate">-</span></p>
+                        <p><strong>Valido fino:</strong> <span id="validUntil">-</span></p>
+                    </div>
+                    <button class="btn" onclick="clearCSVData()" style="background: var(--danger); margin-top: 1rem;">
+                        🗑️ Cancella Dati CSV
+                    </button>
+                </div>
             </div>
-            <button class="w-full mt-3 py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm" onclick="state.analysisData.selectedPredictions=[state.analysisData.topPick]; savePredictions();">💾 SALVA TOP</button>
-          </div>
         </div>
-        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center"><span class="font-black text-white text-sm">PRONOSTICI</span><span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span></div>
-          <div class="divide-y max-h-[42vh] overflow-y-auto">${filteredPreds.length === 0 ? `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessuno sopra soglia.</p>` : filteredPreds.map((p) => { const idx = a.predictions.indexOf(p); const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection); const isHot = p.confidence >= 75; return `<div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""}" onclick="togglePrediction(${idx})"><div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">${selected ? "✓" : categoryIcon(p.category)}</div><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${p.probability.toFixed(1)}%</p></div><div class="text-right">${badge(p.confidence, "lg")}</div></div>`; }).join("")}</div>
-          <div class="p-3"><button onclick="savePredictions()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">💾 SALVA ${a.selectedPredictions.length}</button></div>
-        </div>
-      `;
-    }
-  }
 
-  if (state.activeTab === "history") {
-    const stats = getHistoryStats();
-    const filtered = (state.historyFilter === "all") ? state.history : state.history.filter(e => e.status === state.historyFilter);
-    content = `
-      <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-4 text-white mb-3 shadow-lg">
-        <h3 class="font-black mb-3 text-center text-sm">📊 Tracker</h3>
-        <div class="grid grid-cols-4 gap-2 text-center mb-3">
-          <div class="bg-white/10 rounded-lg p-2"><p class="text-xl font-black">${stats.total}</p><p class="text-xs text-white/70 font-bold">Tot</p></div>
-          <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">✅</p></div>
-          <div class="bg-amber-500/30 rounded-lg p-2"><p class="text-xl font-black text-amber-200">${stats.partial}</p><p class="text-xs text-white/70 font-bold">🟨</p></div>
-          <div class="bg-red-500/30 rounded-lg p-2"><p class="text-xl font-black text-red-200">${stats.lost}</p><p class="text-xs text-white/70 font-bold">❌</p></div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-emerald-300">${stats.winRate}%</p><p class="text-xs text-white/70 font-bold">Win Rate</p></div>
-          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p><p class="text-xs text-white/70 font-bold">Hit (${stats.predWon}/${stats.predTotal})</p></div>
-        </div>
-        <div class="flex gap-2 mt-3">
-          <button onclick="refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">♻️ AGGIORNA</button>
-          <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">🗑️</button>
-        </div>
-      </div>
-      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">${["all","pending","won","partial","lost"].map(f => `<button onclick="setHistoryFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">${f==="all" ? "Tutti" : f}</button>`).join("")}</div>
-      <div class="space-y-3">${filtered.length === 0 ? `<div class="bg-white rounded-2xl p-8 text-center shadow"><p class="text-gray-500 font-semibold">Nessuno</p></div>` : filtered.map(entry => { const {date, time} = formatDate(entry.date); const statusColors = { pending: "border-gray-300", won: "border-emerald-400 bg-emerald-50", partial: "border-amber-400 bg-amber-50", lost: "border-red-400 bg-red-50" }; const statusIcons = { pending:"⏳", won:"✅", partial:"🟨", lost:"❌" }; return `<div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}"><div class="px-4 py-2.5 border-b flex justify-between items-center"><div><p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p><p class="text-xs text-gray-500 font-semibold">${date} ${time}</p></div><span class="text-xl">${statusIcons[entry.status]||"⏳"}</span></div><div class="p-3 space-y-2">${(entry.predictions || []).map((p, pIdx) => `<div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}"><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • Conf ${p.confidence.toFixed(0)}</p></div><div class="flex gap-1 items-center">${p.result == null ? `<button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button><button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>` : `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`}</div></div>`).join("")}</div></div>`; }).join("")}</div>
-    `;
-  }
+        <!-- Palinsesto -->
+        <div id="fixtures-tab" class="tab-content active">
+            <div class="section">
+                <h3>📅 Palinsesto Partite</h3>
+                <div class="input-grid" style="margin-bottom:1rem;">
+                    <div>
+                        <label>🏆 Campionato</label>
+                        <select id="fixturesLeague">
+                            <option value="135">🇮🇹 Serie A</option>
+                            <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+                            <option value="140">🇪🇸 La Liga</option>
+                            <option value="78">🇩🇪 Bundesliga</option>
+                            <option value="61">🇫🇷 Ligue 1</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>📊 Quante partite</label>
+                        <select id="fixturesCount">
+                            <option value="10">10 partite</option>
+                            <option value="20" selected>20 partite</option>
+                            <option value="30">30 partite</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="loadNextFixtures()">🔍 Carica PROSSIME Partite</button>
+                <p style="margin-top:1rem; text-align:center; opacity:0.7; font-size:0.9rem;">
+                    ⚡ Sistema HYBRID: API-Football + FootyStats CSV
+                </p>
+            </div>
 
-  root.innerHTML = `${header}<main class="max-w-lg mx-auto p-4 pb-16">${content}</main><footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center"><span class="font-black">🔮 Prophecy Hunter v3</span><span class="mono">${state.selectedLeagueId??"-"}</span></footer>`;
-  window.state = state;
-}
+            <div class="loading" id="fixturesLoading">
+                <div class="spinner"></div>
+                <p>Caricamento partite...</p>
+            </div>
 
-(async function init() {
-  await loadLeagues(false);
-  if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
-  if (state.selectedLeagueId && state.selectedSeason) await loadMatches();
-  render();
-})();
-</script>
+            <div id="fixturesList"></div>
+        </div>
+
+        <!-- Analyze -->
+        <div id="analyze-tab" class="tab-content">
+            <div class="section">
+                <h3>🎯 Analizza Partita Manualmente</h3>
+                <div class="input-grid">
+                    <div>
+                        <label>🏆 Campionato</label>
+                        <select id="league">
+                            <option value="135">🇮🇹 Serie A</option>
+                            <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+                            <option value="140">🇪🇸 La Liga</option>
+                            <option value="78">🇩🇪 Bundesliga</option>
+                            <option value="61">🇫🇷 Ligue 1</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-grid" style="margin-top:1rem;">
+                    <div>
+                        <label>🏠 Casa</label>
+                        <input type="text" id="homeTeam" placeholder="Inter">
+                    </div>
+                    <div>
+                        <label>✈️ Ospite</label>
+                        <input type="text" id="awayTeam" placeholder="Napoli">
+                    </div>
+                </div>
+                <button class="btn" onclick="analyzeMatch()">🔥 ANALIZZA CON HYBRID</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analizzando con algoritmo HYBRID...</p>
+            </div>
+
+            <div class="results" id="results"></div>
+        </div>
+
+        <!-- History -->
+        <div id="history-tab" class="tab-content">
+            <div class="section">
+                <h3>📈 Statistiche Predizioni</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalPred">0</div>
+                        <div>Totali</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" style="color:var(--success);" id="correctPred">0</div>
+                        <div>Indovinate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" style="color:var(--danger);" id="incorrectPred">0</div>
+                        <div>Sbagliate</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" style="color:var(--accent-ice);" id="successRate">0%</div>
+                        <div>% Successo</div>
+                    </div>
+                </div>
+                <button class="btn" onclick="clearHistory()">🗑️ Cancella Storico</button>
+            </div>
+            <div id="historyList"></div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings-tab" class="tab-content">
+            <div class="section">
+                <h3>🔑 API Configuration</h3>
+                <input type="password" id="apiKey" placeholder="Inserisci API key..." value="aeb2864a3d4dbb8395fa53c83a876a93">
+                <button class="btn" onclick="saveApiKey()">💾 Salva e Testa</button>
+                <div id="apiStatus" class="api-status"></div>
+                <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7;">
+                    La tua API key è salvata localmente (sicura).
+                </p>
+            </div>
+            
+            <div class="section">
+                <h3>ℹ️ Informazioni Sistema</h3>
+                <div id="systemInfo" style="font-size: 0.9rem;">
+                    <p><strong>Versione:</strong> HYBRID v3.0</p>
+                    <p><strong>Algoritmo:</strong> Poisson + FootyStats CSV</p>
+                    <p><strong>Dati CSV:</strong> <span id="csvDataStatus">❌ Non caricati</span></p>
+                    <p><strong>Ultimo update CSV:</strong> <span id="lastCsvUpdate">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase
+        const firebaseConfig = {
+            databaseURL: "https://bettingpro-d0125-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        const API_URL = 'https://v3.football.api-sports.io';
+        let currentPrediction = null;
+        let csvData = null;
+        
+        // ============================================
+        // UTILITIES
+        // ============================================
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            event.target.classList.add('active');
+            if (tab === 'history') loadHistory();
+            if (tab === 'settings' || tab === 'import') updateSystemInfo();
+        }
+        
+        function getApiKey() {
+            return localStorage.getItem('bettingApiKey');
+        }
+        
+        function saveApiKey() {
+            const key = document.getElementById('apiKey').value.trim();
+            if (!key) return alert('Inserisci una API key!');
+            localStorage.setItem('bettingApiKey', key);
+            testApiKey(key);
+        }
+        
+        async function testApiKey(key) {
+            const status = document.getElementById('apiStatus');
+            status.textContent = '⏳ Testando API key...';
+            status.className = 'api-status show';
+            
+            try {
+                const res = await fetch(`${API_URL}/timezone`, {
+                    headers: { 'x-apisports-key': key }
+                });
+                
+                if (res.ok) {
+                    status.textContent = '✅ API key VALIDA! Sistema pronto!';
+                    status.className = 'api-status show success';
+                } else {
+                    status.textContent = '❌ API key NON valida!';
+                    status.className = 'api-status show error';
+                }
+            } catch (e) {
+                status.textContent = '⚠️ Errore: ' + e.message;
+                status.className = 'api-status show error';
+            }
+        }
+        
+        function updateSystemInfo() {
+            const data = getCSVData();
+            const status = document.getElementById('csvDataStatus');
+            const lastUpdate = document.getElementById('lastCsvUpdate');
+            
+            if (data && data.teams) {
+                status.textContent = `✅ ${Object.keys(data.teams).length} squadre caricate`;
+                status.style.color = 'var(--success)';
+                lastUpdate.textContent = new Date(data.importDate).toLocaleDateString('it-IT');
+            } else {
+                status.textContent = '❌ Non caricati';
+                status.style.color = 'var(--danger)';
+                lastUpdate.textContent = '-';
+            }
+        }
+        
+        // ============================================
+        // CSV IMPORT
+        // ============================================
+        
+        function setupCSVImport() {
+            const dropZone = document.getElementById('dropZone');
+            const input = document.getElementById('csvInput');
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const files = Array.from(e.dataTransfer.files);
+                handleCSVFiles(files);
+            });
+            
+            input.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                handleCSVFiles(files);
+            });
+        }
+        
+        async function handleCSVFiles(files) {
+            if (files.length === 0) return;
+            
+            console.log('[CSV] File ricevuti:', files.length);
+            
+            const csvFiles = {
+                teams: null,
+                teams2: null
+            };
+            
+            // Identifica i file
+            for (const file of files) {
+                const name = file.name.toLowerCase();
+                if (name.includes('teams2')) {
+                    csvFiles.teams2 = file;
+                } else if (name.includes('teams')) {
+                    csvFiles.teams = file;
+                }
+            }
+            
+            if (!csvFiles.teams && !csvFiles.teams2) {
+                return alert('❌ Nessun file teams trovato! Carica i CSV corretti.');
+            }
+            
+            // Parse CSV
+            try {
+                const data = { teams: {} };
+                
+                if (csvFiles.teams) {
+                    const text1 = await csvFiles.teams.text();
+                    parseTeamsCSV(text1, data);
+                    document.getElementById('card-teams').classList.add('loaded');
+                    document.getElementById('status-teams').textContent = '✅ Caricato (' + csvFiles.teams.name + ')';
+                }
+                
+                if (csvFiles.teams2) {
+                    const text2 = await csvFiles.teams2.text();
+                    parseTeams2CSV(text2, data);
+                    document.getElementById('card-teams2').classList.add('loaded');
+                    document.getElementById('status-teams2').textContent = '✅ Caricato (' + csvFiles.teams2.name + ')';
+                }
+                
+                // Salva in localStorage
+                data.importDate = Date.now();
+                data.validUntil = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 giorni
+                localStorage.setItem('footystatsData', JSON.stringify(data));
+                
+                csvData = data;
+                
+                // Mostra riepilogo
+                document.getElementById('teamsCount').textContent = Object.keys(data.teams).length;
+                document.getElementById('importDate').textContent = new Date(data.importDate).toLocaleDateString('it-IT');
+                document.getElementById('validUntil').textContent = new Date(data.validUntil).toLocaleDateString('it-IT');
+                document.getElementById('importSummary').style.display = 'block';
+                
+                alert('✅ Dati importati con successo! ' + Object.keys(data.teams).length + ' squadre caricate.');
+                
+            } catch (e) {
+                console.error('[CSV] Errore parsing:', e);
+                alert('❌ Errore durante l\'importazione: ' + e.message);
+            }
+        }
+        
+        function parseTeamsCSV(text, data) {
+            const lines = text.split('\n');
+            const headers = lines[0].split(',');
+            
+            // Trova indici colonne
+            const indices = {
+                name: headers.indexOf('common_name'),
+                corners: headers.indexOf('corners_per_match'),
+                cards: headers.indexOf('cards_per_match'),
+                xgFor: headers.indexOf('xg_for_avg_overall'),
+                xgAgainst: headers.indexOf('xg_against_avg_overall'),
+                btts: headers.indexOf('btts_percentage')
+            };
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const cols = lines[i].split(',');
+                const name = cols[indices.name];
+                
+                if (!name) continue;
+                
+                if (!data.teams[name]) data.teams[name] = {};
+                
+                data.teams[name].corners = parseFloat(cols[indices.corners]) || 0;
+                data.teams[name].cards = parseFloat(cols[indices.cards]) || 0;
+                data.teams[name].xgFor = parseFloat(cols[indices.xgFor]) || 0;
+                data.teams[name].xgAgainst = parseFloat(cols[indices.xgAgainst]) || 0;
+                data.teams[name].btts = parseFloat(cols[indices.btts]) || 0;
+            }
+            
+            console.log('[CSV] Teams parsed:', Object.keys(data.teams).length, 'squadre');
+        }
+        
+        function parseTeams2CSV(text, data) {
+            const lines = text.split('\n');
+            const headers = lines[0].split(',');
+            
+            const indices = {
+                name: headers.indexOf('common_name'),
+                cornersHome: headers.indexOf('corners_total_per_match_home'),
+                cornersAway: headers.indexOf('corners_total_per_match_away'),
+                cornersAgainst: headers.indexOf('corners_against_per_match_overall'),
+                over95: headers.indexOf('over95_corners_percentage_overall'),
+                over105: headers.indexOf('over105_corners_percentage_overall'),
+                cardsOver25: headers.indexOf('over25_cards_total_percentage_overall'),
+                cardsOver35: headers.indexOf('over35_cards_total_percentage_overall')
+            };
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const cols = lines[i].split(',');
+                const name = cols[indices.name];
+                
+                if (!name) continue;
+                
+                if (!data.teams[name]) data.teams[name] = {};
+                
+                data.teams[name].cornersHome = parseFloat(cols[indices.cornersHome]) || 0;
+                data.teams[name].cornersAway = parseFloat(cols[indices.cornersAway]) || 0;
+                data.teams[name].cornersAgainst = parseFloat(cols[indices.cornersAgainst]) || 0;
+                data.teams[name].over95 = parseFloat(cols[indices.over95]) || 0;
+                data.teams[name].over105 = parseFloat(cols[indices.over105]) || 0;
+                data.teams[name].cardsOver25 = parseFloat(cols[indices.cardsOver25]) || 0;
+                data.teams[name].cardsOver35 = parseFloat(cols[indices.cardsOver35]) || 0;
+            }
+            
+            console.log('[CSV] Teams2 parsed');
+        }
+        
+        function getCSVData() {
+            if (csvData) return csvData;
+            
+            const stored = localStorage.getItem('footystatsData');
+            if (stored) {
+                csvData = JSON.parse(stored);
+                return csvData;
+            }
+            
+            return null;
+        }
+        
+        function clearCSVData() {
+            if (!confirm('Cancellare tutti i dati CSV importati?')) return;
+            localStorage.removeItem('footystatsData');
+            csvData = null;
+            location.reload();
+        }
+        
+        function findTeamInCSV(teamName) {
+            const data = getCSVData();
+            if (!data || !data.teams) return null;
+            
+            // Ricerca diretta
+            if (data.teams[teamName]) return data.teams[teamName];
+            
+            // Ricerca fuzzy
+            const normalized = teamName.toLowerCase().trim();
+            for (const [name, stats] of Object.entries(data.teams)) {
+                if (name.toLowerCase().includes(normalized) || normalized.includes(name.toLowerCase())) {
+                    console.log('[CSV] Match fuzzy:', teamName, '→', name);
+                    return stats;
+                }
+            }
+            
+            return null;
+        }
+        
+        // ============================================
+        // PALINSESTO
+        // ============================================
+        
+        async function loadNextFixtures() {
+            const league = document.getElementById('fixturesLeague').value;
+            const count = document.getElementById('fixturesCount').value;
+            const key = getApiKey();
+            
+            if (!key) {
+                alert('Configura API key in Impostazioni!');
+                return switchTab('settings');
+            }
+            
+            document.getElementById('fixturesLoading').classList.add('active');
+            document.getElementById('fixturesList').innerHTML = '';
+            
+            try {
+                const url = `${API_URL}/fixtures?league=${league}&next=${count}`;
+                console.log('[API] URL:', url);
+                
+                const res = await fetch(url, {
+                    headers: { 'x-apisports-key': key }
+                });
+                
+                if (!res.ok) throw new Error(`Errore API: ${res.status}`);
+                
+                const data = await res.json();
+                const fixtures = data.response || [];
+                
+                console.log(`[API] Trovate ${fixtures.length} partite`);
+                
+                if (fixtures.length === 0) {
+                    document.getElementById('fixturesList').innerHTML = `
+                        <div class="section" style="border-color:var(--danger);">
+                            <h3 style="color:var(--danger); text-align:center;">❌ Nessuna partita trovata!</h3>
+                            <p style="text-align:center; margin-top:1rem;">
+                                Prova un altro campionato o verifica la tua API key.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    displayFixtures(fixtures);
+                }
+                
+            } catch (error) {
+                console.error('[API] Errore:', error);
+                alert('Errore: ' + error.message);
+            } finally {
+                document.getElementById('fixturesLoading').classList.remove('active');
+            }
+        }
+        
+        function displayFixtures(fixtures) {
+            const list = document.getElementById('fixturesList');
+            const byDate = {};
+            
+            fixtures.forEach(f => {
+                const date = new Date(f.fixture.date).toLocaleDateString('it-IT');
+                if (!byDate[date]) byDate[date] = [];
+                byDate[date].push(f);
+            });
+            
+            let html = `<div class="section" style="text-align:center; background:rgba(16,185,129,0.1); border:2px solid var(--success);">
+                <h3 style="color:var(--success);">✅ Trovate ${fixtures.length} partite!</h3>
+            </div>`;
+            
+            Object.keys(byDate).sort().forEach(date => {
+                html += `
+                    <div class="section" style="margin-bottom:1rem;">
+                        <h3 style="color:var(--accent-gold); margin-bottom:1rem;">📅 ${date}</h3>
+                        ${byDate[date].map(f => {
+                            const time = new Date(f.fixture.date).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+                            const status = f.fixture.status.short;
+                            const id = f.fixture.id;
+                            
+                            return `
+                                <div class="history-item" style="border-color:rgba(0,217,255,0.3);" id="fixture-${id}">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                                        <div style="flex:1;">
+                                            <p style="font-weight:700; font-size:1.1rem;">
+                                                ${f.teams.home.name} vs ${f.teams.away.name}
+                                            </p>
+                                            <p style="font-size:0.85rem; opacity:0.7;">
+                                                🏆 ${f.league.name} • 🕐 ${time}
+                                            </p>
+                                        </div>
+                                        ${status === 'NS' ? `
+                                        <button class="btn-small" style="background:var(--accent-fire); color:white; padding:0.8rem 1.5rem;" 
+                                                onclick="analyzeFixtureDirect(${id}, '${f.teams.home.name.replace(/'/g,"\\'")}', '${f.teams.away.name.replace(/'/g,"\\'")}', ${f.league.id})">
+                                            🔥 Analizza HYBRID
+                                        </button>
+                                        ` : `<span style="opacity:0.6;">Match ${status}</span>`}
+                                    </div>
+                                    <div id="result-${id}" style="margin-top:1rem; display:none;"></div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            });
+            
+            list.innerHTML = html;
+        }
+        
+        // ============================================
+        // ALGORITMO HYBRID
+        // ============================================
+        
+        function factorial(n) {
+            if (n <= 1) return 1;
+            return n * factorial(n - 1);
+        }
+        
+        function poisson(lambda, k) {
+            return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
+        }
+        
+        function calcGG(lH, lA) {
+            return (1 - poisson(lH, 0)) * (1 - poisson(lA, 0)) * 100;
+        }
+        
+        function calcOver(lT) {
+            return (1 - poisson(lT, 0) - poisson(lT, 1) - poisson(lT, 2)) * 100;
+        }
+        
+        function calcMG(l) {
+            return (poisson(l, 1) + poisson(l, 2) + poisson(l, 3)) * 100;
+        }
+        
+        function calc1X2(lH, lA) {
+            let p1 = 0, pX = 0, p2 = 0;
+            for (let i = 0; i <= 5; i++) {
+                for (let j = 0; j <= 5; j++) {
+                    const p = poisson(lH, i) * poisson(lA, j);
+                    if (i > j) p1 += p;
+                    else if (i === j) pX += p;
+                    else p2 += p;
+                }
+            }
+            return { h: p1*100, d: pX*100, a: p2*100 };
+        }
+        
+        async function getTeamData(team, league) {
+            const key = getApiKey();
+            if (!key) throw new Error('API key non configurata');
+            
+            const res = await fetch(`${API_URL}/teams?search=${encodeURIComponent(team)}&league=${league}`, {
+                headers: { 'x-apisports-key': key }
+            });
+            
+            const data = await res.json();
+            if (!data.response[0]) throw new Error(`Team ${team} non trovato`);
+            
+            const teamId = data.response[0].team.id;
+            const teamName = data.response[0].team.name;
+            
+            await new Promise(r => setTimeout(r, 500));
+            
+            const res2 = await fetch(`${API_URL}/fixtures?team=${teamId}&last=10`, {
+                headers: { 'x-apisports-key': key }
+            });
+            
+            const matchesData = await res2.json();
+            const matches = matchesData.response || [];
+            
+            if (matches.length === 0) {
+                throw new Error(`Nessun match recente per ${teamName}`);
+            }
+            
+            let gf = 0, ga = 0, form = 0;
+            matches.forEach(m => {
+                const isHome = m.teams.home.id === teamId;
+                if (isHome) {
+                    gf += m.goals.home || 0;
+                    ga += m.goals.away || 0;
+                    if (m.goals.home > m.goals.away) form += 3;
+                    else if (m.goals.home === m.goals.away) form += 1;
+                } else {
+                    gf += m.goals.away || 0;
+                    ga += m.goals.home || 0;
+                    if (m.goals.away > m.goals.home) form += 3;
+                    else if (m.goals.away === m.goals.home) form += 1;
+                }
+            });
+            
+            return { teamName, matches: matches.length, gf, ga, form };
+        }
+        
+        async function analyzeMatch() {
+            const home = document.getElementById('homeTeam').value.trim();
+            const away = document.getElementById('awayTeam').value.trim();
+            const league = document.getElementById('league').value;
+            
+            if (!home || !away) return alert('Inserisci entrambe le squadre!');
+            if (!getApiKey()) {
+                alert('Configura API key!');
+                return switchTab('settings');
+            }
+            
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            
+            try {
+                // API-Football
+                const hData = await getTeamData(home, league);
+                const aData = await getTeamData(away, league);
+                
+                // Poisson base
+                const lH = (hData.gf / hData.matches) * 1.15;
+                const lA = (aData.gf / aData.matches) * 0.95;
+                
+                const gg = calcGG(lH, lA);
+                const over = calcOver(lH + lA);
+                const mgH = calcMG(lH);
+                const mgA = calcMG(lA);
+                const s1x2 = calc1X2(lH, lA);
+                
+                // FootyStats CSV
+                const csvHome = findTeamInCSV(hData.teamName);
+                const csvAway = findTeamInCSV(aData.teamName);
+                
+                let corners = null;
+                let cards = null;
+                let xgData = null;
+                let bttsConfirm = null;
+                
+                if (csvHome && csvAway) {
+                    console.log('[HYBRID] Dati CSV trovati per entrambe!');
+                    
+                    // Corner prediction
+                    const cornerTotal = (csvHome.corners || 0) + (csvAway.corners || 0);
+                    corners = {
+                        total: cornerTotal,
+                        over95: cornerTotal > 9.5 ? 75 : 45,
+                        over105: cornerTotal > 10.5 ? 70 : 40,
+                        over115: cornerTotal > 11.5 ? 65 : 35
+                    };
+                    
+                    // Cards prediction
+                    const cardsTotal = (csvHome.cards || 0) + (csvAway.cards || 0);
+                    cards = {
+                        total: cardsTotal,
+                        over25: cardsTotal > 2.5 ? 75 : 45,
+                        over35: cardsTotal > 3.5 ? 65 : 35,
+                        over45: cardsTotal > 4.5 ? 55 : 25
+                    };
+                    
+                    // xG
+                    xgData = {
+                        home: csvHome.xgFor || 0,
+                        away: csvAway.xgFor || 0
+                    };
+                    
+                    // BTTS confirm
+                    bttsConfirm = ((csvHome.btts || 0) + (csvAway.btts || 0)) / 2;
+                }
+                
+                // Confidence
+                let conf = 50;
+                conf += (hData.matches >= 10 ? 15 : 0);
+                conf += (hData.form > 20 ? 15 : 0);
+                conf += (gg > 70 ? 10 : 0);
+                if (csvHome && csvAway) conf += 10; // Bonus CSV data
+                conf = Math.min(100, conf);
+                
+                // Recommendation
+                let rec = [];
+                if (conf >= 75) {
+                    if (gg > 70 && over > 65) rec.push('🔥 GG + OVER 2.5');
+                    if (gg > 75) rec.push('⚽ GG');
+                    if (over > 75) rec.push('📈 OVER 2.5');
+                    if (corners && corners.over105 > 65) rec.push('⛳ CORNER OVER 10.5');
+                    if (cards && cards.over35 > 60) rec.push('🟨 CARDS OVER 3.5');
+                }
+                const recommendation = rec.join(' • ') || '⚠️ Valutare attentamente';
+                
+                currentPrediction = {
+                    homeTeam: hData.teamName,
+                    awayTeam: aData.teamName,
+                    league: document.getElementById('league').options[document.getElementById('league').selectedIndex].text,
+                    gg, over, mgH, mgA, s1x2, conf, recommendation,
+                    corners, cards, xgData, bttsConfirm,
+                    timestamp: Date.now(),
+                    hybrid: !!(csvHome && csvAway)
+                };
+                
+                displayResults();
+                
+            } catch (error) {
+                console.error('[ANALYZE] Errore:', error);
+                alert('Errore: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+        
+        function displayResults() {
+            const { homeTeam, awayTeam, gg, over, mgH, mgA, s1x2, conf, recommendation, corners, cards, xgData, bttsConfirm, hybrid } = currentPrediction;
+            const getClass = v => v >= 70 ? 'high' : v >= 55 ? 'medium' : 'low';
+            
+            let html = `
+                <div class="section">
+                    <div style="text-align:center; margin-bottom:1rem;">
+                        <h2>${homeTeam} vs ${awayTeam}</h2>
+                        ${hybrid ? '<span class="badge success">💎 HYBRID MODE</span>' : '<span class="badge warning">⚠️ Solo API</span>'}
+                    </div>
+                    
+                    <div style="text-align:center; margin:2rem 0;">
+                        <div style="font-size:1.2rem; opacity:0.8;">Confidence Score</div>
+                        <div style="font-size:3rem; font-weight:700; color:var(--accent-gold);">⭐ ${conf}%</div>
+                    </div>
+                    
+                    <h3 style="margin:2rem 0 1rem 0;">⚽ Predizioni GOL (Poisson)</h3>
+                    <div class="pred-grid">
+                        <div class="pred-item">
+                            <p>GG</p>
+                            <div class="pred-value ${getClass(gg)}">${gg.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>Over 2.5</p>
+                            <div class="pred-value ${getClass(over)}">${over.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>MG Casa 1-3</p>
+                            <div class="pred-value ${getClass(mgH)}">${mgH.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>MG Ospite 1-3</p>
+                            <div class="pred-value ${getClass(mgA)}">${mgA.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>Segno 1</p>
+                            <div class="pred-value ${getClass(s1x2.h)}">${s1x2.h.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>Segno X</p>
+                            <div class="pred-value ${getClass(s1x2.d)}">${s1x2.d.toFixed(1)}%</div>
+                        </div>
+                        <div class="pred-item">
+                            <p>Segno 2</p>
+                            <div class="pred-value ${getClass(s1x2.a)}">${s1x2.a.toFixed(1)}%</div>
+                        </div>
+                    </div>
+            `;
+            
+            if (corners && cards) {
+                html += `
+                    <h3 style="margin:2rem 0 1rem 0; color:var(--accent-gold);">💎 Predizioni CSV (Dati REALI FootyStats)</h3>
+                    <div class="pred-grid">
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Corner Totali</p>
+                            <div class="pred-value" style="color:var(--accent-gold);">${corners.total.toFixed(1)}</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Over 9.5 Corner</p>
+                            <div class="pred-value ${getClass(corners.over95)}">${corners.over95}%</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Over 10.5 Corner</p>
+                            <div class="pred-value ${getClass(corners.over105)}">${corners.over105}%</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Over 11.5 Corner</p>
+                            <div class="pred-value ${getClass(corners.over115)}">${corners.over115}%</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Cards Totali</p>
+                            <div class="pred-value" style="color:var(--accent-gold);">${cards.total.toFixed(1)}</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Over 2.5 Cards</p>
+                            <div class="pred-value ${getClass(cards.over25)}">${cards.over25}%</div>
+                        </div>
+                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
+                            <p>Over 3.5 Cards</p>
+                            <div class="pred-value ${getClass(cards.over35)}">${cards.over35}%</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (xgData) {
+                    html += `
+                        <div style="margin:2rem 0; padding:1rem; background:rgba(0,217,255,0.1); border-radius:10px; border:2px solid var(--accent-ice);">
+                            <h4 style="color:var(--accent-ice);">📊 xG Analysis (Expected Goals)</h4>
+                            <p style="margin-top:0.5rem;">🏠 ${homeTeam}: <strong>${xgData.home.toFixed(2)} xG</strong></p>
+                            <p>✈️ ${awayTeam}: <strong>${xgData.away.toFixed(2)} xG</strong></p>
+                            <p style="margin-top:0.5rem; opacity:0.8; font-size:0.9rem;">
+                                ${xgData.home + xgData.away > 2.5 ? '✅ xG conferma Over 2.5' : '⚠️ xG suggerisce Under 2.5'}
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                if (bttsConfirm) {
+                    html += `
+                        <div style="margin:1rem 0; padding:1rem; background:rgba(16,185,129,0.1); border-radius:10px; border:2px solid var(--success);">
+                            <h4 style="color:var(--success);">✅ BTTS Confirmation</h4>
+                            <p style="margin-top:0.5rem;">Media stagionale BTTS: <strong>${bttsConfirm.toFixed(1)}%</strong></p>
+                            <p style="opacity:0.8; font-size:0.9rem;">
+                                ${bttsConfirm > 60 ? '🔥 Entrambe le squadre segnano frequentemente!' : 'Squadre con BTTS moderato'}
+                            </p>
+                        </div>
+                    `;
+                }
+            } else {
+                html += `
+                    <div style="margin:2rem 0; padding:1.5rem; background:rgba(255,159,64,0.1); border-radius:10px; border:2px solid var(--warning);">
+                        <h4 style="color:var(--warning);">⚠️ Dati CSV Non Disponibili</h4>
+                        <p style="margin-top:0.5rem;">Predizioni corner e cards non disponibili.</p>
+                        <p style="font-size:0.9rem; opacity:0.8; margin-top:0.5rem;">
+                            Importa i CSV FootyStats dal tab "📊 Import CSV" per avere predizioni PRECISE!
+                        </p>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    <div style="background:rgba(255,51,102,0.2); padding:1.5rem; border-radius:10px; margin-top:2rem;">
+                        <h3>💎 Raccomandazione Finale</h3>
+                        <p style="font-size:1.2rem; font-weight:700; color:var(--accent-gold); margin-top:1rem;">
+                            ${recommendation}
+                        </p>
+                    </div>
+                    
+                    <button class="btn" onclick="savePrediction()" style="margin-top:2rem;">💾 Salva nello Storico</button>
+                </div>
+            `;
+            
+            document.getElementById('results').innerHTML = html;
+            document.getElementById('results').classList.add('active');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        async function analyzeFixtureDirect(id, home, away, league) {
+            const result = document.getElementById(`result-${id}`);
+            const btn = event.target;
+            
+            result.innerHTML = '<div class="loading active"><div class="spinner"></div><p>Analizzando con HYBRID...</p></div>';
+            result.style.display = 'block';
+            btn.disabled = true;
+            btn.textContent = '⏳ Analizzando...';
+            
+            try {
+                const hData = await getTeamData(home, league);
+                const aData = await getTeamData(away, league);
+                
+                const lH = (hData.gf / hData.matches) * 1.15;
+                const lA = (aData.gf / aData.matches) * 0.95;
+                
+                const gg = calcGG(lH, lA);
+                const over = calcOver(lH + lA);
+                const mgH = calcMG(lH);
+                const mgA = calcMG(lA);
+                const s1x2 = calc1X2(lH, lA);
+                
+                // CSV data
+                const csvHome = findTeamInCSV(hData.teamName);
+                const csvAway = findTeamInCSV(aData.teamName);
+                
+                let corners = null;
+                let cards = null;
+                
+                if (csvHome && csvAway) {
+                    const cornerTotal = (csvHome.corners || 0) + (csvAway.corners || 0);
+                    corners = {
+                        total: cornerTotal,
+                        over105: cornerTotal > 10.5 ? 70 : 40
+                    };
+                    
+                    const cardsTotal = (csvHome.cards || 0) + (csvAway.cards || 0);
+                    cards = {
+                        total: cardsTotal,
+                        over35: cardsTotal > 3.5 ? 65 : 35
+                    };
+                }
+                
+                let conf = 50 + (hData.matches >= 10 ? 15 : 0) + (hData.form > 20 ? 15 : 0) + (gg > 70 ? 10 : 0);
+                if (csvHome && csvAway) conf += 10;
+                conf = Math.min(100, conf);
+                
+                let rec = [];
+                if (conf >= 75) {
+                    if (gg > 70 && over > 65) rec.push('🔥 GG + OVER 2.5');
+                    if (gg > 75) rec.push('⚽ GG');
+                    if (corners && corners.over105 > 65) rec.push('⛳ CORNER 10.5+');
+                }
+                const recommendation = rec.join(' • ') || '⚠️ Valutare';
+                
+                const getClass = v => v >= 70 ? 'high' : v >= 55 ? 'medium' : 'low';
+                
+                let html = `
+                    <div style="background:rgba(0,217,255,0.1); padding:1.5rem; border-radius:10px; border:2px solid var(--accent-ice);">
+                        ${csvHome && csvAway ? '<span class="badge success">💎 HYBRID</span>' : '<span class="badge warning">API</span>'}
+                        <div style="text-align:center; margin:1rem 0;">
+                            <span style="font-size:2rem; font-weight:700; color:var(--accent-gold);">⭐ ${conf}%</span>
+                        </div>
+                        <div class="pred-grid">
+                            <div class="pred-item"><p>GG</p><div class="pred-value ${getClass(gg)}">${gg.toFixed(1)}%</div></div>
+                            <div class="pred-item"><p>Over 2.5</p><div class="pred-value ${getClass(over)}">${over.toFixed(1)}%</div></div>
+                            <div class="pred-item"><p>MG Casa</p><div class="pred-value ${getClass(mgH)}">${mgH.toFixed(1)}%</div></div>
+                            <div class="pred-item"><p>MG Ospite</p><div class="pred-value ${getClass(mgA)}">${mgA.toFixed(1)}%</div></div>
+                `;
+                
+                if (corners && cards) {
+                    html += `
+                            <div class="pred-item" style="background:rgba(255,215,0,0.1);"><p>Corner</p><div class="pred-value" style="color:var(--accent-gold);">${corners.total.toFixed(1)}</div></div>
+                            <div class="pred-item" style="background:rgba(255,215,0,0.1);"><p>Cards</p><div class="pred-value" style="color:var(--accent-gold);">${cards.total.toFixed(1)}</div></div>
+                    `;
+                }
+                
+                html += `
+                        </div>
+                        <div style="background:rgba(255,51,102,0.2); padding:1rem; border-radius:8px; margin-top:1rem; text-align:center;">
+                            <p style="font-weight:700; color:var(--accent-gold);">${recommendation}</p>
+                        </div>
+                    </div>
+                `;
+                
+                result.innerHTML = html;
+                btn.textContent = '✅ Analizzata';
+                btn.style.background = 'var(--success)';
+                
+            } catch (error) {
+                result.innerHTML = `<p style="color:var(--danger);">❌ ${error.message}</p>`;
+                btn.disabled = false;
+                btn.textContent = '🔥 Riprova';
+            }
+        }
+        
+        // ============================================
+        // HISTORY
+        // ============================================
+        
+        async function savePrediction() {
+            if (!currentPrediction) return alert('Nessuna predizione da salvare!');
+            try {
+                await db.ref('predictions').push({
+                    ...currentPrediction,
+                    status: 'pending',
+                    savedAt: Date.now()
+                });
+                alert('✅ Predizione salvata nello storico!');
+                currentPrediction = null;
+            } catch (e) {
+                alert('Errore salvataggio: ' + e.message);
+            }
+        }
+        
+        async function loadHistory() {
+            try {
+                const snap = await db.ref('predictions').orderByChild('savedAt').once('value');
+                const preds = [];
+                snap.forEach(c => preds.push({ id: c.key, ...c.val() }));
+                preds.reverse();
+                displayHistory(preds);
+                updateStats(preds);
+            } catch (e) {
+                document.getElementById('historyList').innerHTML = '<p>Errore caricamento storico</p>';
+            }
+        }
+        
+        function displayHistory(preds) {
+            const list = document.getElementById('historyList');
+            if (preds.length === 0) {
+                list.innerHTML = '<div class="section"><p style="text-align:center;">Nessuna predizione salvata</p></div>';
+                return;
+            }
+            list.innerHTML = preds.map(p => {
+                const date = new Date(p.savedAt).toLocaleDateString('it-IT');
+                const emoji = { pending: '⏳', correct: '✅', incorrect: '❌' }[p.status] || '⏳';
+                const hybridBadge = p.hybrid ? '<span class="badge success">💎 HYBRID</span>' : '';
+                
+                return `
+                    <div class="history-item ${p.status}">
+                        <div style="display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap;">
+                            <div style="flex:1;">
+                                <p style="font-weight:700; font-size:1.1rem;">${emoji} ${p.homeTeam} vs ${p.awayTeam}</p>
+                                <p style="font-size:0.9rem; opacity:0.7; margin-top:0.3rem;">
+                                    ${date} • ${p.league} • Conf: ${p.conf}% ${hybridBadge}
+                                </p>
+                                <p style="margin-top:0.5rem;"><strong>Raccomandazione:</strong> ${p.recommendation}</p>
+                            </div>
+                        </div>
+                        ${p.status === 'pending' ? `
+                        <div style="margin-top:1rem;">
+                            <button class="btn-small btn-correct" onclick="markAs('${p.id}','correct')">✅ Indovinata</button>
+                            <button class="btn-small btn-incorrect" onclick="markAs('${p.id}','incorrect')">❌ Sbagliata</button>
+                            <button class="btn-small btn-delete" onclick="deletePred('${p.id}')">🗑️ Elimina</button>
+                        </div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateStats(preds) {
+            const total = preds.length;
+            const correct = preds.filter(p => p.status === 'correct').length;
+            const incorrect = preds.filter(p => p.status === 'incorrect').length;
+            const rate = (correct + incorrect > 0) ? ((correct / (correct + incorrect)) * 100).toFixed(1) : 0;
+            
+            document.getElementById('totalPred').textContent = total;
+            document.getElementById('correctPred').textContent = correct;
+            document.getElementById('incorrectPred').textContent = incorrect;
+            document.getElementById('successRate').textContent = rate + '%';
+        }
+        
+        async function markAs(id, status) {
+            try {
+                await db.ref('predictions/' + id).update({ status });
+                loadHistory();
+            } catch (e) {
+                alert('Errore: ' + e.message);
+            }
+        }
+        
+        async function deletePred(id) {
+            if (!confirm('Eliminare questa predizione?')) return;
+            try {
+                await db.ref('predictions/' + id).remove();
+                loadHistory();
+            } catch (e) {
+                alert('Errore: ' + e.message);
+            }
+        }
+        
+        async function clearHistory() {
+            if (!confirm('Cancellare TUTTO lo storico?')) return;
+            try {
+                await db.ref('predictions').remove();
+                loadHistory();
+            } catch (e) {
+                alert('Errore: ' + e.message);
+            }
+        }
+        
+        // ============================================
+        // INIT
+        // ============================================
+        
+        window.addEventListener('load', () => {
+            const key = getApiKey();
+            if (key) document.getElementById('apiKey').value = key;
+            
+            setupCSVImport();
+            
+            const data = getCSVData();
+            if (data && data.teams) {
+                console.log('[INIT] CSV data trovati:', Object.keys(data.teams).length, 'squadre');
+                document.getElementById('card-teams').classList.add('loaded');
+                document.getElementById('status-teams').textContent = '✅ Caricato';
+                document.getElementById('card-teams2').classList.add('loaded');
+                document.getElementById('status-teams2').textContent = '✅ Caricato';
+                document.getElementById('importSummary').style.display = 'block';
+                document.getElementById('teamsCount').textContent = Object.keys(data.teams).length;
+                document.getElementById('importDate').textContent = new Date(data.importDate).toLocaleDateString('it-IT');
+                document.getElementById('validUntil').textContent = new Date(data.validUntil).toLocaleDateString('it-IT');
+            }
+            
+            updateSystemInfo();
+        });
+    </script>
 </body>
 </html>
