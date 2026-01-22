@@ -3,1455 +3,765 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRO BETTING DASHBOARD HYBRID v3.0 | VVF Lentini</title>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
+    <title>Prophecy Hunter - Betting Analysis</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        :root {
-            --bg-primary: #0a0e27;
-            --bg-secondary: #151a3d;
-            --accent-fire: #ff3366;
-            --accent-ice: #00d9ff;
-            --accent-gold: #ffd700;
-            --text-primary: #ffffff;
-            --text-secondary: #a0aec0;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Space Mono', monospace;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(255, 51, 102, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(0, 217, 255, 0.1) 0%, transparent 50%);
-            animation: pulse 10s ease-in-out infinite;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        
+
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 1rem;
-            position: relative;
-            z-index: 1;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
         }
-        
+
         .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
             text-align: center;
-            margin-bottom: 2rem;
-            padding: 2rem 1rem;
-            background: linear-gradient(135deg, var(--accent-fire), var(--accent-ice));
-            border-radius: 20px;
         }
-        
+
         .header h1 {
-            font-family: 'Syne', sans-serif;
-            font-size: clamp(1.8rem, 5vw, 3.5rem);
-            font-weight: 800;
-            text-transform: uppercase;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        
+
         .header p {
-            margin-top: 0.5rem;
+            font-size: 1.1em;
             opacity: 0.9;
         }
-        
+
         .tabs {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
         }
-        
+
         .tab {
             flex: 1;
-            min-width: 100px;
-            padding: 1rem;
-            background: var(--bg-secondary);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
+            padding: 15px;
             text-align: center;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: bold;
             transition: all 0.3s;
-        }
-        
-        .tab:hover {
-            border-color: var(--accent-ice);
-            transform: translateY(-2px);
-        }
-        
-        .tab.active {
-            background: linear-gradient(135deg, var(--accent-fire), var(--accent-ice));
-            border-color: transparent;
-        }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        .section {
-            background: var(--bg-secondary);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            border: 2px solid rgba(255, 51, 102, 0.3);
-        }
-        
-        .input-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-        
-        input, select {
-            width: 100%;
-            padding: 1rem;
-            background: rgba(255,255,255,0.05);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-family: 'Space Mono', monospace;
-            font-size: 1rem;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 1.2rem;
-            background: linear-gradient(135deg, var(--accent-fire), #ff1744);
             border: none;
-            border-radius: 10px;
-            color: white;
-            font-family: 'Syne', sans-serif;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 1rem;
-            transition: all 0.3s;
+            background: transparent;
         }
-        
+
+        .tab:hover {
+            background: #e0e0e0;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #2a5298;
+            color: #2a5298;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #2a5298;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255, 51, 102, 0.3);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+
+        .btn:active {
+            transform: translateY(0);
         }
-        
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
         .loading {
-            display: none;
             text-align: center;
-            padding: 2rem;
+            padding: 40px;
+            display: none;
         }
-        
-        .loading.active { display: block; }
-        
+
+        .loading.active {
+            display: block;
+        }
+
         .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
             width: 50px;
             height: 50px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: var(--accent-fire);
-            border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
+            margin: 0 auto 20px;
         }
-        
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .results { display: none; }
-        .results.active { display: block; }
-        
-        .pred-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        
-        .pred-item {
-            background: rgba(255,255,255,0.05);
-            padding: 1rem;
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .match-card {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
             border-radius: 10px;
-            text-align: center;
-        }
-        
-        .pred-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent-ice);
-            margin-top: 0.5rem;
-        }
-        
-        .pred-value.high { color: var(--success); }
-        .pred-value.medium { color: var(--warning); }
-        .pred-value.low { color: var(--danger); }
-        
-        .history-item {
-            background: var(--bg-secondary);
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            border: 2px solid rgba(255,255,255,0.1);
-        }
-        
-        .history-item.correct { 
-            border-color: var(--success);
-            background: rgba(16, 185, 129, 0.1);
-        }
-        .history-item.incorrect { 
-            border-color: var(--danger);
-            background: rgba(239, 68, 68, 0.1);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-        
-        .stat-box {
-            text-align: center;
-            padding: 1rem;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-        }
-        
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--accent-gold);
-        }
-        
-        .btn-small {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 0.2rem;
-            font-weight: 600;
-        }
-        
-        .btn-correct { background: var(--success); color: white; }
-        .btn-incorrect { background: var(--danger); color: white; }
-        .btn-delete { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
-        
-        .api-status {
-            margin-top: 1rem;
-            padding: 0.8rem;
-            border-radius: 8px;
-            display: none;
-            text-align: center;
-        }
-        .api-status.show { display: block; }
-        .api-status.success { background: rgba(16,185,129,0.2); color: var(--success); border: 2px solid var(--success); }
-        .api-status.error { background: rgba(239,68,68,0.2); color: var(--danger); border: 2px solid var(--danger); }
-        
-        .drop-zone {
-            border: 3px dashed rgba(0, 217, 255, 0.3);
-            border-radius: 15px;
-            padding: 3rem;
-            text-align: center;
+            padding: 20px;
+            margin-bottom: 15px;
             cursor: pointer;
             transition: all 0.3s;
-            background: rgba(0, 217, 255, 0.05);
         }
-        
-        .drop-zone:hover, .drop-zone.dragover {
-            border-color: var(--accent-ice);
-            background: rgba(0, 217, 255, 0.1);
-            transform: scale(1.02);
+
+        .match-card:hover {
+            transform: translateX(5px);
+            border-color: #2a5298;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        
-        .csv-status {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+
+        .match-card.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
         }
-        
-        .csv-card {
-            background: rgba(255,255,255,0.05);
-            padding: 1rem;
+
+        .market-card {
+            background: white;
+            border: 2px solid #e0e0e0;
             border-radius: 10px;
-            border: 2px solid rgba(255,255,255,0.1);
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
         }
-        
-        .csv-card.loaded {
-            border-color: var(--success);
-            background: rgba(16, 185, 129, 0.1);
+
+        .market-card.value-bet {
+            border-color: #28a745;
+            background: #f0fff4;
         }
-        
+
+        .market-card.high-confidence {
+            border-left: 5px solid #ffc107;
+        }
+
+        .confidence-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+            transition: width 0.3s;
+        }
+
         .badge {
             display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            margin-left: 0.5rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 5px;
         }
-        
-        .badge.success { background: var(--success); color: white; }
-        .badge.warning { background: var(--warning); color: white; }
-        .badge.danger { background: var(--danger); color: white; }
-        
-        @media (max-width: 768px) {
-            .container { padding: 0.5rem; }
-            .pred-grid { grid-template-columns: repeat(2, 1fr); }
-            .tabs { font-size: 0.85rem; }
-            .tab { padding: 0.8rem; min-width: 80px; }
+
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: black;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .settings-section {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .settings-section h3 {
+            margin-bottom: 15px;
+            color: #2a5298;
+        }
+
+        .footystats-manager {
+            margin-top: 30px;
+            border-top: 3px solid #007bff;
+            padding-top: 25px;
+        }
+
+        #footyStatsStatus {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        #footyStatsLog {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-file-upload {
+            background: #007bff;
+            margin-right: 10px;
+        }
+
+        .btn-file-clear {
+            background: #dc3545;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚽ PRO BETTING DASHBOARD</h1>
-            <p>🔥 HYBRID System v3.0 - API + FootyStats 💎</p>
+            <h1>🔮 Prophecy Hunter</h1>
+            <p>Advanced Betting Analysis & Predictions</p>
         </div>
 
         <div class="tabs">
-            <div class="tab" onclick="switchTab('import')">📊 Import CSV</div>
-            <div class="tab active" onclick="switchTab('fixtures')">📅 Palinsesto</div>
-            <div class="tab" onclick="switchTab('analyze')">🎯 Analizza</div>
-            <div class="tab" onclick="switchTab('history')">📈 Storico</div>
-            <div class="tab" onclick="switchTab('settings')">⚙️ Impostazioni</div>
+            <button class="tab active" onclick="switchTab('predictions')">🎯 Predictions</button>
+            <button class="tab" onclick="switchTab('analysis')">📊 Analysis</button>
+            <button class="tab" onclick="switchTab('settings')">⚙️ Settings</button>
         </div>
 
-        <!-- Import CSV -->
-        <div id="import-tab" class="tab-content">
-            <div class="section">
-                <h3>📊 Import Dati FootyStats</h3>
-                <p style="margin: 1rem 0; opacity: 0.8;">
-                    Importa i file CSV da FootyStats per avere predizioni corner e cards PRECISE!<br>
-                    <strong>Aggiorna 1 volta/settimana (domenica sera)</strong>
-                </p>
-                
-                <div class="drop-zone" id="dropZone">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-                    <h3>Trascina qui i CSV</h3>
-                    <p style="margin: 1rem 0;">oppure</p>
-                    <input type="file" id="csvInput" accept=".csv" multiple style="display: none;">
-                    <button class="btn" onclick="document.getElementById('csvInput').click()" style="max-width: 300px; margin: 1rem auto;">
-                        📂 Seleziona File CSV
-                    </button>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">
-                        Carica: italy-serie-a-teams-*.csv e italy-serie-a-teams2-*.csv
-                    </p>
-                </div>
-                
-                <div class="csv-status" id="csvStatus">
-                    <div class="csv-card" id="card-teams">
-                        <h4>📄 Teams Stats</h4>
-                        <p id="status-teams" style="margin-top: 0.5rem; opacity: 0.7;">⏳ Non caricato</p>
-                    </div>
-                    <div class="csv-card" id="card-teams2">
-                        <h4>📄 Teams2 Stats</h4>
-                        <p id="status-teams2" style="margin-top: 0.5rem; opacity: 0.7;">⏳ Non caricato</p>
-                    </div>
-                </div>
-                
-                <div id="importSummary" style="display: none; margin-top: 2rem; padding: 1.5rem; background: rgba(16,185,129,0.1); border: 2px solid var(--success); border-radius: 10px;">
-                    <h3 style="color: var(--success);">✅ Dati Importati!</h3>
-                    <div style="margin-top: 1rem;">
-                        <p><strong>Squadre caricate:</strong> <span id="teamsCount">0</span></p>
-                        <p><strong>Data import:</strong> <span id="importDate">-</span></p>
-                        <p><strong>Valido fino:</strong> <span id="validUntil">-</span></p>
-                    </div>
-                    <button class="btn" onclick="clearCSVData()" style="background: var(--danger); margin-top: 1rem;">
-                        🗑️ Cancella Dati CSV
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Palinsesto -->
-        <div id="fixtures-tab" class="tab-content active">
-            <div class="section">
-                <h3>📅 Palinsesto Partite</h3>
-                <div class="input-grid" style="margin-bottom:1rem;">
-                    <div>
-                        <label>🏆 Campionato</label>
-                        <select id="fixturesLeague">
-                            <option value="135">🇮🇹 Serie A</option>
-                            <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
-                            <option value="140">🇪🇸 La Liga</option>
-                            <option value="78">🇩🇪 Bundesliga</option>
-                            <option value="61">🇫🇷 Ligue 1</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>📊 Quante partite</label>
-                        <select id="fixturesCount">
-                            <option value="10">10 partite</option>
-                            <option value="20" selected>20 partite</option>
-                            <option value="30">30 partite</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn" onclick="loadNextFixtures()">🔍 Carica PROSSIME Partite</button>
-                <p style="margin-top:1rem; text-align:center; opacity:0.7; font-size:0.9rem;">
-                    ⚡ Sistema HYBRID: API-Football + FootyStats CSV
-                </p>
+        <!-- TAB PREDICTIONS -->
+        <div id="predictions" class="tab-content active">
+            <div class="form-group">
+                <label>🏆 Select League</label>
+                <select id="leagueSelect" onchange="loadMatches()">
+                    <option value="">-- Select a league --</option>
+                    <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+                    <option value="135">🇮🇹 Serie A</option>
+                    <option value="140">🇪🇸 La Liga</option>
+                    <option value="78">🇩🇪 Bundesliga</option>
+                    <option value="61">🇫🇷 Ligue 1</option>
+                    <option value="2">⭐ Champions League</option>
+                </select>
             </div>
 
-            <div class="loading" id="fixturesLoading">
-                <div class="spinner"></div>
-                <p>Caricamento partite...</p>
-            </div>
-
-            <div id="fixturesList"></div>
-        </div>
-
-        <!-- Analyze -->
-        <div id="analyze-tab" class="tab-content">
-            <div class="section">
-                <h3>🎯 Analizza Partita Manualmente</h3>
-                <div class="input-grid">
-                    <div>
-                        <label>🏆 Campionato</label>
-                        <select id="league">
-                            <option value="135">🇮🇹 Serie A</option>
-                            <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
-                            <option value="140">🇪🇸 La Liga</option>
-                            <option value="78">🇩🇪 Bundesliga</option>
-                            <option value="61">🇫🇷 Ligue 1</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="input-grid" style="margin-top:1rem;">
-                    <div>
-                        <label>🏠 Casa</label>
-                        <input type="text" id="homeTeam" placeholder="Inter">
-                    </div>
-                    <div>
-                        <label>✈️ Ospite</label>
-                        <input type="text" id="awayTeam" placeholder="Napoli">
-                    </div>
-                </div>
-                <button class="btn" onclick="analyzeMatch()">🔥 ANALIZZA CON HYBRID</button>
-            </div>
+            <div id="matchesList" class="results"></div>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p>Analizzando con algoritmo HYBRID...</p>
+                <p>Loading predictions...</p>
             </div>
 
-            <div class="results" id="results"></div>
+            <div id="predictionResults" class="results"></div>
         </div>
 
-        <!-- History -->
-        <div id="history-tab" class="tab-content">
-            <div class="section">
-                <h3>📈 Statistiche Predizioni</h3>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="totalPred">0</div>
-                        <div>Totali</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" style="color:var(--success);" id="correctPred">0</div>
-                        <div>Indovinate</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" style="color:var(--danger);" id="incorrectPred">0</div>
-                        <div>Sbagliate</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" style="color:var(--accent-ice);" id="successRate">0%</div>
-                        <div>% Successo</div>
-                    </div>
-                </div>
-                <button class="btn" onclick="clearHistory()">🗑️ Cancella Storico</button>
-            </div>
-            <div id="historyList"></div>
+        <!-- TAB ANALYSIS -->
+        <div id="analysis" class="tab-content">
+            <h2>📊 Match Analysis</h2>
+            <p>Select a match from the Predictions tab to see detailed analysis.</p>
+            <div id="analysisContent"></div>
         </div>
 
-        <!-- Settings -->
-        <div id="settings-tab" class="tab-content">
-            <div class="section">
+        <!-- TAB SETTINGS -->
+        <div id="settings" class="tab-content">
+            <div class="settings-section">
                 <h3>🔑 API Configuration</h3>
-                <input type="password" id="apiKey" placeholder="Inserisci API key..." value="aeb2864a3d4dbb8395fa53c83a876a93">
-                <button class="btn" onclick="saveApiKey()">💾 Salva e Testa</button>
-                <div id="apiStatus" class="api-status"></div>
-                <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7;">
-                    La tua API key è salvata localmente (sicura).
-                </p>
-            </div>
-            
-            <div class="section">
-                <h3>ℹ️ Informazioni Sistema</h3>
-                <div id="systemInfo" style="font-size: 0.9rem;">
-                    <p><strong>Versione:</strong> HYBRID v3.0</p>
-                    <p><strong>Algoritmo:</strong> Poisson + FootyStats CSV</p>
-                    <p><strong>Dati CSV:</strong> <span id="csvDataStatus">❌ Non caricati</span></p>
-                    <p><strong>Ultimo update CSV:</strong> <span id="lastCsvUpdate">-</span></p>
+                <div class="form-group">
+                    <label>API-Football Key</label>
+                    <input type="text" id="apiKey" placeholder="Enter your API key">
                 </div>
+                <button class="btn" onclick="saveApiKey()">💾 Save API Key</button>
+            </div>
+
+            <div class="settings-section footystats-manager">
+                <h3>📊 FootyStats Data Manager</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Carica i CSV di FootyStats per usare dati reali (corner, cards, BTTS, xG)
+                </p>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">
+                        📁 Seleziona CSV Files (anche tutti insieme):
+                    </label>
+                    <input 
+                        type="file" 
+                        id="footyStatsUpload" 
+                        accept=".csv" 
+                        multiple 
+                        style="margin-bottom: 15px; padding: 8px; border: 2px dashed #007bff; border-radius: 5px; width: 100%;"
+                    />
+                    <div>
+                        <button onclick="loadFootyStatsCSV()" class="btn btn-file-upload">
+                            📤 Upload CSV Files
+                        </button>
+                        <button onclick="clearFootyStatsDB()" class="btn btn-file-clear">
+                            🗑️ Clear Database
+                        </button>
+                    </div>
+                </div>
+
+                <div id="footyStatsStatus">
+                    <strong>Status:</strong> <span id="footyStatsCount">No data loaded</span>
+                </div>
+
+                <div id="footyStatsLog">
+                    <div style="color: #999; font-style: italic;">Log messages will appear here...</div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>📖 User Guide</h3>
+                <ol style="line-height: 2;">
+                    <li>Add your API-Football key above</li>
+                    <li>Upload FootyStats CSV files for better accuracy</li>
+                    <li>Select a league from the Predictions tab</li>
+                    <li>Choose a match to analyze</li>
+                    <li>View value bets and confidence scores</li>
+                </ol>
             </div>
         </div>
     </div>
 
     <script>
-        // Firebase
-        const firebaseConfig = {
-            databaseURL: "https://bettingpro-d0125-default-rtdb.europe-west1.firebasedatabase.app/"
+        // =====================================================
+        // GLOBAL STATE
+        // =====================================================
+        const state = {
+            selectedLeagueId: null,
+            selectedMatch: null,
+            apiKey: localStorage.getItem('apiKey') || ''
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        const API_URL = 'https://v3.football.api-sports.io';
-        let currentPrediction = null;
-        let csvData = null;
-        
-        // ============================================
-        // UTILITIES
-        // ============================================
-        
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(tab + '-tab').classList.add('active');
+
+        // =====================================================
+        // TAB MANAGEMENT
+        // =====================================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
             event.target.classList.add('active');
-            if (tab === 'history') loadHistory();
-            if (tab === 'settings' || tab === 'import') updateSystemInfo();
+            document.getElementById(tabName).classList.add('active');
         }
-        
-        function getApiKey() {
-            return localStorage.getItem('bettingApiKey');
-        }
-        
+
+        // =====================================================
+        // API KEY MANAGEMENT
+        // =====================================================
         function saveApiKey() {
-            const key = document.getElementById('apiKey').value.trim();
-            if (!key) return alert('Inserisci una API key!');
-            localStorage.setItem('bettingApiKey', key);
-            testApiKey(key);
-        }
-        
-        async function testApiKey(key) {
-            const status = document.getElementById('apiStatus');
-            status.textContent = '⏳ Testando API key...';
-            status.className = 'api-status show';
-            
-            try {
-                const res = await fetch(`${API_URL}/timezone`, {
-                    headers: { 'x-apisports-key': key }
-                });
-                
-                if (res.ok) {
-                    status.textContent = '✅ API key VALIDA! Sistema pronto!';
-                    status.className = 'api-status show success';
-                } else {
-                    status.textContent = '❌ API key NON valida!';
-                    status.className = 'api-status show error';
-                }
-            } catch (e) {
-                status.textContent = '⚠️ Errore: ' + e.message;
-                status.className = 'api-status show error';
-            }
-        }
-        
-        function updateSystemInfo() {
-            const data = getCSVData();
-            const status = document.getElementById('csvDataStatus');
-            const lastUpdate = document.getElementById('lastCsvUpdate');
-            
-            if (data && data.teams) {
-                status.textContent = `✅ ${Object.keys(data.teams).length} squadre caricate`;
-                status.style.color = 'var(--success)';
-                lastUpdate.textContent = new Date(data.importDate).toLocaleDateString('it-IT');
-            } else {
-                status.textContent = '❌ Non caricati';
-                status.style.color = 'var(--danger)';
-                lastUpdate.textContent = '-';
-            }
-        }
-        
-        // ============================================
-        // CSV IMPORT
-        // ============================================
-        
-        function setupCSVImport() {
-            const dropZone = document.getElementById('dropZone');
-            const input = document.getElementById('csvInput');
-            
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-            
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
-            
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
-                const files = Array.from(e.dataTransfer.files);
-                handleCSVFiles(files);
-            });
-            
-            input.addEventListener('change', (e) => {
-                const files = Array.from(e.target.files);
-                handleCSVFiles(files);
-            });
-        }
-        
-        async function handleCSVFiles(files) {
-            if (files.length === 0) return;
-            
-            console.log('[CSV] File ricevuti:', files.length);
-            
-            const csvFiles = {
-                teams: null,
-                teams2: null
-            };
-            
-            // Identifica i file
-            for (const file of files) {
-                const name = file.name.toLowerCase();
-                if (name.includes('teams2')) {
-                    csvFiles.teams2 = file;
-                } else if (name.includes('teams')) {
-                    csvFiles.teams = file;
-                }
-            }
-            
-            if (!csvFiles.teams && !csvFiles.teams2) {
-                return alert('❌ Nessun file teams trovato! Carica i CSV corretti.');
-            }
-            
-            // Parse CSV
-            try {
-                const data = { teams: {} };
-                
-                if (csvFiles.teams) {
-                    const text1 = await csvFiles.teams.text();
-                    parseTeamsCSV(text1, data);
-                    document.getElementById('card-teams').classList.add('loaded');
-                    document.getElementById('status-teams').textContent = '✅ Caricato (' + csvFiles.teams.name + ')';
-                }
-                
-                if (csvFiles.teams2) {
-                    const text2 = await csvFiles.teams2.text();
-                    parseTeams2CSV(text2, data);
-                    document.getElementById('card-teams2').classList.add('loaded');
-                    document.getElementById('status-teams2').textContent = '✅ Caricato (' + csvFiles.teams2.name + ')';
-                }
-                
-                // Salva in localStorage
-                data.importDate = Date.now();
-                data.validUntil = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 giorni
-                localStorage.setItem('footystatsData', JSON.stringify(data));
-                
-                csvData = data;
-                
-                // Mostra riepilogo
-                document.getElementById('teamsCount').textContent = Object.keys(data.teams).length;
-                document.getElementById('importDate').textContent = new Date(data.importDate).toLocaleDateString('it-IT');
-                document.getElementById('validUntil').textContent = new Date(data.validUntil).toLocaleDateString('it-IT');
-                document.getElementById('importSummary').style.display = 'block';
-                
-                alert('✅ Dati importati con successo! ' + Object.keys(data.teams).length + ' squadre caricate.');
-                
-            } catch (e) {
-                console.error('[CSV] Errore parsing:', e);
-                alert('❌ Errore durante l\'importazione: ' + e.message);
-            }
-        }
-        
-        function parseTeamsCSV(text, data) {
-            const lines = text.split('\n');
-            const headers = lines[0].split(',');
-            
-            // Trova indici colonne
-            const indices = {
-                name: headers.indexOf('common_name'),
-                corners: headers.indexOf('corners_per_match'),
-                cards: headers.indexOf('cards_per_match'),
-                xgFor: headers.indexOf('xg_for_avg_overall'),
-                xgAgainst: headers.indexOf('xg_against_avg_overall'),
-                btts: headers.indexOf('btts_percentage')
-            };
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const cols = lines[i].split(',');
-                const name = cols[indices.name];
-                
-                if (!name) continue;
-                
-                if (!data.teams[name]) data.teams[name] = {};
-                
-                data.teams[name].corners = parseFloat(cols[indices.corners]) || 0;
-                data.teams[name].cards = parseFloat(cols[indices.cards]) || 0;
-                data.teams[name].xgFor = parseFloat(cols[indices.xgFor]) || 0;
-                data.teams[name].xgAgainst = parseFloat(cols[indices.xgAgainst]) || 0;
-                data.teams[name].btts = parseFloat(cols[indices.btts]) || 0;
-            }
-            
-            console.log('[CSV] Teams parsed:', Object.keys(data.teams).length, 'squadre');
-        }
-        
-        function parseTeams2CSV(text, data) {
-            const lines = text.split('\n');
-            const headers = lines[0].split(',');
-            
-            const indices = {
-                name: headers.indexOf('common_name'),
-                cornersHome: headers.indexOf('corners_total_per_match_home'),
-                cornersAway: headers.indexOf('corners_total_per_match_away'),
-                cornersAgainst: headers.indexOf('corners_against_per_match_overall'),
-                over95: headers.indexOf('over95_corners_percentage_overall'),
-                over105: headers.indexOf('over105_corners_percentage_overall'),
-                cardsOver25: headers.indexOf('over25_cards_total_percentage_overall'),
-                cardsOver35: headers.indexOf('over35_cards_total_percentage_overall')
-            };
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const cols = lines[i].split(',');
-                const name = cols[indices.name];
-                
-                if (!name) continue;
-                
-                if (!data.teams[name]) data.teams[name] = {};
-                
-                data.teams[name].cornersHome = parseFloat(cols[indices.cornersHome]) || 0;
-                data.teams[name].cornersAway = parseFloat(cols[indices.cornersAway]) || 0;
-                data.teams[name].cornersAgainst = parseFloat(cols[indices.cornersAgainst]) || 0;
-                data.teams[name].over95 = parseFloat(cols[indices.over95]) || 0;
-                data.teams[name].over105 = parseFloat(cols[indices.over105]) || 0;
-                data.teams[name].cardsOver25 = parseFloat(cols[indices.cardsOver25]) || 0;
-                data.teams[name].cardsOver35 = parseFloat(cols[indices.cardsOver35]) || 0;
-            }
-            
-            console.log('[CSV] Teams2 parsed');
-        }
-        
-        function getCSVData() {
-            if (csvData) return csvData;
-            
-            const stored = localStorage.getItem('footystatsData');
-            if (stored) {
-                csvData = JSON.parse(stored);
-                return csvData;
-            }
-            
-            return null;
-        }
-        
-        function clearCSVData() {
-            if (!confirm('Cancellare tutti i dati CSV importati?')) return;
-            localStorage.removeItem('footystatsData');
-            csvData = null;
-            location.reload();
-        }
-        
-        function findTeamInCSV(teamName) {
-            const data = getCSVData();
-            if (!data || !data.teams) return null;
-            
-            // Ricerca diretta
-            if (data.teams[teamName]) return data.teams[teamName];
-            
-            // Ricerca fuzzy
-            const normalized = teamName.toLowerCase().trim();
-            for (const [name, stats] of Object.entries(data.teams)) {
-                if (name.toLowerCase().includes(normalized) || normalized.includes(name.toLowerCase())) {
-                    console.log('[CSV] Match fuzzy:', teamName, '→', name);
-                    return stats;
-                }
-            }
-            
-            return null;
-        }
-        
-        // ============================================
-        // PALINSESTO
-        // ============================================
-        
-        async function loadNextFixtures() {
-            const league = document.getElementById('fixturesLeague').value;
-            const count = document.getElementById('fixturesCount').value;
-            const key = getApiKey();
-            
-            if (!key) {
-                alert('Configura API key in Impostazioni!');
-                return switchTab('settings');
-            }
-            
-            document.getElementById('fixturesLoading').classList.add('active');
-            document.getElementById('fixturesList').innerHTML = '';
-            
-            try {
-                const url = `${API_URL}/fixtures?league=${league}&next=${count}`;
-                console.log('[API] URL:', url);
-                
-                const res = await fetch(url, {
-                    headers: { 'x-apisports-key': key }
-                });
-                
-                if (!res.ok) throw new Error(`Errore API: ${res.status}`);
-                
-                const data = await res.json();
-                const fixtures = data.response || [];
-                
-                console.log(`[API] Trovate ${fixtures.length} partite`);
-                
-                if (fixtures.length === 0) {
-                    document.getElementById('fixturesList').innerHTML = `
-                        <div class="section" style="border-color:var(--danger);">
-                            <h3 style="color:var(--danger); text-align:center;">❌ Nessuna partita trovata!</h3>
-                            <p style="text-align:center; margin-top:1rem;">
-                                Prova un altro campionato o verifica la tua API key.
-                            </p>
-                        </div>
-                    `;
-                } else {
-                    displayFixtures(fixtures);
-                }
-                
-            } catch (error) {
-                console.error('[API] Errore:', error);
-                alert('Errore: ' + error.message);
-            } finally {
-                document.getElementById('fixturesLoading').classList.remove('active');
-            }
-        }
-        
-        function displayFixtures(fixtures) {
-            const list = document.getElementById('fixturesList');
-            const byDate = {};
-            
-            fixtures.forEach(f => {
-                const date = new Date(f.fixture.date).toLocaleDateString('it-IT');
-                if (!byDate[date]) byDate[date] = [];
-                byDate[date].push(f);
-            });
-            
-            let html = `<div class="section" style="text-align:center; background:rgba(16,185,129,0.1); border:2px solid var(--success);">
-                <h3 style="color:var(--success);">✅ Trovate ${fixtures.length} partite!</h3>
-            </div>`;
-            
-            Object.keys(byDate).sort().forEach(date => {
-                html += `
-                    <div class="section" style="margin-bottom:1rem;">
-                        <h3 style="color:var(--accent-gold); margin-bottom:1rem;">📅 ${date}</h3>
-                        ${byDate[date].map(f => {
-                            const time = new Date(f.fixture.date).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
-                            const status = f.fixture.status.short;
-                            const id = f.fixture.id;
-                            
-                            return `
-                                <div class="history-item" style="border-color:rgba(0,217,255,0.3);" id="fixture-${id}">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                                        <div style="flex:1;">
-                                            <p style="font-weight:700; font-size:1.1rem;">
-                                                ${f.teams.home.name} vs ${f.teams.away.name}
-                                            </p>
-                                            <p style="font-size:0.85rem; opacity:0.7;">
-                                                🏆 ${f.league.name} • 🕐 ${time}
-                                            </p>
-                                        </div>
-                                        ${status === 'NS' ? `
-                                        <button class="btn-small" style="background:var(--accent-fire); color:white; padding:0.8rem 1.5rem;" 
-                                                onclick="analyzeFixtureDirect(${id}, '${f.teams.home.name.replace(/'/g,"\\'")}', '${f.teams.away.name.replace(/'/g,"\\'")}', ${f.league.id})">
-                                            🔥 Analizza HYBRID
-                                        </button>
-                                        ` : `<span style="opacity:0.6;">Match ${status}</span>`}
-                                    </div>
-                                    <div id="result-${id}" style="margin-top:1rem; display:none;"></div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            });
-            
-            list.innerHTML = html;
-        }
-        
-        // ============================================
-        // ALGORITMO HYBRID
-        // ============================================
-        
-        function factorial(n) {
-            if (n <= 1) return 1;
-            return n * factorial(n - 1);
-        }
-        
-        function poisson(lambda, k) {
-            return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
-        }
-        
-        function calcGG(lH, lA) {
-            return (1 - poisson(lH, 0)) * (1 - poisson(lA, 0)) * 100;
-        }
-        
-        function calcOver(lT) {
-            return (1 - poisson(lT, 0) - poisson(lT, 1) - poisson(lT, 2)) * 100;
-        }
-        
-        function calcMG(l) {
-            return (poisson(l, 1) + poisson(l, 2) + poisson(l, 3)) * 100;
-        }
-        
-        function calc1X2(lH, lA) {
-            let p1 = 0, pX = 0, p2 = 0;
-            for (let i = 0; i <= 5; i++) {
-                for (let j = 0; j <= 5; j++) {
-                    const p = poisson(lH, i) * poisson(lA, j);
-                    if (i > j) p1 += p;
-                    else if (i === j) pX += p;
-                    else p2 += p;
-                }
-            }
-            return { h: p1*100, d: pX*100, a: p2*100 };
-        }
-        
-        async function getTeamData(team, league) {
-            const key = getApiKey();
-            if (!key) throw new Error('API key non configurata');
-            
-            const res = await fetch(`${API_URL}/teams?search=${encodeURIComponent(team)}&league=${league}`, {
-                headers: { 'x-apisports-key': key }
-            });
-            
-            const data = await res.json();
-            if (!data.response[0]) throw new Error(`Team ${team} non trovato`);
-            
-            const teamId = data.response[0].team.id;
-            const teamName = data.response[0].team.name;
-            
-            await new Promise(r => setTimeout(r, 500));
-            
-            const res2 = await fetch(`${API_URL}/fixtures?team=${teamId}&last=10`, {
-                headers: { 'x-apisports-key': key }
-            });
-            
-            const matchesData = await res2.json();
-            const matches = matchesData.response || [];
-            
-            if (matches.length === 0) {
-                throw new Error(`Nessun match recente per ${teamName}`);
-            }
-            
-            let gf = 0, ga = 0, form = 0;
-            matches.forEach(m => {
-                const isHome = m.teams.home.id === teamId;
-                if (isHome) {
-                    gf += m.goals.home || 0;
-                    ga += m.goals.away || 0;
-                    if (m.goals.home > m.goals.away) form += 3;
-                    else if (m.goals.home === m.goals.away) form += 1;
-                } else {
-                    gf += m.goals.away || 0;
-                    ga += m.goals.home || 0;
-                    if (m.goals.away > m.goals.home) form += 3;
-                    else if (m.goals.away === m.goals.home) form += 1;
-                }
-            });
-            
-            return { teamName, matches: matches.length, gf, ga, form };
-        }
-        
-        async function analyzeMatch() {
-            const home = document.getElementById('homeTeam').value.trim();
-            const away = document.getElementById('awayTeam').value.trim();
-            const league = document.getElementById('league').value;
-            
-            if (!home || !away) return alert('Inserisci entrambe le squadre!');
-            if (!getApiKey()) {
-                alert('Configura API key!');
-                return switchTab('settings');
-            }
-            
-            document.getElementById('loading').classList.add('active');
-            document.getElementById('results').classList.remove('active');
-            
-            try {
-                // API-Football
-                const hData = await getTeamData(home, league);
-                const aData = await getTeamData(away, league);
-                
-                // Poisson base
-                const lH = (hData.gf / hData.matches) * 1.15;
-                const lA = (aData.gf / aData.matches) * 0.95;
-                
-                const gg = calcGG(lH, lA);
-                const over = calcOver(lH + lA);
-                const mgH = calcMG(lH);
-                const mgA = calcMG(lA);
-                const s1x2 = calc1X2(lH, lA);
-                
-                // FootyStats CSV
-                const csvHome = findTeamInCSV(hData.teamName);
-                const csvAway = findTeamInCSV(aData.teamName);
-                
-                let corners = null;
-                let cards = null;
-                let xgData = null;
-                let bttsConfirm = null;
-                
-                if (csvHome && csvAway) {
-                    console.log('[HYBRID] Dati CSV trovati per entrambe!');
-                    
-                    // Corner prediction
-                    const cornerTotal = (csvHome.corners || 0) + (csvAway.corners || 0);
-                    corners = {
-                        total: cornerTotal,
-                        over95: cornerTotal > 9.5 ? 75 : 45,
-                        over105: cornerTotal > 10.5 ? 70 : 40,
-                        over115: cornerTotal > 11.5 ? 65 : 35
-                    };
-                    
-                    // Cards prediction
-                    const cardsTotal = (csvHome.cards || 0) + (csvAway.cards || 0);
-                    cards = {
-                        total: cardsTotal,
-                        over25: cardsTotal > 2.5 ? 75 : 45,
-                        over35: cardsTotal > 3.5 ? 65 : 35,
-                        over45: cardsTotal > 4.5 ? 55 : 25
-                    };
-                    
-                    // xG
-                    xgData = {
-                        home: csvHome.xgFor || 0,
-                        away: csvAway.xgFor || 0
-                    };
-                    
-                    // BTTS confirm
-                    bttsConfirm = ((csvHome.btts || 0) + (csvAway.btts || 0)) / 2;
-                }
-                
-                // Confidence
-                let conf = 50;
-                conf += (hData.matches >= 10 ? 15 : 0);
-                conf += (hData.form > 20 ? 15 : 0);
-                conf += (gg > 70 ? 10 : 0);
-                if (csvHome && csvAway) conf += 10; // Bonus CSV data
-                conf = Math.min(100, conf);
-                
-                // Recommendation
-                let rec = [];
-                if (conf >= 75) {
-                    if (gg > 70 && over > 65) rec.push('🔥 GG + OVER 2.5');
-                    if (gg > 75) rec.push('⚽ GG');
-                    if (over > 75) rec.push('📈 OVER 2.5');
-                    if (corners && corners.over105 > 65) rec.push('⛳ CORNER OVER 10.5');
-                    if (cards && cards.over35 > 60) rec.push('🟨 CARDS OVER 3.5');
-                }
-                const recommendation = rec.join(' • ') || '⚠️ Valutare attentamente';
-                
-                currentPrediction = {
-                    homeTeam: hData.teamName,
-                    awayTeam: aData.teamName,
-                    league: document.getElementById('league').options[document.getElementById('league').selectedIndex].text,
-                    gg, over, mgH, mgA, s1x2, conf, recommendation,
-                    corners, cards, xgData, bttsConfirm,
-                    timestamp: Date.now(),
-                    hybrid: !!(csvHome && csvAway)
-                };
-                
-                displayResults();
-                
-            } catch (error) {
-                console.error('[ANALYZE] Errore:', error);
-                alert('Errore: ' + error.message);
-            } finally {
-                document.getElementById('loading').classList.remove('active');
-            }
-        }
-        
-        function displayResults() {
-            const { homeTeam, awayTeam, gg, over, mgH, mgA, s1x2, conf, recommendation, corners, cards, xgData, bttsConfirm, hybrid } = currentPrediction;
-            const getClass = v => v >= 70 ? 'high' : v >= 55 ? 'medium' : 'low';
-            
-            let html = `
-                <div class="section">
-                    <div style="text-align:center; margin-bottom:1rem;">
-                        <h2>${homeTeam} vs ${awayTeam}</h2>
-                        ${hybrid ? '<span class="badge success">💎 HYBRID MODE</span>' : '<span class="badge warning">⚠️ Solo API</span>'}
-                    </div>
-                    
-                    <div style="text-align:center; margin:2rem 0;">
-                        <div style="font-size:1.2rem; opacity:0.8;">Confidence Score</div>
-                        <div style="font-size:3rem; font-weight:700; color:var(--accent-gold);">⭐ ${conf}%</div>
-                    </div>
-                    
-                    <h3 style="margin:2rem 0 1rem 0;">⚽ Predizioni GOL (Poisson)</h3>
-                    <div class="pred-grid">
-                        <div class="pred-item">
-                            <p>GG</p>
-                            <div class="pred-value ${getClass(gg)}">${gg.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>Over 2.5</p>
-                            <div class="pred-value ${getClass(over)}">${over.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>MG Casa 1-3</p>
-                            <div class="pred-value ${getClass(mgH)}">${mgH.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>MG Ospite 1-3</p>
-                            <div class="pred-value ${getClass(mgA)}">${mgA.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>Segno 1</p>
-                            <div class="pred-value ${getClass(s1x2.h)}">${s1x2.h.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>Segno X</p>
-                            <div class="pred-value ${getClass(s1x2.d)}">${s1x2.d.toFixed(1)}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <p>Segno 2</p>
-                            <div class="pred-value ${getClass(s1x2.a)}">${s1x2.a.toFixed(1)}%</div>
-                        </div>
-                    </div>
-            `;
-            
-            if (corners && cards) {
-                html += `
-                    <h3 style="margin:2rem 0 1rem 0; color:var(--accent-gold);">💎 Predizioni CSV (Dati REALI FootyStats)</h3>
-                    <div class="pred-grid">
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Corner Totali</p>
-                            <div class="pred-value" style="color:var(--accent-gold);">${corners.total.toFixed(1)}</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Over 9.5 Corner</p>
-                            <div class="pred-value ${getClass(corners.over95)}">${corners.over95}%</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Over 10.5 Corner</p>
-                            <div class="pred-value ${getClass(corners.over105)}">${corners.over105}%</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Over 11.5 Corner</p>
-                            <div class="pred-value ${getClass(corners.over115)}">${corners.over115}%</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Cards Totali</p>
-                            <div class="pred-value" style="color:var(--accent-gold);">${cards.total.toFixed(1)}</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Over 2.5 Cards</p>
-                            <div class="pred-value ${getClass(cards.over25)}">${cards.over25}%</div>
-                        </div>
-                        <div class="pred-item" style="background:rgba(255,215,0,0.1); border:2px solid var(--accent-gold);">
-                            <p>Over 3.5 Cards</p>
-                            <div class="pred-value ${getClass(cards.over35)}">${cards.over35}%</div>
-                        </div>
-                    </div>
-                `;
-                
-                if (xgData) {
-                    html += `
-                        <div style="margin:2rem 0; padding:1rem; background:rgba(0,217,255,0.1); border-radius:10px; border:2px solid var(--accent-ice);">
-                            <h4 style="color:var(--accent-ice);">📊 xG Analysis (Expected Goals)</h4>
-                            <p style="margin-top:0.5rem;">🏠 ${homeTeam}: <strong>${xgData.home.toFixed(2)} xG</strong></p>
-                            <p>✈️ ${awayTeam}: <strong>${xgData.away.toFixed(2)} xG</strong></p>
-                            <p style="margin-top:0.5rem; opacity:0.8; font-size:0.9rem;">
-                                ${xgData.home + xgData.away > 2.5 ? '✅ xG conferma Over 2.5' : '⚠️ xG suggerisce Under 2.5'}
-                            </p>
-                        </div>
-                    `;
-                }
-                
-                if (bttsConfirm) {
-                    html += `
-                        <div style="margin:1rem 0; padding:1rem; background:rgba(16,185,129,0.1); border-radius:10px; border:2px solid var(--success);">
-                            <h4 style="color:var(--success);">✅ BTTS Confirmation</h4>
-                            <p style="margin-top:0.5rem;">Media stagionale BTTS: <strong>${bttsConfirm.toFixed(1)}%</strong></p>
-                            <p style="opacity:0.8; font-size:0.9rem;">
-                                ${bttsConfirm > 60 ? '🔥 Entrambe le squadre segnano frequentemente!' : 'Squadre con BTTS moderato'}
-                            </p>
-                        </div>
-                    `;
-                }
-            } else {
-                html += `
-                    <div style="margin:2rem 0; padding:1.5rem; background:rgba(255,159,64,0.1); border-radius:10px; border:2px solid var(--warning);">
-                        <h4 style="color:var(--warning);">⚠️ Dati CSV Non Disponibili</h4>
-                        <p style="margin-top:0.5rem;">Predizioni corner e cards non disponibili.</p>
-                        <p style="font-size:0.9rem; opacity:0.8; margin-top:0.5rem;">
-                            Importa i CSV FootyStats dal tab "📊 Import CSV" per avere predizioni PRECISE!
-                        </p>
-                    </div>
-                `;
-            }
-            
-            html += `
-                    <div style="background:rgba(255,51,102,0.2); padding:1.5rem; border-radius:10px; margin-top:2rem;">
-                        <h3>💎 Raccomandazione Finale</h3>
-                        <p style="font-size:1.2rem; font-weight:700; color:var(--accent-gold); margin-top:1rem;">
-                            ${recommendation}
-                        </p>
-                    </div>
-                    
-                    <button class="btn" onclick="savePrediction()" style="margin-top:2rem;">💾 Salva nello Storico</button>
-                </div>
-            `;
-            
-            document.getElementById('results').innerHTML = html;
-            document.getElementById('results').classList.add('active');
-            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        async function analyzeFixtureDirect(id, home, away, league) {
-            const result = document.getElementById(`result-${id}`);
-            const btn = event.target;
-            
-            result.innerHTML = '<div class="loading active"><div class="spinner"></div><p>Analizzando con HYBRID...</p></div>';
-            result.style.display = 'block';
-            btn.disabled = true;
-            btn.textContent = '⏳ Analizzando...';
-            
-            try {
-                const hData = await getTeamData(home, league);
-                const aData = await getTeamData(away, league);
-                
-                const lH = (hData.gf / hData.matches) * 1.15;
-                const lA = (aData.gf / aData.matches) * 0.95;
-                
-                const gg = calcGG(lH, lA);
-                const over = calcOver(lH + lA);
-                const mgH = calcMG(lH);
-                const mgA = calcMG(lA);
-                const s1x2 = calc1X2(lH, lA);
-                
-                // CSV data
-                const csvHome = findTeamInCSV(hData.teamName);
-                const csvAway = findTeamInCSV(aData.teamName);
-                
-                let corners = null;
-                let cards = null;
-                
-                if (csvHome && csvAway) {
-                    const cornerTotal = (csvHome.corners || 0) + (csvAway.corners || 0);
-                    corners = {
-                        total: cornerTotal,
-                        over105: cornerTotal > 10.5 ? 70 : 40
-                    };
-                    
-                    const cardsTotal = (csvHome.cards || 0) + (csvAway.cards || 0);
-                    cards = {
-                        total: cardsTotal,
-                        over35: cardsTotal > 3.5 ? 65 : 35
-                    };
-                }
-                
-                let conf = 50 + (hData.matches >= 10 ? 15 : 0) + (hData.form > 20 ? 15 : 0) + (gg > 70 ? 10 : 0);
-                if (csvHome && csvAway) conf += 10;
-                conf = Math.min(100, conf);
-                
-                let rec = [];
-                if (conf >= 75) {
-                    if (gg > 70 && over > 65) rec.push('🔥 GG + OVER 2.5');
-                    if (gg > 75) rec.push('⚽ GG');
-                    if (corners && corners.over105 > 65) rec.push('⛳ CORNER 10.5+');
-                }
-                const recommendation = rec.join(' • ') || '⚠️ Valutare';
-                
-                const getClass = v => v >= 70 ? 'high' : v >= 55 ? 'medium' : 'low';
-                
-                let html = `
-                    <div style="background:rgba(0,217,255,0.1); padding:1.5rem; border-radius:10px; border:2px solid var(--accent-ice);">
-                        ${csvHome && csvAway ? '<span class="badge success">💎 HYBRID</span>' : '<span class="badge warning">API</span>'}
-                        <div style="text-align:center; margin:1rem 0;">
-                            <span style="font-size:2rem; font-weight:700; color:var(--accent-gold);">⭐ ${conf}%</span>
-                        </div>
-                        <div class="pred-grid">
-                            <div class="pred-item"><p>GG</p><div class="pred-value ${getClass(gg)}">${gg.toFixed(1)}%</div></div>
-                            <div class="pred-item"><p>Over 2.5</p><div class="pred-value ${getClass(over)}">${over.toFixed(1)}%</div></div>
-                            <div class="pred-item"><p>MG Casa</p><div class="pred-value ${getClass(mgH)}">${mgH.toFixed(1)}%</div></div>
-                            <div class="pred-item"><p>MG Ospite</p><div class="pred-value ${getClass(mgA)}">${mgA.toFixed(1)}%</div></div>
-                `;
-                
-                if (corners && cards) {
-                    html += `
-                            <div class="pred-item" style="background:rgba(255,215,0,0.1);"><p>Corner</p><div class="pred-value" style="color:var(--accent-gold);">${corners.total.toFixed(1)}</div></div>
-                            <div class="pred-item" style="background:rgba(255,215,0,0.1);"><p>Cards</p><div class="pred-value" style="color:var(--accent-gold);">${cards.total.toFixed(1)}</div></div>
-                    `;
-                }
-                
-                html += `
-                        </div>
-                        <div style="background:rgba(255,51,102,0.2); padding:1rem; border-radius:8px; margin-top:1rem; text-align:center;">
-                            <p style="font-weight:700; color:var(--accent-gold);">${recommendation}</p>
-                        </div>
-                    </div>
-                `;
-                
-                result.innerHTML = html;
-                btn.textContent = '✅ Analizzata';
-                btn.style.background = 'var(--success)';
-                
-            } catch (error) {
-                result.innerHTML = `<p style="color:var(--danger);">❌ ${error.message}</p>`;
-                btn.disabled = false;
-                btn.textContent = '🔥 Riprova';
-            }
-        }
-        
-        // ============================================
-        // HISTORY
-        // ============================================
-        
-        async function savePrediction() {
-            if (!currentPrediction) return alert('Nessuna predizione da salvare!');
-            try {
-                await db.ref('predictions').push({
-                    ...currentPrediction,
-                    status: 'pending',
-                    savedAt: Date.now()
-                });
-                alert('✅ Predizione salvata nello storico!');
-                currentPrediction = null;
-            } catch (e) {
-                alert('Errore salvataggio: ' + e.message);
-            }
-        }
-        
-        async function loadHistory() {
-            try {
-                const snap = await db.ref('predictions').orderByChild('savedAt').once('value');
-                const preds = [];
-                snap.forEach(c => preds.push({ id: c.key, ...c.val() }));
-                preds.reverse();
-                displayHistory(preds);
-                updateStats(preds);
-            } catch (e) {
-                document.getElementById('historyList').innerHTML = '<p>Errore caricamento storico</p>';
-            }
-        }
-        
-        function displayHistory(preds) {
-            const list = document.getElementById('historyList');
-            if (preds.length === 0) {
-                list.innerHTML = '<div class="section"><p style="text-align:center;">Nessuna predizione salvata</p></div>';
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('Please enter a valid API key');
                 return;
             }
-            list.innerHTML = preds.map(p => {
-                const date = new Date(p.savedAt).toLocaleDateString('it-IT');
-                const emoji = { pending: '⏳', correct: '✅', incorrect: '❌' }[p.status] || '⏳';
-                const hybridBadge = p.hybrid ? '<span class="badge success">💎 HYBRID</span>' : '';
-                
-                return `
-                    <div class="history-item ${p.status}">
-                        <div style="display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap;">
-                            <div style="flex:1;">
-                                <p style="font-weight:700; font-size:1.1rem;">${emoji} ${p.homeTeam} vs ${p.awayTeam}</p>
-                                <p style="font-size:0.9rem; opacity:0.7; margin-top:0.3rem;">
-                                    ${date} • ${p.league} • Conf: ${p.conf}% ${hybridBadge}
-                                </p>
-                                <p style="margin-top:0.5rem;"><strong>Raccomandazione:</strong> ${p.recommendation}</p>
-                            </div>
+            localStorage.setItem('apiKey', apiKey);
+            state.apiKey = apiKey;
+            alert('API Key saved successfully! ✅');
+        }
+
+        // Load API key on startup
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedKey = localStorage.getItem('apiKey');
+            if (savedKey) {
+                document.getElementById('apiKey').value = savedKey;
+                state.apiKey = savedKey;
+            }
+            initFootyStatsDB();
+        });
+
+        // =====================================================
+        // FOOTYSTATS CSV UPLOAD SYSTEM
+        // =====================================================
+
+        let FOOTYSTATS_DB = {};
+
+        const LEAGUE_MAPPING = {
+            'england-premier-league': 39,
+            'england-championship': 40,
+            'italy-serie-a': 135,
+            'italy-serie-b': 136,
+            'italy-serie-c-group-a': 137,
+            'italy-serie-c-group-c': 138,
+            'spain-la-liga': 140,
+            'spain-segunda-division': 141,
+            'germany-bundesliga': 78,
+            'germany-2-bundesliga': 79,
+            'france-ligue-1': 61,
+            'france-ligue-2': 62,
+            'france-national': 556,
+            'portugal-primeira-liga': 94,
+            'netherlands-eredivisie': 88,
+            'belgium-first-division-a': 144,
+            'scotland-premiership': 179,
+            'turkey-super-lig': 203,
+            'brazil-serie-a': 71,
+            'argentina-liga-profesional': 128,
+            'europe-uefa-champions-league': 2,
+            'europe-uefa-europa-league': 3,
+            'europe-uefa-europa-conference-league': 848
+        };
+
+        function initFootyStatsDB() {
+            const stored = localStorage.getItem('footystats_db');
+            if (stored) {
+                try {
+                    FOOTYSTATS_DB = JSON.parse(stored);
+                    updateFootyStatsStatus();
+                    logFootyStats('✅ Database caricato da localStorage', 'success');
+                } catch (e) {
+                    logFootyStats('❌ Errore caricamento database: ' + e.message, 'error');
+                }
+            }
+        }
+
+        async function loadFootyStatsCSV() {
+            const fileInput = document.getElementById('footyStatsUpload');
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                alert('Seleziona almeno un file CSV!');
+                return;
+            }
+
+            logFootyStats(`🔄 Caricamento di ${files.length} file...`, 'info');
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                try {
+                    const csvText = await readFileAsText(file);
+                    const leagueId = extractLeagueId(file.name);
+
+                    if (!leagueId) {
+                        logFootyStats(`⚠️ ${file.name}: League non riconosciuta, skipped`, 'warning');
+                        errorCount++;
+                        continue;
+                    }
+
+                    const teamData = parseFootyStatsCSV(csvText);
+
+                    if (!FOOTYSTATS_DB[leagueId]) {
+                        FOOTYSTATS_DB[leagueId] = {};
+                    }
+
+                    Object.assign(FOOTYSTATS_DB[leagueId], teamData);
+
+                    logFootyStats(`✅ ${file.name}: ${Object.keys(teamData).length} teams imported`, 'success');
+                    successCount++;
+
+                } catch (error) {
+                    logFootyStats(`❌ ${file.name}: ${error.message}`, 'error');
+                    errorCount++;
+                }
+            }
+
+            try {
+                localStorage.setItem('footystats_db', JSON.stringify(FOOTYSTATS_DB));
+                logFootyStats(`💾 Database salvato: ${successCount} file OK, ${errorCount} errori`, 'success');
+            } catch (e) {
+                logFootyStats(`❌ Errore salvataggio: ${e.message}`, 'error');
+            }
+
+            updateFootyStatsStatus();
+            fileInput.value = '';
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Errore lettura file'));
+                reader.readAsText(file);
+            });
+        }
+
+        function extractLeagueId(filename) {
+            const cleanName = filename
+                .replace(/teams2?/g, '')
+                .replace(/-2025-to-2026-stats\.csv$/, '')
+                .replace(/^-+|-+$/g, '');
+
+            return LEAGUE_MAPPING[cleanName] || null;
+        }
+
+        function parseFootyStatsCSV(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                throw new Error('CSV vuoto o invalido');
+            }
+
+            const headers = lines[0].split(',');
+            const teamData = {};
+
+            const indices = {
+                teamName: headers.indexOf('team_name'),
+                commonName: headers.indexOf('common_name'),
+                cornersTotal: headers.indexOf('corners_per_match'),
+                cornersHome: headers.indexOf('corners_per_match_home'),
+                cornersAway: headers.indexOf('corners_per_match_away'),
+                cardsTotal: headers.indexOf('cards_per_match'),
+                cardsHome: headers.indexOf('cards_per_match_home'),
+                cardsAway: headers.indexOf('cards_per_match_away'),
+                bttsTotal: headers.indexOf('btts_percentage'),
+                bttsHome: headers.indexOf('btts_percentage_home'),
+                bttsAway: headers.indexOf('btts_percentage_away'),
+                xgFor: headers.indexOf('xg_for_avg_overall'),
+                xgAgainst: headers.indexOf('xg_against_avg_overall')
+            };
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+
+                if (values.length < headers.length - 5) continue;
+
+                const teamName = values[indices.teamName]?.trim();
+                const commonName = values[indices.commonName]?.trim();
+
+                if (!teamName) continue;
+
+                const key = commonName || teamName;
+
+                teamData[key] = {
+                    fullName: teamName,
+                    corners: {
+                        overall: parseFloat(values[indices.cornersTotal]) || 0,
+                        home: parseFloat(values[indices.cornersHome]) || 0,
+                        away: parseFloat(values[indices.cornersAway]) || 0
+                    },
+                    cards: {
+                        overall: parseFloat(values[indices.cardsTotal]) || 0,
+                        home: parseFloat(values[indices.cardsHome]) || 0,
+                        away: parseFloat(values[indices.cardsAway]) || 0
+                    },
+                    btts: {
+                        overall: parseFloat(values[indices.bttsTotal]) || 0,
+                        home: parseFloat(values[indices.bttsHome]) || 0,
+                        away: parseFloat(values[indices.bttsAway]) || 0
+                    },
+                    xg: {
+                        for_overall: parseFloat(values[indices.xgFor]) || 0,
+                        against_overall: parseFloat(values[indices.xgAgainst]) || 0
+                    }
+                };
+            }
+
+            return teamData;
+        }
+
+        function getFootyStatsData(teamName, leagueId) {
+            if (!FOOTYSTATS_DB[leagueId]) return null;
+
+            if (FOOTYSTATS_DB[leagueId][teamName]) {
+                return FOOTYSTATS_DB[leagueId][teamName];
+            }
+
+            const normalized = teamName.toLowerCase()
+                .replace(/\s+/g, '')
+                .replace(/fc|afc|cf|sc|ac|us|ssc/g, '');
+
+            for (const [key, value] of Object.entries(FOOTYSTATS_DB[leagueId])) {
+                const keyNormalized = key.toLowerCase()
+                    .replace(/\s+/g, '')
+                    .replace(/fc|afc|cf|sc|ac|us|ssc/g, '');
+
+                if (keyNormalized.includes(normalized) || normalized.includes(keyNormalized)) {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        function clearFootyStatsDB() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati FootyStats?')) {
+                FOOTYSTATS_DB = {};
+                localStorage.removeItem('footystats_db');
+                updateFootyStatsStatus();
+                logFootyStats('🗑️ Database cancellato', 'info');
+            }
+        }
+
+        function updateFootyStatsStatus() {
+            const statusEl = document.getElementById('footyStatsCount');
+
+            if (!statusEl) return;
+
+            const leagueCount = Object.keys(FOOTYSTATS_DB).length;
+            let totalTeams = 0;
+
+            for (const leagueId in FOOTYSTATS_DB) {
+                totalTeams += Object.keys(FOOTYSTATS_DB[leagueId]).length;
+            }
+
+            if (leagueCount === 0) {
+                statusEl.textContent = 'No data loaded';
+                statusEl.style.color = '#999';
+            } else {
+                statusEl.innerHTML = `<strong style="color: green;">${leagueCount} leagues, ${totalTeams} teams loaded ✅</strong>`;
+            }
+        }
+
+        function logFootyStats(message, type = 'info') {
+            const logEl = document.getElementById('footyStatsLog');
+            if (!logEl) return;
+
+            const colors = {
+                success: '#28a745',
+                error: '#dc3545',
+                warning: '#ffc107',
+                info: '#17a2b8'
+            };
+
+            const timestamp = new Date().toLocaleTimeString('it-IT');
+            const logEntry = document.createElement('div');
+            logEntry.style.color = colors[type] || '#000';
+            logEntry.style.marginBottom = '5px';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+
+            logEl.insertBefore(logEntry, logEl.firstChild);
+
+            while (logEl.children.length > 50) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+
+        // =====================================================
+        // MATCH LOADING & PREDICTIONS (SIMPLIFIED DEMO)
+        // =====================================================
+
+        function loadMatches() {
+            const leagueId = document.getElementById('leagueSelect').value;
+            if (!leagueId) return;
+
+            state.selectedLeagueId = leagueId;
+
+            // Demo matches
+            const matchesList = document.getElementById('matchesList');
+            matchesList.innerHTML = `
+                <h3>📅 Upcoming Matches</h3>
+                <div class="match-card" onclick="analyzeMatch('Arsenal', 'Liverpool')">
+                    <strong>Arsenal vs Liverpool</strong><br>
+                    <small>Saturday, 3:00 PM</small>
+                </div>
+                <div class="match-card" onclick="analyzeMatch('Manchester City', 'Chelsea')">
+                    <strong>Manchester City vs Chelsea</strong><br>
+                    <small>Sunday, 4:30 PM</small>
+                </div>
+            `;
+        }
+
+        function analyzeMatch(homeTeam, awayTeam) {
+            state.selectedMatch = { homeTeam: { name: homeTeam }, awayTeam: { name: awayTeam } };
+
+            const footyHome = getFootyStatsData(homeTeam, state.selectedLeagueId);
+            const footyAway = getFootyStatsData(awayTeam, state.selectedLeagueId);
+
+            let resultsHTML = `<h2>🎯 Analysis: ${homeTeam} vs ${awayTeam}</h2>`;
+
+            if (footyHome && footyAway) {
+                console.log('✅ FootyStats data trovati!');
+                const homeCorners = footyHome.corners.home;
+                const awayCorners = footyAway.corners.away;
+                const totalCorners = homeCorners + awayCorners;
+
+                resultsHTML += `
+                    <div class="market-card value-bet">
+                        <h3>Over 9.5 Corners</h3>
+                        <p><strong>Predicted Total:</strong> ${totalCorners.toFixed(2)} corners</p>
+                        <p><strong>Source:</strong> <span class="badge badge-success">FootyStats Data</span></p>
+                        <p><strong>Confidence:</strong> 85%</p>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: 85%;"></div>
                         </div>
-                        ${p.status === 'pending' ? `
-                        <div style="margin-top:1rem;">
-                            <button class="btn-small btn-correct" onclick="markAs('${p.id}','correct')">✅ Indovinata</button>
-                            <button class="btn-small btn-incorrect" onclick="markAs('${p.id}','incorrect')">❌ Sbagliata</button>
-                            <button class="btn-small btn-delete" onclick="deletePred('${p.id}')">🗑️ Elimina</button>
-                        </div>` : ''}
                     </div>
                 `;
-            }).join('');
-        }
-        
-        function updateStats(preds) {
-            const total = preds.length;
-            const correct = preds.filter(p => p.status === 'correct').length;
-            const incorrect = preds.filter(p => p.status === 'incorrect').length;
-            const rate = (correct + incorrect > 0) ? ((correct / (correct + incorrect)) * 100).toFixed(1) : 0;
-            
-            document.getElementById('totalPred').textContent = total;
-            document.getElementById('correctPred').textContent = correct;
-            document.getElementById('incorrectPred').textContent = incorrect;
-            document.getElementById('successRate').textContent = rate + '%';
-        }
-        
-        async function markAs(id, status) {
-            try {
-                await db.ref('predictions/' + id).update({ status });
-                loadHistory();
-            } catch (e) {
-                alert('Errore: ' + e.message);
+            } else {
+                resultsHTML += `
+                    <div class="market-card">
+                        <p>⚠️ No FootyStats data available. Using estimated values.</p>
+                        <p>Upload CSV files in Settings for better accuracy!</p>
+                    </div>
+                `;
             }
+
+            document.getElementById('predictionResults').innerHTML = resultsHTML;
         }
-        
-        async function deletePred(id) {
-            if (!confirm('Eliminare questa predizione?')) return;
-            try {
-                await db.ref('predictions/' + id).remove();
-                loadHistory();
-            } catch (e) {
-                alert('Errore: ' + e.message);
-            }
-        }
-        
-        async function clearHistory() {
-            if (!confirm('Cancellare TUTTO lo storico?')) return;
-            try {
-                await db.ref('predictions').remove();
-                loadHistory();
-            } catch (e) {
-                alert('Errore: ' + e.message);
-            }
-        }
-        
-        // ============================================
-        // INIT
-        // ============================================
-        
-        window.addEventListener('load', () => {
-            const key = getApiKey();
-            if (key) document.getElementById('apiKey').value = key;
-            
-            setupCSVImport();
-            
-            const data = getCSVData();
-            if (data && data.teams) {
-                console.log('[INIT] CSV data trovati:', Object.keys(data.teams).length, 'squadre');
-                document.getElementById('card-teams').classList.add('loaded');
-                document.getElementById('status-teams').textContent = '✅ Caricato';
-                document.getElementById('card-teams2').classList.add('loaded');
-                document.getElementById('status-teams2').textContent = '✅ Caricato';
-                document.getElementById('importSummary').style.display = 'block';
-                document.getElementById('teamsCount').textContent = Object.keys(data.teams).length;
-                document.getElementById('importDate').textContent = new Date(data.importDate).toLocaleDateString('it-IT');
-                document.getElementById('validUntil').textContent = new Date(data.validUntil).toLocaleDateString('it-IT');
-            }
-            
-            updateSystemInfo();
-        });
     </script>
 </body>
 </html>
