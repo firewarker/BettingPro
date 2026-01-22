@@ -901,14 +901,14 @@ function render() {
               class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold"
               placeholder="Cerca lega o paese..."
               value="${escapeHtml(state.leagueQuery || "")}"
-              oninput="setLeagueQuery(this.value)"
+              oninput="window.setLeagueQuery(this.value)"
             />
-            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
+            <button onclick="window.reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
               ${state.leaguesLoading ? "..." : "Ricarica"}
             </button>
           </div>
 
-          <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
+          <select onchange="window.changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
             ${
               state.leagues.length
                 ? state.leagues
@@ -959,7 +959,7 @@ function render() {
       <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
         <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
           <span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span>
-          <button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
+          <button onclick="window.loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
         </div>
         <div class="px-4 py-2 text-xs text-gray-600 font-semibold">
           Range: <span class="mono">${state.from}</span> → <span class="mono">${state.to}</span> • TZ: <span class="mono">${TZ}</span>
