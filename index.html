@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PROPHECY HUNTER — API-Football PRO v3</title>
+  <title>PROPHECY HUNTER v3</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; }
@@ -14,110 +14,44 @@
     .tab-active { border-bottom: 3px solid #10b981; color: #10b981; background: #ecfdf5; }
     .hot { animation: glow 2s infinite; }
     @keyframes glow { 0%,100%{ box-shadow:0 0 6px rgba(16,185,129,.55);} 50%{ box-shadow:0 0 18px rgba(16,185,129,.85);} }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .mono { font-family: ui-monospace, monospace; }
   </style>
 </head>
-
 <body class="bg-gray-100">
   <div id="root"></div>
-
 <script>
-/**
- * PROPHECY HUNTER v3 — IMPROVED ALGORITHM
- * - Fixed search bar (no char-by-char)
- * - Enhanced predictions: H2H, form, real corner/cards stats, odds calibration
- */
-
-// =====================
-// CONFIG
-// =====================
 const AF_BASE = "https://v3.football.api-sports.io";
-const AF_KEY_HARDCODED = "aeb2864a3d4dbb8395fa53c83a876a93";
+const AF_KEY = "aeb2864a3d4dbb8395fa53c83a876a93";
 const TZ = "Europe/Rome";
+const STORAGE = { leaguesCache: "ph_leagues_v3", history: "ph_history_v3", ui: "ph_ui_v3" };
 
-const STORAGE = {
-  leaguesCache: "ph_af_leagues_cache_v3",
-  history: "ph_af_history_v3",
-  ui: "ph_af_ui_v3"
-};
-
-// =====================
-// STATE
-// =====================
 let state = {
-  leagues: [],
-  leaguesLoading: false,
-  leaguesError: null,
-
-  leagueQuery: "",
-  _leagueQueryTemp: "", // temp var for input (no re-render)
-  selectedLeagueId: null,
-  selectedSeason: null,
-
-  from: isoDate(new Date()),
-  to: isoDate(addDays(new Date(), 7)),
-
-  matches: [],
-  loading: false,
-  error: null,
-
-  activeTab: "matches",
-  selectedMatch: null,
-
-  isAnalyzing: false,
-  analysisStep: "",
-  analysisData: null,
-
+  leagues: [], leaguesLoading: false, leaguesError: null,
+  leagueQuery: "", _leagueQueryTemp: "",
+  selectedLeagueId: null, selectedSeason: null,
+  from: new Date().toISOString().slice(0,10),
+  to: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0,10); })(),
+  matches: [], loading: false, error: null,
+  activeTab: "matches", selectedMatch: null,
+  isAnalyzing: false, analysisStep: "", analysisData: null,
   minConfidence: 60,
-
   history: JSON.parse(localStorage.getItem(STORAGE.history) || "[]"),
   historyFilter: "all"
 };
 
-// restore UI
 try {
-  const savedUI = JSON.parse(localStorage.getItem(STORAGE.ui) || "{}");
-  if (savedUI.from) state.from = savedUI.from;
-  if (savedUI.to) state.to = savedUI.to;
-  if (typeof savedUI.minConfidence === "number") state.minConfidence = savedUI.minConfidence;
+  const ui = JSON.parse(localStorage.getItem(STORAGE.ui) || "{}");
+  if (ui.from) state.from = ui.from;
+  if (ui.to) state.to = ui.to;
+  if (typeof ui.minConfidence === "number") state.minConfidence = ui.minConfidence;
 } catch(e) {}
 
-// =====================
-// API
-// =====================
-async function apiCall(path, params = {}) {
-  const url = new URL(AF_BASE + path);
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
-  });
-
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      "x-rapidapi-key": AF_KEY_HARDCODED,
-      "x-rapidapi-host": "v3.football.api-sports.io"
-    }
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  if (data?.errors && Object.keys(data.errors).length) throw new Error(JSON.stringify(data.errors));
-  return data;
-}
-
-// =====================
-// HELPERS
-// =====================
-function isoDate(d) { return d.toISOString().slice(0,10); }
-function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function clamp(min, v, max) { return Math.max(min, Math.min(max, v)); }
+function escapeHtml(s) { return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll("\"","&quot;").replaceAll("'","&#039;"); }
 
 function formatDate(iso) {
   const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit" }),
-    time: d.toLocaleTimeString("it-IT", { hour:"2-digit", minute:"2-digit" })
-  };
+  return { date: d.toLocaleDateString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit" }), time: d.toLocaleTimeString("it-IT", { hour:"2-digit", minute:"2-digit" }) };
 }
 
 function badge(value, size="sm") {
@@ -130,105 +64,175 @@ function badge(value, size="sm") {
 }
 
 function categoryIcon(cat) {
-  return ({
-    esito: "🏁",
-    goal: "⚽",
-    corner: "🚩",
-    cards: "🟨",
-    odds: "💹",
-    h2h: "🔁",
-    form: "📈",
-    injuries: "🩺"
-  }[cat] || "📌");
+  return ({ esito: "🏁", goal: "⚽", corner: "🚩", cards: "🟨", odds: "💹", h2h: "🔁", form: "📈" }[cat] || "📌");
 }
 
 function saveUI() {
-  localStorage.setItem(STORAGE.ui, JSON.stringify({
-    from: state.from,
-    to: state.to,
-    minConfidence: state.minConfidence
-  }));
+  localStorage.setItem(STORAGE.ui, JSON.stringify({ from: state.from, to: state.to, minConfidence: state.minConfidence }));
 }
 
-// =====================
-// MATH (Poisson)
-// =====================
+async function apiCall(path, params = {}) {
+  const url = new URL(AF_BASE + path);
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v); });
+  const res = await fetch(url.toString(), { method: "GET", headers: { "x-rapidapi-key": AF_KEY, "x-rapidapi-host": "v3.football.api-sports.io" } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (data?.errors && Object.keys(data.errors).length) throw new Error(JSON.stringify(data.errors));
+  return data;
+}
+
 function factorial(n) { let r = 1; for (let i=2; i<=n; i++) r *= i; return r; }
 function poisson(lambda, k) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
 function probToScore(lambda) { return (1 - Math.exp(-lambda)) * 100; }
-
-function poissonOver(lambda, threshold) {
-  let under = 0;
-  for (let k = 0; k <= Math.floor(threshold); k++) under += poisson(lambda, k);
-  return (1 - under) * 100;
-}
-
 function bivariatePoissonOver(lambdaH, lambdaA, threshold) {
-  const max = Math.floor(threshold);
-  let probUnder = 0;
-  for (let h=0; h<=max; h++) {
-    for (let a=0; a<=max; a++) {
-      if (h + a <= max) probUnder += poisson(lambdaH, h) * poisson(lambdaA, a);
-    }
-  }
+  const max = Math.floor(threshold); let probUnder = 0;
+  for (let h=0; h<=max; h++) for (let a=0; a<=max; a++) if (h + a <= max) probUnder += poisson(lambdaH, h) * poisson(lambdaA, a);
   return (1 - probUnder) * 100;
 }
-
 function calculate1X2(lambdaH, lambdaA) {
   let home=0, draw=0, away=0;
-  for (let h=0; h<=10; h++) {
-    for (let a=0; a<=10; a++) {
-      const p = poisson(lambdaH, h) * poisson(lambdaA, a);
-      if (h > a) home += p;
-      else if (h === a) draw += p;
-      else away += p;
-    }
+  for (let h=0; h<=10; h++) for (let a=0; a<=10; a++) {
+    const p = poisson(lambdaH, h) * poisson(lambdaA, a);
+    if (h > a) home += p; else if (h === a) draw += p; else away += p;
   }
   return { home: home*100, draw: draw*100, away: away*100 };
 }
+function impliedProb(odd) { const o = parseFloat(odd); if (!o || o <= 1.0001) return null; return (1 / o) * 100; }
 
-function impliedProb(odd) {
-  const o = parseFloat(odd);
-  if (!o || o <= 1.0001) return null;
-  return (1 / o) * 100;
+async function loadLeagues(force=false) {
+  state.leaguesLoading = true; state.leaguesError = null; render();
+  try {
+    if (!force) {
+      const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
+          state.leagues = cached.data;
+          if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
+          state.leaguesLoading = false; render(); return;
+        }
+      }
+    }
+    const data = await apiCall("/leagues", { current: "true" });
+    const rows = (data.response || []).map(r => {
+      const seasons = r.seasons || [];
+      const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
+      return { id: r.league?.id, name: r.league?.name, country: r.country?.name, flag: r.country?.flag, season };
+    }).filter(x => x.id && x.name && x.season);
+    const map = new Map(); rows.forEach(x => map.set(x.id, x));
+    const leagues = [...map.values()].sort((a,b) => (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || ""));
+    state.leagues = leagues;
+    if (!state.selectedLeagueId && leagues.length) { state.selectedLeagueId = leagues[0].id; state.selectedSeason = leagues[0].season; }
+    localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
+  } catch (e) { state.leaguesError = "Errore leghe: " + e.message; }
+  finally { state.leaguesLoading = false; render(); }
 }
 
-// =====================
-// ODDS PARSER
-// =====================
-function parseOdds(oddsPayload) {
-  try {
-    const r = oddsPayload?.response?.[0];
-    if (!r) return null;
-    const bkm = r.bookmakers?.[0];
-    if (!bkm) return null;
+window.reloadLeagues = async () => loadLeagues(true);
 
+let searchTimeout = null;
+window.setLeagueQueryInput = (value) => {
+  state._leagueQueryTemp = value;
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => { state.leagueQuery = value; render(); }, 400);
+};
+
+window.changeLeague = async (leagueId) => {
+  const id = parseInt(leagueId, 10); const l = state.leagues.find(x => x.id === id); if (!l) return;
+  state.selectedLeagueId = l.id; state.selectedSeason = l.season;
+  state.matches = []; state.selectedMatch = null; state.analysisData = null; state.activeTab = "matches";
+  await loadMatches();
+};
+
+async function loadMatches() {
+  if (!state.selectedLeagueId || !state.selectedSeason) { state.error = "Seleziona una lega."; render(); return; }
+  state.loading = true; state.error = null; render();
+  try {
+    const data = await apiCall("/fixtures", { league: state.selectedLeagueId, season: state.selectedSeason, from: state.from, to: state.to, timezone: TZ });
+    state.matches = (data.response || []).map(f => ({
+      id: f.fixture?.id, utcDate: f.fixture?.date, status: f.fixture?.status?.short,
+      referee: f.fixture?.referee, venue: f.fixture?.venue?.name,
+      homeTeam: { id: f.teams?.home?.id, name: f.teams?.home?.name },
+      awayTeam: { id: f.teams?.away?.id, name: f.teams?.away?.name },
+      score: { fullTime: { home: f.goals?.home, away: f.goals?.away } }
+    })).filter(m => m.id && m.homeTeam?.id && m.awayTeam?.id);
+    state.matches.sort((a,b) => (new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
+    if (!state.matches.length) state.error = "Nessuna partita trovata.";
+  } catch (e) { state.error = "Errore: " + e.message; }
+  finally { state.loading = false; render(); }
+}
+
+window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); };
+window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
+
+async function getTeamStats(teamId) {
+  const data = await apiCall("/teams/statistics", { league: state.selectedLeagueId, season: state.selectedSeason, team: teamId });
+  return data.response || null;
+}
+
+async function getH2H(homeId, awayId) {
+  try {
+    const data = await apiCall("/fixtures/headtohead", { h2h: `${homeId}-${awayId}`, last: 10 });
+    const matches = data.response || [];
+    return {
+      total: matches.length,
+      homeWins: matches.filter(m => m.teams?.home?.winner === true && m.teams?.home?.id === homeId).length,
+      awayWins: matches.filter(m => m.teams?.away?.winner === true && m.teams?.away?.id === awayId).length,
+      draws: matches.filter(m => m.teams?.home?.winner === false && m.teams?.away?.winner === false).length
+    };
+  } catch(e) { return { total: 0, homeWins: 0, awayWins: 0, draws: 0 }; }
+}
+
+async function getLastMatches(teamId) {
+  try {
+    const data = await apiCall("/fixtures", { team: teamId, last: 5, timezone: TZ });
+    const matches = (data.response || []).filter(m => ["FT","AET","PEN"].includes(m.fixture?.status?.short));
+    if (!matches.length) return { formScore: 50 };
+    let wins = 0, draws = 0;
+    matches.forEach(m => {
+      const isHome = m.teams?.home?.id === teamId;
+      const scored = isHome ? (m.goals?.home || 0) : (m.goals?.away || 0);
+      const conceded = isHome ? (m.goals?.away || 0) : (m.goals?.home || 0);
+      if (scored > conceded) wins++; else if (scored === conceded) draws++;
+    });
+    return { formScore: (wins * 3 + draws) / (matches.length * 3) * 100 };
+  } catch(e) { return { formScore: 50 }; }
+}
+
+async function getInjuriesCount(fixtureId, homeId, awayId) {
+  try {
+    const data = await apiCall("/injuries", { fixture: fixtureId });
+    const rows = data.response || [];
+    return { home: rows.filter(r => r.team?.id === homeId).length, away: rows.filter(r => r.team?.id === awayId).length };
+  } catch(e) { return { home: 0, away: 0 }; }
+}
+
+async function getOddsParsed(fixtureId) {
+  try {
+    const data = await apiCall("/odds", { fixture: fixtureId, timezone: TZ });
+    const r = data?.response?.[0]; if (!r) return null;
+    const bkm = r.bookmakers?.[0]; if (!bkm) return null;
     const findBet = (names) => {
       const bets = bkm.bets || [];
-      const lower = (s) => (s || "").toLowerCase();
       for (const n of names) {
-        const hit = bets.find(x => lower(x.name) === lower(n) || lower(x.name).includes(lower(n)));
+        const hit = bets.find(x => (x.name||"").toLowerCase().includes(n.toLowerCase()));
         if (hit) return hit;
       }
       return null;
     };
-
     const out = {};
-
-    const mw = findBet(["Match Winner","1X2","Winner"]);
+    const mw = findBet(["Match Winner","1X2"]);
     if (mw) {
       const map = {};
       for (const v of (mw.values || [])) {
         const key = (v.value || "").toString().toUpperCase();
-        const odd = parseFloat(v.odd);
-        if (!odd) continue;
+        const odd = parseFloat(v.odd); if (!odd) continue;
         if (["1","HOME"].includes(key)) map["1"] = odd;
         else if (["X","DRAW"].includes(key)) map["X"] = odd;
         else if (["2","AWAY"].includes(key)) map["2"] = odd;
       }
       if (Object.keys(map).length) out["1X2"] = map;
     }
-
     const btts = findBet(["Both Teams Score","BTTS"]);
     if (btts) {
       let gg=null, ng=null;
@@ -240,350 +244,45 @@ function parseOdds(oddsPayload) {
       }
       if (gg || ng) out["BTTS"] = { GG: gg, NG: ng };
     }
-
-    const ou = findBet(["Goals Over/Under","Over/Under"]);
-    if (ou) {
-      const m = {};
-      for (const v of (ou.values || [])) {
-        const key = (v.value || "").toString();
-        const odd = parseFloat(v.odd);
-        if (!odd) continue;
-        if (key.includes("Over 1.5")) m.o15 = odd;
-        if (key.includes("Under 1.5")) m.u15 = odd;
-        if (key.includes("Over 2.5")) m.o25 = odd;
-        if (key.includes("Under 2.5")) m.u25 = odd;
-        if (key.includes("Over 3.5")) m.o35 = odd;
-        if (key.includes("Under 3.5")) m.u35 = odd;
-        if (key.includes("Over 4.5")) m.o45 = odd;
-        if (key.includes("Under 4.5")) m.u45 = odd;
-      }
-      out["OU"] = m;
-    }
-
     return Object.keys(out).length ? out : null;
-  } catch(e) {
-    return null;
-  }
-}
-
-// =====================
-// LEAGUES
-// =====================
-async function loadLeagues(force=false) {
-  state.leaguesLoading = true;
-  state.leaguesError = null;
-  render();
-
-  try {
-    if (!force) {
-      const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw);
-        if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
-          state.leagues = cached.data;
-          if (!state.selectedLeagueId && state.leagues.length) {
-            state.selectedLeagueId = state.leagues[0].id;
-            state.selectedSeason = state.leagues[0].season;
-          }
-          state.leaguesLoading = false;
-          render();
-          return;
-        }
-      }
-    }
-
-    const data = await apiCall("/leagues", { current: "true" });
-    const rows = (data.response || [])
-      .map(r => {
-        const seasons = r.seasons || [];
-        const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
-        return {
-          id: r.league?.id,
-          name: r.league?.name,
-          type: r.league?.type,
-          logo: r.league?.logo,
-          country: r.country?.name,
-          flag: r.country?.flag,
-          season
-        };
-      })
-      .filter(x => x.id && x.name && x.season);
-
-    const map = new Map();
-    rows.forEach(x => map.set(x.id, x));
-    const leagues = [...map.values()].sort((a,b) =>
-      (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || "")
-    );
-
-    state.leagues = leagues;
-    if (!state.selectedLeagueId && leagues.length) {
-      state.selectedLeagueId = leagues[0].id;
-      state.selectedSeason = leagues[0].season;
-    }
-
-    localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
-  } catch (e) {
-    state.leaguesError = "Errore leghe: " + e.message;
-  } finally {
-    state.leaguesLoading = false;
-    render();
-  }
-}
-
-window.reloadLeagues = async () => loadLeagues(true);
-
-// FIX: no re-render on every keystroke
-let searchTimeout = null;
-window.setLeagueQueryInput = (value) => {
-  state._leagueQueryTemp = value;
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    state.leagueQuery = value;
-    render();
-  }, 400);
-};
-
-window.changeLeague = async (leagueId) => {
-  const id = parseInt(leagueId, 10);
-  const l = state.leagues.find(x => x.id === id);
-  if (!l) return;
-  state.selectedLeagueId = l.id;
-  state.selectedSeason = l.season;
-  state.matches = [];
-  state.selectedMatch = null;
-  state.analysisData = null;
-  state.activeTab = "matches";
-  await loadMatches();
-};
-
-// =====================
-// FIXTURES
-// =====================
-async function loadMatches() {
-  if (!state.selectedLeagueId || !state.selectedSeason) {
-    state.error = "Seleziona una lega.";
-    render();
-    return;
-  }
-
-  state.loading = true;
-  state.error = null;
-  render();
-
-  try {
-    const data = await apiCall("/fixtures", {
-      league: state.selectedLeagueId,
-      season: state.selectedSeason,
-      from: state.from,
-      to: state.to,
-      timezone: TZ
-    });
-
-    state.matches = (data.response || []).map(f => ({
-      id: f.fixture?.id,
-      utcDate: f.fixture?.date,
-      status: f.fixture?.status?.short,
-      referee: f.fixture?.referee,
-      venue: f.fixture?.venue?.name,
-      homeTeam: { id: f.teams?.home?.id, name: f.teams?.home?.name, shortName: f.teams?.home?.name },
-      awayTeam: { id: f.teams?.away?.id, name: f.teams?.away?.name, shortName: f.teams?.away?.name },
-      score: { fullTime: { home: f.goals?.home, away: f.goals?.away } },
-      _raw: f
-    })).filter(m => m.id && m.homeTeam?.id && m.awayTeam?.id);
-
-    state.matches.sort((a,b) => (new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
-
-    if (!state.matches.length) state.error = "Nessuna partita trovata nel range. Cambia le date.";
-  } catch (e) {
-    state.error = "Errore palinsesto: " + e.message;
-  } finally {
-    state.loading = false;
-    render();
-  }
-}
-
-window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); };
-window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
-
-// =====================
-// ANALISI ENHANCED
-// =====================
-async function getTeamStats(teamId) {
-  const data = await apiCall("/teams/statistics", {
-    league: state.selectedLeagueId,
-    season: state.selectedSeason,
-    team: teamId
-  });
-  return data.response || null;
-}
-
-async function getInjuriesCount(fixtureId, homeId, awayId) {
-  try {
-    const data = await apiCall("/injuries", { fixture: fixtureId });
-    const rows = data.response || [];
-    return {
-      home: rows.filter(r => r.team?.id === homeId).length,
-      away: rows.filter(r => r.team?.id === awayId).length
-    };
-  } catch(e) {
-    return { home: 0, away: 0 };
-  }
-}
-
-async function getOddsParsed(fixtureId) {
-  try {
-    const data = await apiCall("/odds", { fixture: fixtureId, timezone: TZ });
-    return parseOdds(data);
-  } catch(e) {
-    return null;
-  }
-}
-
-// NEW: H2H data
-async function getH2H(homeId, awayId) {
-  try {
-    const data = await apiCall("/fixtures/headtohead", { h2h: `${homeId}-${awayId}`, last: 10 });
-    const matches = data.response || [];
-    return {
-      total: matches.length,
-      homeWins: matches.filter(m => m.teams?.home?.winner === true && m.teams?.home?.id === homeId).length,
-      awayWins: matches.filter(m => m.teams?.away?.winner === true && m.teams?.away?.id === awayId).length,
-      draws: matches.filter(m => m.teams?.home?.winner === false && m.teams?.away?.winner === false).length,
-      avgGoalsHome: matches.length ? matches.reduce((sum, m) => sum + (m.teams?.home?.id === homeId ? (m.goals?.home || 0) : (m.goals?.away || 0)), 0) / matches.length : 1.3,
-      avgGoalsAway: matches.length ? matches.reduce((sum, m) => sum + (m.teams?.away?.id === awayId ? (m.goals?.away || 0) : (m.goals?.home || 0)), 0) / matches.length : 1.1
-    };
-  } catch(e) {
-    return { total: 0, homeWins: 0, awayWins: 0, draws: 0, avgGoalsHome: 1.3, avgGoalsAway: 1.1 };
-  }
-}
-
-// NEW: Last 5 matches form
-async function getLastMatches(teamId, limit=5) {
-  try {
-    const data = await apiCall("/fixtures", {
-      team: teamId,
-      last: limit,
-      timezone: TZ
-    });
-    const matches = (data.response || []).filter(m => ["FT","AET","PEN"].includes(m.fixture?.status?.short));
-    if (!matches.length) return { wins: 0, draws: 0, losses: 0, avgGoalsFor: 1.3, avgGoalsAgainst: 1.2 };
-
-    let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
-    matches.forEach(m => {
-      const isHome = m.teams?.home?.id === teamId;
-      const scored = isHome ? (m.goals?.home || 0) : (m.goals?.away || 0);
-      const conceded = isHome ? (m.goals?.away || 0) : (m.goals?.home || 0);
-      gf += scored;
-      ga += conceded;
-      if (scored > conceded) wins++;
-      else if (scored === conceded) draws++;
-      else losses++;
-    });
-
-    return {
-      wins, draws, losses,
-      avgGoalsFor: gf / matches.length,
-      avgGoalsAgainst: ga / matches.length,
-      formScore: (wins * 3 + draws) / (matches.length * 3) * 100 // 0-100
-    };
-  } catch(e) {
-    return { wins: 0, draws: 0, losses: 0, avgGoalsFor: 1.3, avgGoalsAgainst: 1.2, formScore: 50 };
-  }
-}
-
-// NEW: Real corner/cards from fixture statistics (if available)
-async function getFixtureStats(fixtureId) {
-  try {
-    const data = await apiCall("/fixtures/statistics", { fixture: fixtureId });
-    const stats = data.response || [];
-    if (stats.length < 2) return null;
-
-    const home = stats.find(s => s.team?.id);
-    const away = stats.find(s => s.team?.id && s.team.id !== home?.team?.id);
-    if (!home || !away) return null;
-
-    const getStatValue = (team, type) => {
-      const stat = team.statistics?.find(s => s.type === type);
-      return stat ? parseFloat(stat.value) : null;
-    };
-
-    return {
-      homeCorners: getStatValue(home, "Corner Kicks"),
-      awayCorners: getStatValue(away, "Corner Kicks"),
-      homeYellowCards: getStatValue(home, "Yellow Cards"),
-      awayYellowCards: getStatValue(away, "Yellow Cards"),
-      homeRedCards: getStatValue(home, "Red Cards"),
-      awayRedCards: getStatValue(away, "Red Cards")
-    };
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
 }
 
 function normalizeStats(raw) {
   return {
-    played: raw?.fixtures?.played?.total || 0,
     avgGoalsForHome: parseFloat(raw?.goals?.for?.average?.home || raw?.goals?.for?.average?.total || 1.35),
     avgGoalsAgainstHome: parseFloat(raw?.goals?.against?.average?.home || raw?.goals?.against?.average?.total || 1.15),
     avgGoalsForAway: parseFloat(raw?.goals?.for?.average?.away || raw?.goals?.for?.average?.total || 1.15),
     avgGoalsAgainstAway: parseFloat(raw?.goals?.against?.average?.away || raw?.goals?.against?.average?.total || 1.35),
-    bttsRate: parseFloat(raw?.btts?.percentage || 50),
-    over25Rate: 50
+    bttsRate: parseFloat(raw?.btts?.percentage || 50)
   };
 }
 
 function calculateLambda(attackAvg, oppDefenseAvg, leagueAvg, isHome, formFactor=1, absenceFactor=1, h2hFactor=1) {
   const a = parseFloat(attackAvg) || leagueAvg;
   const d = parseFloat(oppDefenseAvg) || leagueAvg;
-  const attackStrength = a / leagueAvg;
-  const defenseWeakness = d / leagueAvg;
-  let lambda = leagueAvg * attackStrength * defenseWeakness;
+  let lambda = leagueAvg * (a / leagueAvg) * (d / leagueAvg);
   lambda *= isHome ? 1.12 : 0.88;
-  lambda *= formFactor;
-  lambda *= absenceFactor;
-  lambda *= h2hFactor;
+  lambda *= formFactor * absenceFactor * h2hFactor;
   return clamp(0.25, lambda, 4.5);
 }
 
-function buildMarketsEnhanced(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm, fixtureStats) {
-  const leagueAvg = clamp(0.95, (
-    homeStats.avgGoalsForHome +
-    awayStats.avgGoalsForAway +
-    homeStats.avgGoalsAgainstHome +
-    awayStats.avgGoalsAgainstAway
-  ) / 4, 2.2);
-
-  // Form factor (0.85 - 1.15)
+function buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm) {
+  const leagueAvg = clamp(0.95, (homeStats.avgGoalsForHome + awayStats.avgGoalsForAway + homeStats.avgGoalsAgainstHome + awayStats.avgGoalsAgainstAway) / 4, 2.2);
   const homeFormFactor = homeForm ? clamp(0.85, 0.85 + (homeForm.formScore / 100) * 0.30, 1.15) : 1;
   const awayFormFactor = awayForm ? clamp(0.85, 0.85 + (awayForm.formScore / 100) * 0.30, 1.15) : 1;
-
-  // Injuries factor
   const homeAbsFactor = clamp(0.70, 1 - (injuries.home * 0.04), 1);
   const awayAbsFactor = clamp(0.70, 1 - (injuries.away * 0.04), 1);
-
-  // H2H factor (slight boost if dominance in h2h)
   const homeH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.homeWins / h2h.total) * 0.15, 1.08) : 1;
   const awayH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.awayWins / h2h.total) * 0.15, 1.08) : 1;
 
-  const lambdaH = calculateLambda(
-    homeStats.avgGoalsForHome,
-    awayStats.avgGoalsAgainstAway,
-    leagueAvg, true,
-    homeFormFactor, homeAbsFactor, homeH2HFactor
-  );
-
-  const lambdaA = calculateLambda(
-    awayStats.avgGoalsForAway,
-    homeStats.avgGoalsAgainstHome,
-    leagueAvg, false,
-    awayFormFactor, awayAbsFactor, awayH2HFactor
-  );
+  const lambdaH = calculateLambda(homeStats.avgGoalsForHome, awayStats.avgGoalsAgainstAway, leagueAvg, true, homeFormFactor, homeAbsFactor, homeH2HFactor);
+  const lambdaA = calculateLambda(awayStats.avgGoalsForAway, homeStats.avgGoalsAgainstHome, leagueAvg, false, awayFormFactor, awayAbsFactor, awayH2HFactor);
 
   const r1x2 = calculate1X2(lambdaH, lambdaA);
   const s = r1x2.home + r1x2.draw + r1x2.away;
   let adj1x2 = { home: r1x2.home/s*100, draw: r1x2.draw/s*100, away: r1x2.away/s*100 };
 
-  // ODDS CALIBRATION: if odds available, blend with implied prob (30% odds, 70% algo)
   if (oddsParsed?.["1X2"]) {
     const implHome = impliedProb(oddsParsed["1X2"]["1"]);
     const implDraw = impliedProb(oddsParsed["1X2"]["X"]);
@@ -607,7 +306,6 @@ function buildMarketsEnhanced(homeStats, awayStats, injuries, oddsParsed, h2h, h
   const histBtts = (homeStats.bttsRate + awayStats.bttsRate) / 2;
   gg = gg * 0.75 + histBtts * 0.25;
 
-  // BTTS odds calibration
   if (oddsParsed?.BTTS?.GG) {
     const implGG = impliedProb(oddsParsed.BTTS.GG);
     if (implGG) gg = gg * 0.70 + implGG * 0.30;
@@ -616,207 +314,77 @@ function buildMarketsEnhanced(homeStats, awayStats, injuries, oddsParsed, h2h, h
   const ou = {};
   [0.5,1.5,2.5,3.5,4.5].forEach(line => {
     let over = bivariatePoissonOver(lambdaH, lambdaA, line);
-    if (line === 2.5) {
-      const histOver = (homeStats.over25Rate + awayStats.over25Rate) / 2;
-      over = over * 0.75 + histOver * 0.25;
-      // odds calibration for over2.5
-      if (oddsParsed?.OU?.o25) {
-        const implOver = impliedProb(oddsParsed.OU.o25);
-        if (implOver) over = over * 0.70 + implOver * 0.30;
-      }
-    }
     ou[line] = { over: clamp(1, over, 99), under: clamp(1, 100-over, 99) };
   });
 
-  // CORNER (use real if available, else estimate)
-  let homeCorners, awayCorners;
-  if (fixtureStats?.homeCorners != null && fixtureStats?.awayCorners != null) {
-    homeCorners = fixtureStats.homeCorners;
-    awayCorners = fixtureStats.awayCorners;
-  } else {
-    const baseCorner = leagueAvg * 5.2;
-    const homeAttackFactor = Math.pow(homeStats.avgGoalsForHome / leagueAvg, 0.42);
-    const homeDominance = homeStats.avgGoalsForHome / (homeStats.avgGoalsForHome + homeStats.avgGoalsAgainstHome + 0.1);
-    homeCorners = baseCorner * homeAttackFactor * (0.7 + homeDominance * 0.6) * 1.15;
-
-    const awayAttackFactor = Math.pow(awayStats.avgGoalsForAway / leagueAvg, 0.42);
-    const awayDominance = awayStats.avgGoalsForAway / (awayStats.avgGoalsForAway + awayStats.avgGoalsAgainstAway + 0.1);
-    awayCorners = baseCorner * awayAttackFactor * (0.7 + awayDominance * 0.6) * 0.90;
-
-    homeCorners = clamp(3, homeCorners, 8);
-    awayCorners = clamp(3, awayCorners, 8);
-  }
-
+  const baseCorner = leagueAvg * 5.2;
+  let homeCorners = baseCorner * Math.pow(homeStats.avgGoalsForHome / leagueAvg, 0.42) * 1.15;
+  let awayCorners = baseCorner * Math.pow(awayStats.avgGoalsForAway / leagueAvg, 0.42) * 0.90;
+  homeCorners = clamp(3, homeCorners, 8); awayCorners = clamp(3, awayCorners, 8);
   const totalCorners = homeCorners + awayCorners;
-
   const cornerPreds = {};
   [8.5, 9.5, 10.5, 11.5, 12.5].forEach(line => {
-    const diff = totalCorners - line;
-    const prob = 50 + diff * 2.2 * 28;
+    const prob = 50 + (totalCorners - line) * 2.2 * 28;
     cornerPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
   });
 
-  // CARDS (use real if available, else estimate)
-  let homeCards, awayCards;
-  if (fixtureStats?.homeYellowCards != null && fixtureStats?.awayYellowCards != null) {
-    homeCards = fixtureStats.homeYellowCards + (fixtureStats.homeRedCards || 0) * 2;
-    awayCards = fixtureStats.awayYellowCards + (fixtureStats.awayRedCards || 0) * 2;
-  } else {
-    const baseCards = leagueAvg * 2.1;
-    const homeDefPressure = Math.pow(homeStats.avgGoalsAgainstHome / leagueAvg, 0.35);
-    const homeFrustration = Math.pow(leagueAvg / Math.max(homeStats.avgGoalsForHome, 0.5), 0.25);
-    homeCards = baseCards * homeDefPressure * homeFrustration * 0.88;
-
-    const awayDefPressure = Math.pow(awayStats.avgGoalsAgainstAway / leagueAvg, 0.35);
-    const awayFrustration = Math.pow(leagueAvg / Math.max(awayStats.avgGoalsForAway, 0.5), 0.25);
-    awayCards = baseCards * awayDefPressure * awayFrustration * 1.18;
-
-    homeCards = clamp(1, homeCards, 4);
-    awayCards = clamp(1, awayCards, 4);
-  }
-
+  const baseCards = leagueAvg * 2.1;
+  let homeCards = baseCards * Math.pow(homeStats.avgGoalsAgainstHome / leagueAvg, 0.35) * 0.88;
+  let awayCards = baseCards * Math.pow(awayStats.avgGoalsAgainstAway / leagueAvg, 0.35) * 1.18;
+  homeCards = clamp(1, homeCards, 4); awayCards = clamp(1, awayCards, 4);
   const totalCards = homeCards + awayCards;
-
   const cardPreds = {};
   [2.5, 3.5, 4.5, 5.5].forEach(line => {
-    const diff = totalCards - line;
-    const prob = 50 + diff * 1.6 * 30;
+    const prob = 50 + (totalCards - line) * 1.6 * 30;
     cardPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
   });
 
   return {
     xG: { home: lambdaH, away: lambdaA, total: lambdaH + lambdaA },
-    result1X2: adj1x2,
-    doubleChance: dc,
+    result1X2: adj1x2, doubleChance: dc,
     btts: { gg: clamp(1, gg, 99), ng: clamp(1, 100-gg, 99) },
     overUnderGoals: ou,
     corners: { home: homeCorners, away: awayCorners, total: totalCorners, predictions: cornerPreds },
     cards: { home: homeCards, away: awayCards, total: totalCards, predictions: cardPreds },
-    injuries,
-    h2h,
-    homeForm,
-    awayForm,
-    odds: oddsParsed || null
+    injuries, h2h, homeForm, awayForm, odds: oddsParsed || null
   };
 }
 
 function generatePredictions(markets, match) {
-  const home = match.homeTeam.name;
-  const away = match.awayTeam.name;
-
+  const home = match.homeTeam.name; const away = match.awayTeam.name;
   const preds = [];
 
-  // 1X2
   const best1x2 = [
     { selection: "1", prob: markets.result1X2.home, label: home },
     { selection: "X", prob: markets.result1X2.draw, label: "Pareggio" },
     { selection: "2", prob: markets.result1X2.away, label: away }
   ].sort((a,b)=>b.prob-a.prob)[0];
+  preds.push({ market: "1X2", selection: best1x2.selection, label: best1x2.label, probability: best1x2.prob, confidence: clamp(35, 40 + Math.abs(best1x2.prob - 33) * 0.9, 85), category: "esito" });
 
-  preds.push({
-    market: "1X2",
-    selection: best1x2.selection,
-    label: best1x2.label,
-    probability: best1x2.prob,
-    confidence: clamp(35, 40 + Math.abs(best1x2.prob - 33) * 0.9, 85),
-    category: "esito"
-  });
-
-  // Double chance
   const dc = Object.entries(markets.doubleChance).map(([k,v]) => ({ selection:k, prob:v })).sort((a,b)=>b.prob-a.prob)[0];
-  preds.push({
-    market: "Doppia Chance",
-    selection: dc.selection,
-    label: dc.selection,
-    probability: dc.prob,
-    confidence: clamp(42, 45 + Math.abs(dc.prob - 50) * 0.6, 88),
-    category: "esito"
-  });
+  preds.push({ market: "Doppia Chance", selection: dc.selection, label: dc.selection, probability: dc.prob, confidence: clamp(42, 45 + Math.abs(dc.prob - 50) * 0.6, 88), category: "esito" });
 
-  // GG/NG
   const btts = markets.btts.gg >= 50 ? { selection:"GG", prob: markets.btts.gg, label:"Goal/Goal" } : { selection:"NG", prob: markets.btts.ng, label:"No Goal" };
-  preds.push({
-    market: "GG/NG",
-    selection: btts.selection,
-    label: btts.label,
-    probability: btts.prob,
-    confidence: clamp(40, 45 + Math.abs(btts.prob - 50) * 0.8, 87),
-    category: "goal"
-  });
+  preds.push({ market: "GG/NG", selection: btts.selection, label: btts.label, probability: btts.prob, confidence: clamp(40, 45 + Math.abs(btts.prob - 50) * 0.8, 87), category: "goal" });
 
-  // Over/Under Goals
   Object.entries(markets.overUnderGoals).forEach(([line, data]) => {
     const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({
-      market: `Goal ${line}`,
-      selection: best.selection,
-      label: best.selection,
-      probability: best.prob,
-      confidence: clamp(40, 45 + Math.abs(best.prob - 50) * 0.7, 87),
-      category: "goal"
-    });
+    preds.push({ market: `Goal ${line}`, selection: best.selection, label: best.selection, probability: best.prob, confidence: clamp(40, 45 + Math.abs(best.prob - 50) * 0.7, 87), category: "goal" });
   });
 
-  // Corner
   Object.entries(markets.corners.predictions).forEach(([line, data]) => {
     const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({
-      market: `Corner ${line}`,
-      selection: best.selection,
-      label: `Corner ${best.selection}`,
-      probability: best.prob,
-      confidence: clamp(40, 42 + Math.abs(best.prob - 50) * 0.65, 85),
-      category: "corner"
-    });
+    preds.push({ market: `Corner ${line}`, selection: best.selection, label: `Corner ${best.selection}`, probability: best.prob, confidence: clamp(40, 42 + Math.abs(best.prob - 50) * 0.65, 85), category: "corner" });
   });
 
-  // Cards
   Object.entries(markets.cards.predictions).forEach(([line, data]) => {
     const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({
-      market: `Cartellini ${line}`,
-      selection: best.selection,
-      label: `Cards ${best.selection}`,
-      probability: best.prob,
-      confidence: clamp(40, 40 + Math.abs(best.prob - 50) * 0.6, 83),
-      category: "cards"
-    });
+    preds.push({ market: `Cartellini ${line}`, selection: best.selection, label: `Cards ${best.selection}`, probability: best.prob, confidence: clamp(40, 40 + Math.abs(best.prob - 50) * 0.6, 83), category: "cards" });
   });
 
-  // Value bets (odds)
   if (markets.odds?.BTTS?.GG) {
-    const odd = markets.odds.BTTS.GG;
-    const ip = impliedProb(odd);
-    const edge = (ip == null) ? null : (markets.btts.gg - ip);
-    if (edge != null && edge > 0) {
-      preds.push({
-        market: "Value",
-        selection: "GG",
-        label: `GG (quota ${odd})`,
-        probability: markets.btts.gg,
-        confidence: clamp(40, 50 + edge * 1.4, 92),
-        category: "odds",
-        meta: { odd, implied: ip, edge }
-      });
-    }
-  }
-
-  if (markets.odds?.OU?.o25) {
-    const odd = markets.odds.OU.o25;
-    const ip = impliedProb(odd);
-    const p = markets.overUnderGoals[2.5].over;
-    const edge = (ip == null) ? null : (p - ip);
-    if (edge != null && edge > 0) {
-      preds.push({
-        market: "Value",
-        selection: "OVER 2.5",
-        label: `Over 2.5 (quota ${odd})`,
-        probability: p,
-        confidence: clamp(40, 50 + edge * 1.4, 92),
-        category: "odds",
-        meta: { odd, implied: ip, edge }
-      });
-    }
+    const odd = markets.odds.BTTS.GG; const ip = impliedProb(odd); const edge = (ip == null) ? null : (markets.btts.gg - ip);
+    if (edge != null && edge > 0) preds.push({ market: "Value", selection: "GG", label: `GG (quota ${odd})`, probability: markets.btts.gg, confidence: clamp(40, 50 + edge * 1.4, 92), category: "odds", meta: { odd, implied: ip, edge } });
   }
 
   preds.sort((a,b)=>b.confidence-a.confidence);
@@ -829,70 +397,24 @@ function pickTop(preds) {
 }
 
 window.analyzeMatch = async (match) => {
-  state.isAnalyzing = true;
-  state.selectedMatch = match;
-  state.analysisData = null;
-  state.activeTab = "analysis";
-  state.error = null;
-  state.analysisStep = "Statistiche squadre...";
-  render();
-
+  state.isAnalyzing = true; state.selectedMatch = match; state.analysisData = null; state.activeTab = "analysis"; state.error = null; state.analysisStep = "Statistiche..."; render();
   try {
-    const [homeRaw, awayRaw] = await Promise.all([
-      getTeamStats(match.homeTeam.id),
-      getTeamStats(match.awayTeam.id)
-    ]);
-
-    state.analysisStep = "H2H e forma recente...";
-    render();
-    const [h2h, homeForm, awayForm] = await Promise.all([
-      getH2H(match.homeTeam.id, match.awayTeam.id),
-      getLastMatches(match.homeTeam.id, 5),
-      getLastMatches(match.awayTeam.id, 5)
-    ]);
-
-    state.analysisStep = "Infortuni...";
-    render();
+    const [homeRaw, awayRaw] = await Promise.all([ getTeamStats(match.homeTeam.id), getTeamStats(match.awayTeam.id) ]);
+    state.analysisStep = "H2H e forma..."; render();
+    const [h2h, homeForm, awayForm] = await Promise.all([ getH2H(match.homeTeam.id, match.awayTeam.id), getLastMatches(match.homeTeam.id), getLastMatches(match.awayTeam.id) ]);
+    state.analysisStep = "Infortuni..."; render();
     const injuries = await getInjuriesCount(match.id, match.homeTeam.id, match.awayTeam.id);
-
-    state.analysisStep = "Quote (se disponibili)...";
-    render();
+    state.analysisStep = "Quote..."; render();
     const oddsParsed = await getOddsParsed(match.id);
-
-    state.analysisStep = "Statistiche partita reali (corner/cards)...";
-    render();
-    const fixtureStats = await getFixtureStats(match.id);
-
-    state.analysisStep = "Calcolo algoritmo avanzato...";
-    render();
-    const homeStats = normalizeStats(homeRaw);
-    const awayStats = normalizeStats(awayRaw);
-
-    const markets = buildMarketsEnhanced(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm, fixtureStats);
-    const predictions = generatePredictions(markets, match);
-    const top = pickTop(predictions);
-
-    state.analysisData = {
-      match,
-      homeStats,
-      awayStats,
-      markets,
-      predictions,
-      selectedPredictions: [],
-      topPick: top
-    };
-  } catch (e) {
-    state.error = "Errore analisi: " + e.message;
-  } finally {
-    state.isAnalyzing = false;
-    state.analysisStep = "";
-    render();
-  }
+    state.analysisStep = "Calcolo..."; render();
+    const homeStats = normalizeStats(homeRaw); const awayStats = normalizeStats(awayRaw);
+    const markets = buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm);
+    const predictions = generatePredictions(markets, match); const top = pickTop(predictions);
+    state.analysisData = { match, homeStats, awayStats, markets, predictions, selectedPredictions: [], topPick: top };
+  } catch (e) { state.error = "Errore: " + e.message; }
+  finally { state.isAnalyzing = false; state.analysisStep = ""; render(); }
 };
 
-// =====================
-// PICK SELECTION + SAVE
-// =====================
 window.togglePrediction = (idx) => {
   if (!state.analysisData) return;
   const pred = state.analysisData.predictions[idx];
@@ -903,221 +425,81 @@ window.togglePrediction = (idx) => {
 };
 
 window.savePredictions = () => {
-  if (!state.analysisData) return;
-  if (!state.analysisData.selectedPredictions.length) {
-    alert("Seleziona almeno un pronostico!");
-    return;
-  }
-
-  const m = state.analysisData.match;
-  const league = state.leagues.find(l => l.id === state.selectedLeagueId);
-
+  if (!state.analysisData || !state.analysisData.selectedPredictions.length) { alert("Seleziona almeno un pronostico!"); return; }
+  const m = state.analysisData.match; const league = state.leagues.find(l => l.id === state.selectedLeagueId);
   const entry = {
-    id: Date.now(),
-    fixtureId: m.id,
-    date: m.utcDate,
-    leagueId: state.selectedLeagueId,
-    leagueName: league ? `${league.country ? league.country + " — " : ""}${league.name}` : String(state.selectedLeagueId),
-    season: state.selectedSeason,
-    homeTeam: m.homeTeam.name,
-    awayTeam: m.awayTeam.name,
-    predictions: state.analysisData.selectedPredictions.map(p => ({
-      market: p.market,
-      selection: p.selection,
-      label: p.label,
-      probability: p.probability,
-      confidence: p.confidence,
-      odd: p.meta?.odd || null,
-      result: null
-    })),
-    status: "pending",
-    createdAt: new Date().toISOString()
+    id: Date.now(), fixtureId: m.id, date: m.utcDate,
+    leagueId: state.selectedLeagueId, leagueName: league ? `${league.country ? league.country + " — " : ""}${league.name}` : String(state.selectedLeagueId),
+    season: state.selectedSeason, homeTeam: m.homeTeam.name, awayTeam: m.awayTeam.name,
+    predictions: state.analysisData.selectedPredictions.map(p => ({ market: p.market, selection: p.selection, label: p.label, probability: p.probability, confidence: p.confidence, odd: p.meta?.odd || null, result: null })),
+    status: "pending", createdAt: new Date().toISOString()
   };
-
-  state.history.unshift(entry);
-  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-  state.analysisData.selectedPredictions = [];
-  state.activeTab = "history";
-  render();
+  state.history.unshift(entry); localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  state.analysisData.selectedPredictions = []; state.activeTab = "history"; render();
 };
 
-// =====================
-// HISTORY / RESULTS
-// =====================
 function getHistoryStats() {
   const resolved = state.history.filter(e => e.status !== "pending");
-  const won = resolved.filter(e => e.status === "won").length;
-  const partial = resolved.filter(e => e.status === "partial").length;
-  const lost = resolved.filter(e => e.status === "lost").length;
+  const won = resolved.filter(e => e.status === "won").length; const partial = resolved.filter(e => e.status === "partial").length; const lost = resolved.filter(e => e.status === "lost").length;
   const winRate = resolved.length ? (won / resolved.length) * 100 : 0;
-
   let predTotal = 0, predWon = 0;
-  state.history.forEach(e => {
-    (e.predictions || []).forEach(p => {
-      if (p.result != null) {
-        predTotal++;
-        if (p.result === "won") predWon++;
-      }
-    });
-  });
-
+  state.history.forEach(e => { (e.predictions || []).forEach(p => { if (p.result != null) { predTotal++; if (p.result === "won") predWon++; } }); });
   const predHitRate = predTotal ? (predWon / predTotal) * 100 : 0;
-
-  return {
-    total: state.history.length,
-    resolved: resolved.length,
-    won, partial, lost,
-    winRate: winRate.toFixed(1),
-    predTotal,
-    predWon,
-    predHitRate: predHitRate.toFixed(1)
-  };
+  return { total: state.history.length, resolved: resolved.length, won, partial, lost, winRate: winRate.toFixed(1), predTotal, predWon, predHitRate: predHitRate.toFixed(1) };
 }
 
 function isPickWinner(selection, goalsH, goalsA) {
-  const gh = goalsH ?? 0;
-  const ga = goalsA ?? 0;
-  const tot = gh + ga;
-  const s = (selection || "").toUpperCase().trim();
-
-  if (s === "GG") return (gh > 0 && ga > 0);
-  if (s === "NG") return !(gh > 0 && ga > 0);
-
-  if (s === "1") return gh > ga;
-  if (s === "X") return gh === ga;
-  if (s === "2") return gh < ga;
-
-  if (s === "1X") return gh >= ga;
-  if (s === "X2") return gh <= ga;
-  if (s === "12") return gh !== ga;
-
-  if (s.startsWith("OVER")) {
-    const line = parseFloat(s.replace("OVER","").trim());
-    if (!Number.isFinite(line)) return null;
-    return tot > line;
-  }
-  if (s.startsWith("UNDER")) {
-    const line = parseFloat(s.replace("UNDER","").trim());
-    if (!Number.isFinite(line)) return null;
-    return tot < line;
-  }
-
+  const gh = goalsH ?? 0; const ga = goalsA ?? 0; const tot = gh + ga; const s = (selection || "").toUpperCase().trim();
+  if (s === "GG") return (gh > 0 && ga > 0); if (s === "NG") return !(gh > 0 && ga > 0);
+  if (s === "1") return gh > ga; if (s === "X") return gh === ga; if (s === "2") return gh < ga;
+  if (s === "1X") return gh >= ga; if (s === "X2") return gh <= ga; if (s === "12") return gh !== ga;
+  if (s.startsWith("OVER")) { const line = parseFloat(s.replace("OVER","").trim()); if (!Number.isFinite(line)) return null; return tot > line; }
+  if (s.startsWith("UNDER")) { const line = parseFloat(s.replace("UNDER","").trim()); if (!Number.isFinite(line)) return null; return tot < line; }
   return null;
 }
 
-function chunk(arr, size) {
-  const out = [];
-  for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
-  return out;
-}
+function chunk(arr, size) { const out = []; for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size)); return out; }
 
 window.refreshResults = async () => {
-  const pending = state.history.filter(e => e.status === "pending");
-  if (!pending.length) { alert("Nessun pronostico pending."); return; }
-
+  const pending = state.history.filter(e => e.status === "pending"); if (!pending.length) { alert("Nessun pronostico pending."); return; }
   try {
     const batches = chunk(pending.map(e => e.fixtureId), 20);
     for (const ids of batches) {
       const data = await apiCall("/fixtures", { ids: ids.join("-"), timezone: TZ });
       const fixtures = data.response || [];
-
       fixtures.forEach(f => {
-        const id = f.fixture?.id;
-        const st = f.fixture?.status?.short;
-        const finished = ["FT","AET","PEN"].includes(st);
-        if (!finished) return;
-
-        const gh = f.goals?.home;
-        const ga = f.goals?.away;
-
-        const entry = state.history.find(e => e.fixtureId === id);
-        if (!entry) return;
-
-        let allResolved = true;
-        let allWon = true;
-        let anyWon = false;
-
-        entry.predictions.forEach(p => {
-          if (p.result != null) return;
-          const w = isPickWinner(p.selection, gh, ga);
-          if (w === null) { allResolved = false; allWon = false; return; }
-          p.result = w ? "won" : "lost";
-        });
-
-        entry.predictions.forEach(p => {
-          if (p.result == null) allResolved = false;
-          if (p.result !== "won") allWon = false;
-          if (p.result === "won") anyWon = true;
-        });
-
-        if (allResolved) {
-          entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
-        }
+        const id = f.fixture?.id; const st = f.fixture?.status?.short;
+        const finished = ["FT","AET","PEN"].includes(st); if (!finished) return;
+        const gh = f.goals?.home; const ga = f.goals?.away;
+        const entry = state.history.find(e => e.fixtureId === id); if (!entry) return;
+        let allResolved = true; let allWon = true; let anyWon = false;
+        entry.predictions.forEach(p => { if (p.result != null) return; const w = isPickWinner(p.selection, gh, ga); if (w === null) { allResolved = false; allWon = false; return; } p.result = w ? "won" : "lost"; });
+        entry.predictions.forEach(p => { if (p.result == null) allResolved = false; if (p.result !== "won") allWon = false; if (p.result === "won") anyWon = true; });
+        if (allResolved) entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
       });
     }
-
-    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-    render();
-  } catch (e) {
-    alert("Errore update risultati: " + e.message);
-  }
+    localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render();
+  } catch (e) { alert("Errore: " + e.message); }
 };
 
 window.setHistoryFilter = (f) => { state.historyFilter = f; render(); };
-
-window.clearHistory = () => {
-  if (!confirm("Cancellare tutto lo storico?")) return;
-  state.history = [];
-  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-  render();
-};
-
+window.clearHistory = () => { if (!confirm("Cancellare tutto?")) return; state.history = []; localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render(); };
 window.updateHistoryResult = (entryId, predIndex, won) => {
-  const entry = state.history.find(e => e.id === entryId);
-  if (!entry) return;
-  const p = entry.predictions?.[predIndex];
-  if (!p) return;
-
+  const entry = state.history.find(e => e.id === entryId); if (!entry) return;
+  const p = entry.predictions?.[predIndex]; if (!p) return;
   p.result = won ? "won" : "lost";
   const allResolved = entry.predictions.every(x => x.result != null);
-  if (allResolved) {
-    const allWon = entry.predictions.every(x => x.result === "won");
-    const anyWon = entry.predictions.some(x => x.result === "won");
-    entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
-  } else {
-    entry.status = "pending";
-  }
-
-  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-  render();
+  if (allResolved) { const allWon = entry.predictions.every(x => x.result === "won"); const anyWon = entry.predictions.some(x => x.result === "won"); entry.status = allWon ? "won" : (anyWon ? "partial" : "lost"); } else entry.status = "pending";
+  localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render();
 };
 
-// =====================
-// TABS + RESET
-// =====================
 window.setTab = (tab) => { state.activeTab = tab; render(); };
-window.resetApp = () => {
-  if (!confirm("Reset totale? (cancella cache leghe + storico)")) return;
-  localStorage.removeItem(STORAGE.leaguesCache);
-  localStorage.removeItem(STORAGE.history);
-  localStorage.removeItem(STORAGE.ui);
-  location.reload();
-};
+window.resetApp = () => { if (!confirm("Reset?")) return; localStorage.removeItem(STORAGE.leaguesCache); localStorage.removeItem(STORAGE.history); localStorage.removeItem(STORAGE.ui); location.reload(); };
+window.setMinConfidence = (v) => { state.minConfidence = parseInt(v, 10); saveUI(); render(); };
 
-window.setMinConfidence = (v) => {
-  state.minConfidence = parseInt(v, 10);
-  saveUI();
-  render();
-};
-
-// =====================
-// RENDER
-// =====================
 function render() {
   const root = document.getElementById("root");
   const league = state.leagues.find(l => l.id === state.selectedLeagueId);
-
-  // FIX: use _leagueQueryTemp for input value to avoid re-render issues
   const searchInputValue = state._leagueQueryTemp !== undefined ? state._leagueQueryTemp : state.leagueQuery;
 
   const header = `
@@ -1126,60 +508,24 @@ function render() {
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-2xl">🔮</span>
-            <div>
-              <h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1>
-              <div class="text-[11px] text-emerald-700 font-extrabold">H2H • Form • Real Stats • Odds Calibration</div>
-            </div>
+            <div><h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1><div class="text-[11px] text-emerald-700 font-extrabold">H2H • Forma • Odds Calibration</div></div>
           </div>
           <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
         </div>
-
         <div class="mb-2">
           <div class="flex gap-2">
-            <input
-              id="leagueSearchInput"
-              class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold"
-              placeholder="Cerca lega o paese..."
-              value="${escapeHtml(searchInputValue)}"
-              oninput="setLeagueQueryInput(this.value)"
-            />
-            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
-              ${state.leaguesLoading ? "..." : "↻"}
-            </button>
+            <input id="leagueSearchInput" class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold" placeholder="Cerca lega..." value="${escapeHtml(searchInputValue)}" oninput="setLeagueQueryInput(this.value)" />
+            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">${state.leaguesLoading ? "..." : "↻"}</button>
           </div>
-
           <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
-            ${
-              state.leagues.length
-                ? state.leagues
-                    .filter(l => {
-                      const q = (state.leagueQuery || "").toLowerCase().trim();
-                      if (!q) return true;
-                      return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q);
-                    })
-                    .slice(0, 200)
-                    .map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>
-                      ${l.country ? l.country + " — " : ""}${l.name} (${l.season})
-                    </option>`)
-                    .join("")
-                : `<option>Carica leghe...</option>`
-            }
+            ${state.leagues.length ? state.leagues.filter(l => { const q = (state.leagueQuery || "").toLowerCase().trim(); if (!q) return true; return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q); }).slice(0, 200).map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>${l.country ? l.country + " — " : ""}${l.name} (${l.season})</option>`).join("") : `<option>Carica...</option>`}
           </select>
-
           <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white rounded-xl p-2 border">
-              <div class="text-[11px] text-gray-500 font-bold mb-1">Da</div>
-              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" />
-            </div>
-            <div class="bg-white rounded-xl p-2 border">
-              <div class="text-[11px] text-gray-500 font-bold mb-1">A</div>
-              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" />
-            </div>
+            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">Da</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" /></div>
+            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">A</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" /></div>
           </div>
-
           ${state.leaguesError ? `<div class="mt-2 text-xs font-bold text-red-600">${escapeHtml(state.leaguesError)}</div>` : ""}
         </div>
-
         <div class="flex border-t">
           <button onclick="setTab('matches')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='matches' ? 'tab-active' : 'text-gray-500'}">PARTITE</button>
           <button onclick="setTab('analysis')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='analysis' ? 'tab-active' : 'text-gray-500'}">ANALISI</button>
@@ -1191,361 +537,98 @@ function render() {
 
   let content = "";
 
-  // MATCHES TAB
   if (state.activeTab === "matches") {
     const leagueLabel = league ? `${league.country ? league.country + " — " : ""}${league.name}` : "Lega";
-    const topBar = `
-      <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-        <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
-          <span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span>
-          <button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
-        </div>
-        <div class="px-4 py-2 text-xs text-gray-600 font-semibold">
-          Range: <span class="mono">${state.from}</span> → <span class="mono">${state.to}</span> • TZ: <span class="mono">${TZ}</span>
-        </div>
-      </div>
-    `;
-
-    if (state.loading) {
-      content = `
-        ${topBar}
-        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
-          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
-          <p class="font-black">Caricamento palinsesto...</p>
-        </div>
-      `;
-    } else if (state.error) {
-      content = `
-        ${topBar}
-        <div class="bg-white rounded-2xl p-10 text-center shadow-lg">
-          <p class="text-red-600 font-black mb-2">Errore</p>
-          <p class="text-gray-600 text-sm font-semibold">${escapeHtml(state.error)}</p>
-        </div>
-      `;
-    } else if (!state.matches.length) {
-      content = `
-        ${topBar}
-        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
-          <p class="text-5xl mb-3">📭</p>
-          <p class="font-black">Nessuna partita</p>
-          <p class="text-gray-500 text-sm font-semibold mt-1">Prova ad allargare il range date.</p>
-        </div>
-      `;
-    } else {
-      content = `
-        ${topBar}
-        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div class="divide-y max-h-[62vh] overflow-y-auto">
-            ${
-              state.matches.map((m, i) => {
-                const {date, time} = formatDate(m.utcDate);
-                const st = m.status || "-";
-                const isDone = ["FT","AET","PEN"].includes(st);
-                const stBadge = isDone ? `<span class="px-2 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-black">${st}</span>`
-                                      : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-black">${st}</span>`;
-                const score = (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ? `${m.score.fullTime.home}-${m.score.fullTime.away}` : "—";
-
-                return `
-                  <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer" onclick="analyzeMatch(state.matches[${i}])">
-                    <div class="flex items-center gap-3">
-                      <div class="w-16 text-center">
-                        <p class="text-xs text-gray-500 font-bold">${date}</p>
-                        <p class="font-black text-sm">${time}</p>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <p class="font-black text-sm text-gray-900 truncate">${escapeHtml(m.homeTeam.name)} <span class="text-gray-400">vs</span> ${escapeHtml(m.awayTeam.name)}</p>
-                        <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(m.venue || "Stadio n/d")} • Ref: ${escapeHtml(m.referee || "n/d")}</p>
-                      </div>
-                      <div class="text-right">
-                        <div class="text-xs font-black text-gray-700">${stBadge}</div>
-                        <div class="text-sm font-black mt-1">${score}</div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join("")
-            }
-          </div>
-        </div>
-      `;
-    }
+    const topBar = `<div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3"><div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span><button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button></div></div>`;
+    if (state.loading) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black">Caricamento...</p></div>`;
+    else if (state.error) content = `${topBar}<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><p class="text-red-600 font-black mb-2">Errore</p><p class="text-gray-600 text-sm font-semibold">${escapeHtml(state.error)}</p></div>`;
+    else if (!state.matches.length) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">📭</p><p class="font-black">Nessuna partita</p></div>`;
+    else content = `${topBar}<div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="divide-y max-h-[62vh] overflow-y-auto">${state.matches.map((m, i) => { const {date, time} = formatDate(m.utcDate); const st = m.status || "-"; const isDone = ["FT","AET","PEN"].includes(st); const stBadge = isDone ? `<span class="px-2 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-black">${st}</span>` : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-black">${st}</span>`; const score = (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ? `${m.score.fullTime.home}-${m.score.fullTime.away}` : "—"; return `<div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer" onclick="analyzeMatch(state.matches[${i}])"><div class="flex items-center gap-3"><div class="w-16 text-center"><p class="text-xs text-gray-500 font-bold">${date}</p><p class="font-black text-sm">${time}</p></div><div class="flex-1 min-w-0"><p class="font-black text-sm text-gray-900 truncate">${escapeHtml(m.homeTeam.name)} <span class="text-gray-400">vs</span> ${escapeHtml(m.awayTeam.name)}</p></div><div class="text-right"><div class="text-xs font-black text-gray-700">${stBadge}</div><div class="text-sm font-black mt-1">${score}</div></div></div></div>`; }).join("")}</div></div>`;
   }
 
-  // ANALYSIS TAB
   if (state.activeTab === "analysis") {
-    if (state.isAnalyzing) {
-      content = `
-        <div class="bg-white rounded-2xl p-10 text-center shadow-lg">
-          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
-          <p class="font-black mb-2">Analisi avanzata in corso...</p>
-          <p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p>
-        </div>
-      `;
-    } else if (!state.analysisData) {
-      content = `
-        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
-          <p class="text-5xl mb-3">🧠</p>
-          <p class="font-black">Seleziona una partita</p>
-          <p class="text-gray-500 text-sm font-semibold mt-1">Vai su "PARTITE" e tocca un match.</p>
-        </div>
-      `;
-    } else {
-      const a = state.analysisData;
-      const m = a.match;
-      const {date, time} = formatDate(m.utcDate);
-
-      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence);
-      const top = a.topPick;
-
-      const h2h = a.markets.h2h || {};
-      const homeForm = a.markets.homeForm || {};
-      const awayForm = a.markets.awayForm || {};
-
+    if (state.isAnalyzing) content = `<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black mb-2">Analisi...</p><p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p></div>`;
+    else if (!state.analysisData) content = `<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">🧠</p><p class="font-black">Seleziona una partita</p></div>`;
+    else {
+      const a = state.analysisData; const m = a.match; const {date, time} = formatDate(m.utcDate);
+      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence); const top = a.topPick;
+      const h2h = a.markets.h2h || {}; const homeForm = a.markets.homeForm || {}; const awayForm = a.markets.awayForm || {};
       content = `
         <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-4 text-white mb-3 shadow-lg">
-          <div class="text-center">
-            <p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p>
-            <p class="text-white/70 text-xs font-semibold">${date} ${time} • League ID: <span class="mono">${state.selectedLeagueId}</span> • Season: <span class="mono">${state.selectedSeason}</span></p>
-          </div>
-
+          <div class="text-center"><p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p><p class="text-white/70 text-xs font-semibold">${date} ${time}</p></div>
           <div class="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
-            <div class="bg-white/10 rounded-lg p-2">
-              <p class="text-white/70 text-xs font-bold">xG Casa</p>
-              <p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2">
-              <p class="text-white/70 text-xs font-bold">xG Tot</p>
-              <p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2">
-              <p class="text-white/70 text-xs font-bold">xG Away</p>
-              <p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p>
-            </div>
+            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Casa</p><p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p></div>
+            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Tot</p><p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p></div>
+            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Away</p><p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p></div>
           </div>
-
           <div class="grid grid-cols-3 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">🔁 H2H</p>
-              <p class="font-black text-sm">${h2h.homeWins || 0}-${h2h.draws || 0}-${h2h.awayWins || 0}</p>
-              <p class="text-[10px] text-white/60">(${h2h.total || 0} match)</p>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">📈 Forma</p>
-              <p class="font-black text-sm">${homeForm.formScore ? homeForm.formScore.toFixed(0) : 50} - ${awayForm.formScore ? awayForm.formScore.toFixed(0) : 50}</p>
-              <p class="text-[10px] text-white/60">(last 5)</p>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">🩺 Injuries</p>
-              <p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p>
-            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🔁 H2H</p><p class="font-black text-sm">${h2h.homeWins||0}-${h2h.draws||0}-${h2h.awayWins||0}</p></div>
+            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">📈 Forma</p><p class="font-black text-sm">${homeForm.formScore?homeForm.formScore.toFixed(0):50} - ${awayForm.formScore?awayForm.formScore.toFixed(0):50}</p></div>
+            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🩺 Inj</p><p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p></div>
           </div>
-
           <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">🚩 Corner</p>
-              <p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p>
-              <p class="text-[10px] text-white/60">${a.markets.corners.home.toFixed(1)} - ${a.markets.corners.away.toFixed(1)}</p>
-            </div>
-            <div class="bg-white/10 rounded-lg p-2 text-center">
-              <p class="text-white/70 text-xs font-bold">🟨 Cards</p>
-              <p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p>
-              <p class="text-[10px] text-white/60">${a.markets.cards.home.toFixed(1)} - ${a.markets.cards.away.toFixed(1)}</p>
-            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🚩 Corner</p><p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p></div>
+            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🟨 Cards</p><p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p></div>
           </div>
         </div>
-
         <div class="bg-white rounded-xl p-3 mb-3 flex items-center justify-between shadow">
-          <span class="text-sm font-black">Min Confidence</span>
-          <div class="flex items-center gap-2">
-            <input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" />
-            <span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span>
-          </div>
+          <span class="text-sm font-black">Min Conf</span>
+          <div class="flex items-center gap-2"><input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" /><span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span></div>
         </div>
-
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
-            <span class="font-black text-white text-sm">🏆 TOP PICK</span>
-            <span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span>
-          </div>
+          <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">🏆 TOP PICK</span><span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span></div>
           <div class="p-4">
             <div class="flex items-center justify-between gap-2">
-              <div class="min-w-0">
-                <p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p>
-                <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • Prob ${top.probability.toFixed(1)}%</p>
-              </div>
-              <div class="text-right">
-                ${top.meta?.odd ? `<div class="text-xs font-black text-gray-700">Quota <span class="mono">${top.meta.odd}</span></div>` : `<div class="text-xs font-black text-gray-400">Quota n/d</div>`}
-                ${top.meta?.edge != null ? `<div class="text-xs font-black ${top.meta.edge >= 0 ? "text-emerald-700" : "text-red-700"}">Value ${top.meta.edge.toFixed(1)}%</div>` : ``}
-              </div>
+              <div class="min-w-0"><p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • ${top.probability.toFixed(1)}%</p></div>
             </div>
-            <button class="w-full mt-3 py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm"
-              onclick="state.analysisData.selectedPredictions=[state.analysisData.topPick]; savePredictions();">
-              💾 SALVA TOP PICK
-            </button>
+            <button class="w-full mt-3 py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm" onclick="state.analysisData.selectedPredictions=[state.analysisData.topPick]; savePredictions();">💾 SALVA TOP</button>
           </div>
         </div>
-
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center">
-            <span class="font-black text-white text-sm">TUTTI I PRONOSTICI</span>
-            <span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span>
-          </div>
-
-          <div class="divide-y max-h-[42vh] overflow-y-auto">
-            ${
-              filteredPreds.length === 0
-                ? `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessun pronostico sopra soglia.</p>`
-                : filteredPreds.map((p) => {
-                    const idx = a.predictions.indexOf(p);
-                    const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection);
-                    const isHot = p.confidence >= 75;
-
-                    return `
-                      <div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""}"
-                        onclick="togglePrediction(${idx})">
-                        <div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">
-                          ${selected ? "✓" : categoryIcon(p.category)}
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                          <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p>
-                          <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${escapeHtml(p.selection)} • Prob ${p.probability.toFixed(1)}%</p>
-                          ${p.meta?.odd ? `<p class="text-[11px] text-gray-500 font-semibold">Quota ${p.meta.odd} • Implied ${p.meta.implied?.toFixed(1) ?? "n/d"}% • Value ${p.meta.edge?.toFixed(1) ?? "n/d"}%</p>` : ``}
-                        </div>
-
-                        <div class="text-right">
-                          ${badge(p.confidence, "lg")}
-                        </div>
-                      </div>
-                    `;
-                  }).join("")
-            }
-          </div>
-
-          <div class="p-3">
-            <button onclick="savePredictions()"
-              class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">
-              💾 SALVA ${a.selectedPredictions.length} PRONOSTICI
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-white rounded-xl p-3 shadow">
-            <p class="text-xs text-gray-500 font-bold mb-1">1X2 (Enhanced)</p>
-            <div class="flex justify-between text-xs font-black">
-              <span>1 ${a.markets.result1X2.home.toFixed(0)}%</span>
-              <span>X ${a.markets.result1X2.draw.toFixed(0)}%</span>
-              <span>2 ${a.markets.result1X2.away.toFixed(0)}%</span>
-            </div>
-          </div>
-          <div class="bg-white rounded-xl p-3 shadow">
-            <p class="text-xs text-gray-500 font-bold mb-1">GG/NG (Calib)</p>
-            <div class="flex justify-between text-xs font-black">
-              <span>GG ${a.markets.btts.gg.toFixed(0)}%</span>
-              <span>NG ${a.markets.btts.ng.toFixed(0)}%</span>
-            </div>
-          </div>
+          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center"><span class="font-black text-white text-sm">PRONOSTICI</span><span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span></div>
+          <div class="divide-y max-h-[42vh] overflow-y-auto">${filteredPreds.length === 0 ? `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessuno sopra soglia.</p>` : filteredPreds.map((p) => { const idx = a.predictions.indexOf(p); const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection); const isHot = p.confidence >= 75; return `<div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""}" onclick="togglePrediction(${idx})"><div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">${selected ? "✓" : categoryIcon(p.category)}</div><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${p.probability.toFixed(1)}%</p></div><div class="text-right">${badge(p.confidence, "lg")}</div></div>`; }).join("")}</div>
+          <div class="p-3"><button onclick="savePredictions()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">💾 SALVA ${a.selectedPredictions.length}</button></div>
         </div>
       `;
     }
   }
 
-  // HISTORY TAB
   if (state.activeTab === "history") {
     const stats = getHistoryStats();
-    const filtered = (state.historyFilter === "all")
-      ? state.history
-      : state.history.filter(e => e.status === state.historyFilter);
-
+    const filtered = (state.historyFilter === "all") ? state.history : state.history.filter(e => e.status === state.historyFilter);
     content = `
       <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-4 text-white mb-3 shadow-lg">
-        <h3 class="font-black mb-3 text-center text-sm">📊 Statistiche Tracker</h3>
+        <h3 class="font-black mb-3 text-center text-sm">📊 Tracker</h3>
         <div class="grid grid-cols-4 gap-2 text-center mb-3">
           <div class="bg-white/10 rounded-lg p-2"><p class="text-xl font-black">${stats.total}</p><p class="text-xs text-white/70 font-bold">Tot</p></div>
-          <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">Vinti</p></div>
-          <div class="bg-amber-500/30 rounded-lg p-2"><p class="text-xl font-black text-amber-200">${stats.partial}</p><p class="text-xs text-white/70 font-bold">Parz</p></div>
-          <div class="bg-red-500/30 rounded-lg p-2"><p class="text-xl font-black text-red-200">${stats.lost}</p><p class="text-xs text-white/70 font-bold">Persi</p></div>
+          <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">✅</p></div>
+          <div class="bg-amber-500/30 rounded-lg p-2"><p class="text-xl font-black text-amber-200">${stats.partial}</p><p class="text-xs text-white/70 font-bold">🟨</p></div>
+          <div class="bg-red-500/30 rounded-lg p-2"><p class="text-xl font-black text-red-200">${stats.lost}</p><p class="text-xs text-white/70 font-bold">❌</p></div>
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-emerald-300">${stats.winRate}%</p><p class="text-xs text-white/70 font-bold">Win Rate</p></div>
-          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p><p class="text-xs text-white/70 font-bold">Hit Rate (${stats.predWon}/${stats.predTotal})</p></div>
+          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p><p class="text-xs text-white/70 font-bold">Hit (${stats.predWon}/${stats.predTotal})</p></div>
         </div>
-
         <div class="flex gap-2 mt-3">
           <button onclick="refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">♻️ AGGIORNA</button>
-          <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">🗑️ SVUOTA</button>
+          <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">🗑️</button>
         </div>
       </div>
-
-      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
-        ${["all","pending","won","partial","lost"].map(f => `
-          <button onclick="setHistoryFilter('${f}')"
-            class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">
-            ${f==="all" ? "Tutti" : f}
-          </button>
-        `).join("")}
-      </div>
-
-      <div class="space-y-3">
-        ${
-          filtered.length === 0
-            ? `<div class="bg-white rounded-2xl p-8 text-center shadow"><p class="text-gray-500 font-semibold">Nessun pronostico</p></div>`
-            : filtered.map(entry => {
-                const {date, time} = formatDate(entry.date);
-                const statusColors = {
-                  pending: "border-gray-300",
-                  won: "border-emerald-400 bg-emerald-50",
-                  partial: "border-amber-400 bg-amber-50",
-                  lost: "border-red-400 bg-red-50"
-                };
-                const statusIcons = { pending:"⏳", won:"✅", partial:"🟨", lost:"❌" };
-
-                return `
-                  <div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}">
-                    <div class="px-4 py-2.5 border-b flex justify-between items-center">
-                      <div>
-                        <p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p>
-                        <p class="text-xs text-gray-500 font-semibold">${date} ${time} • ${escapeHtml(entry.leagueName || "")}</p>
-                      </div>
-                      <span class="text-xl">${statusIcons[entry.status] || "⏳"}</span>
-                    </div>
-
-                    <div class="p-3 space-y-2">
-                      ${
-                        (entry.predictions || []).map((p, pIdx) => `
-                          <div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}">
-                            <div class="flex-1 min-w-0">
-                              <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p>
-                              <p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • ${escapeHtml(p.selection)} • Conf ${p.confidence.toFixed(0)}</p>
-                            </div>
-                            <div class="flex gap-1 items-center">
-                              ${
-                                p.result == null
-                                  ? `
-                                    <button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button>
-                                    <button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>
-                                  `
-                                  : `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`
-                              }
-                            </div>
-                          </div>
-                        `).join("")
-                      }
-                    </div>
-                  </div>
-                `;
-              }).join("")
-        }
-      </div>
+      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">${["all","pending","won","partial","lost"].map(f => `<button onclick="setHistoryFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">${f==="all" ? "Tutti" : f}</button>`).join("")}</div>
+      <div class="space-y-3">${filtered.length === 0 ? `<div class="bg-white rounded-2xl p-8 text-center shadow"><p class="text-gray-500 font-semibold">Nessuno</p></div>` : filtered.map(entry => { const {date, time} = formatDate(entry.date); const statusColors = { pending: "border-gray-300", won: "border-emerald-400 bg-emerald-50", partial: "border-amber-400 bg-amber-50", lost: "border-red-400 bg-red-50" }; const statusIcons = { pending:"⏳", won:"✅", partial:"🟨", lost:"❌" }; return `<div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}"><div class="px-4 py-2.5 border-b flex justify-between items-center"><div><p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p><p class="text-xs text-gray-500 font-semibold">${date} ${time}</p></div><span class="text-xl">${statusIcons[entry.status]||"⏳"}</span></div><div class="p-3 space-y-2">${(entry.predictions || []).map((p, pIdx) => `<div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}"><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • Conf ${p.confidence.toFixed(0)}</p></div><div class="flex gap-1 items-center">${p.result == null ? `<button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button><button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>` : `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`}</div></div>`).join("")}</div></div>`; }).join("")}</div>
     `;
   }
 
-  root.innerHTML = `
-    ${header}
-    <main class="max-w-lg mx-auto p-4 pb-16">
-      ${content}
-    </main>
-    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center">
-      <span class="font-black">🔮 Prophecy Hunter v3</span>
-      <span class="mono">league=${state.selectedLeagueId ??
+  root.innerHTML = `${header}<main class="max-w-lg mx-auto p-4 pb-16">${content}</main><footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center"><span class="font-black">🔮 Prophecy Hunter v3</span><span class="mono">${state.selectedLeagueId??"-"}</span></footer>`;
+  window.state = state;
+}
+
+(async function init() {
+  await loadLeagues(false);
+  if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
+  if (state.selectedLeagueId && state.selectedSeason) await loadMatches();
+  render();
+})();
+</script>
+</body>
+</html>
