@@ -25,6 +25,9 @@ const AF_KEY = "aeb2864a3d4dbb8395fa53c83a876a93";
 const TZ = "Europe/Rome";
 const STORAGE = { leaguesCache: "ph_leagues_v3", history: "ph_history_v3", ui: "ph_ui_v3" };
 
+// TOP COUNTRIES (filtra solo leghe principali per evitare localStorage pieno)
+const TOP_COUNTRIES = ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Netherlands", "Belgium", "Turkey", "Greece", "Scotland", "Austria", "Switzerland", "Russia", "Brazil", "Argentina", "USA", "Mexico", "World", "Europe"];
+
 let state = {
   leagues: [], leaguesLoading: false, leaguesError: null,
   leagueQuery: "", _leagueQueryTemp: "",
@@ -68,7 +71,9 @@ function categoryIcon(cat) {
 }
 
 function saveUI() {
-  localStorage.setItem(STORAGE.ui, JSON.stringify({ from: state.from, to: state.to, minConfidence: state.minConfidence }));
+  try {
+    localStorage.setItem(STORAGE.ui, JSON.stringify({ from: state.from, to: state.to, minConfidence: state.minConfidence }));
+  } catch(e) { console.warn("localStorage pieno (UI):", e); }
 }
 
 async function apiCall(path, params = {}) {
@@ -105,26 +110,47 @@ async function loadLeagues(force=false) {
     if (!force) {
       const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
       if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw);
-        if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
-          state.leagues = cached.data;
-          if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
-          state.leaguesLoading = false; render(); return;
-        }
+        try {
+          const cached = JSON.parse(cachedRaw);
+          if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
+            state.leagues = cached.data;
+            if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
+            state.leaguesLoading = false; render(); return;
+          }
+        } catch(e) { console.warn("Cache corrotta, ricarico..."); }
       }
     }
+
     const data = await apiCall("/leagues", { current: "true" });
-    const rows = (data.response || []).map(r => {
-      const seasons = r.seasons || [];
-      const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
-      return { id: r.league?.id, name: r.league?.name, country: r.country?.name, flag: r.country?.flag, season };
-    }).filter(x => x.id && x.name && x.season);
+    const rows = (data.response || [])
+      .filter(r => {
+        // FILTRO: solo leghe dei paesi TOP per evitare localStorage pieno
+        const country = r.country?.name;
+        return TOP_COUNTRIES.includes(country);
+      })
+      .map(r => {
+        const seasons = r.seasons || [];
+        const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
+        return { id: r.league?.id, name: r.league?.name, country: r.country?.name, season };
+      })
+      .filter(x => x.id && x.name && x.season);
+
     const map = new Map(); rows.forEach(x => map.set(x.id, x));
     const leagues = [...map.values()].sort((a,b) => (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || ""));
+    
     state.leagues = leagues;
     if (!state.selectedLeagueId && leagues.length) { state.selectedLeagueId = leagues[0].id; state.selectedSeason = leagues[0].season; }
-    localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
-  } catch (e) { state.leaguesError = "Errore leghe: " + e.message; }
+
+    // Salva solo se non supera quota (gestisci errore)
+    try {
+      localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
+    } catch(e) {
+      console.warn("localStorage pieno, uso solo sessione corrente:", e);
+      // Se quota exceeded, NON salvare ma continua comunque
+    }
+  } catch (e) { 
+    state.leaguesError = "Errore leghe: " + e.message; 
+  }
   finally { state.leaguesLoading = false; render(); }
 }
 
@@ -434,7 +460,10 @@ window.savePredictions = () => {
     predictions: state.analysisData.selectedPredictions.map(p => ({ market: p.market, selection: p.selection, label: p.label, probability: p.probability, confidence: p.confidence, odd: p.meta?.odd || null, result: null })),
     status: "pending", createdAt: new Date().toISOString()
   };
-  state.history.unshift(entry); localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  state.history.unshift(entry); 
+  try {
+    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  } catch(e) { console.warn("localStorage pieno (history):", e); }
   state.analysisData.selectedPredictions = []; state.activeTab = "history"; render();
 };
 
@@ -478,23 +507,38 @@ window.refreshResults = async () => {
         if (allResolved) entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
       });
     }
-    localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render();
+    try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
+    render();
   } catch (e) { alert("Errore: " + e.message); }
 };
 
 window.setHistoryFilter = (f) => { state.historyFilter = f; render(); };
-window.clearHistory = () => { if (!confirm("Cancellare tutto?")) return; state.history = []; localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render(); };
+window.clearHistory = () => { 
+  if (!confirm("Cancellare tutto?")) return; 
+  state.history = []; 
+  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
+  render(); 
+};
 window.updateHistoryResult = (entryId, predIndex, won) => {
   const entry = state.history.find(e => e.id === entryId); if (!entry) return;
   const p = entry.predictions?.[predIndex]; if (!p) return;
   p.result = won ? "won" : "lost";
   const allResolved = entry.predictions.every(x => x.result != null);
   if (allResolved) { const allWon = entry.predictions.every(x => x.result === "won"); const anyWon = entry.predictions.some(x => x.result === "won"); entry.status = allWon ? "won" : (anyWon ? "partial" : "lost"); } else entry.status = "pending";
-  localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); render();
+  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
+  render();
 };
 
 window.setTab = (tab) => { state.activeTab = tab; render(); };
-window.resetApp = () => { if (!confirm("Reset?")) return; localStorage.removeItem(STORAGE.leaguesCache); localStorage.removeItem(STORAGE.history); localStorage.removeItem(STORAGE.ui); location.reload(); };
+window.resetApp = () => { 
+  if (!confirm("Reset?")) return; 
+  try {
+    localStorage.removeItem(STORAGE.leaguesCache); 
+    localStorage.removeItem(STORAGE.history); 
+    localStorage.removeItem(STORAGE.ui); 
+  } catch(e) {}
+  location.reload(); 
+};
 window.setMinConfidence = (v) => { state.minConfidence = parseInt(v, 10); saveUI(); render(); };
 
 function render() {
@@ -508,7 +552,7 @@ function render() {
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-2xl">🔮</span>
-            <div><h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1><div class="text-[11px] text-emerald-700 font-extrabold">H2H • Forma • Odds Calibration</div></div>
+            <div><h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1><div class="text-[11px] text-emerald-700 font-extrabold">Top Leagues Only</div></div>
           </div>
           <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
         </div>
