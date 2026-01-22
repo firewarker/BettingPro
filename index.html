@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PROPHECY HUNTER v3</title>
+  <title>PROPHECY HUNTER v3 PRO</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; }
@@ -15,17 +15,25 @@
     .hot { animation: glow 2s infinite; }
     @keyframes glow { 0%,100%{ box-shadow:0 0 6px rgba(16,185,129,.55);} 50%{ box-shadow:0 0 18px rgba(16,185,129,.85);} }
     .mono { font-family: ui-monospace, monospace; }
+    .csv-zone { border: 2px dashed #d1d5db; transition: all 0.3s; }
+    .csv-zone.dragover { border-color: #10b981; background: #ecfdf5; }
+    .csv-active { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
   </style>
 </head>
 <body class="bg-gray-100">
   <div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script>
 const AF_BASE = "https://v3.football.api-sports.io";
 const AF_KEY = "aeb2864a3d4dbb8395fa53c83a876a93";
 const TZ = "Europe/Rome";
-const STORAGE = { leaguesCache: "ph_leagues_v3", history: "ph_history_v3", ui: "ph_ui_v3" };
+const STORAGE = { 
+  leaguesCache: "ph_leagues_v3", 
+  history: "ph_history_v3", 
+  ui: "ph_ui_v3",
+  csvData: "ph_csv_data_v3"
+};
 
-// TOP COUNTRIES (filtra solo leghe principali per evitare localStorage pieno)
 const TOP_COUNTRIES = ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Netherlands", "Belgium", "Turkey", "Greece", "Scotland", "Austria", "Switzerland", "Russia", "Brazil", "Argentina", "USA", "Mexico", "World", "Europe"];
 
 let state = {
@@ -39,7 +47,10 @@ let state = {
   isAnalyzing: false, analysisStep: "", analysisData: null,
   minConfidence: 60,
   history: JSON.parse(localStorage.getItem(STORAGE.history) || "[]"),
-  historyFilter: "all"
+  historyFilter: "all",
+  csvData: JSON.parse(localStorage.getItem(STORAGE.csvData) || "null"),
+  csvStats: null,
+  csvEnhanced: false
 };
 
 try {
@@ -76,6 +87,186 @@ function saveUI() {
   } catch(e) { console.warn("localStorage pieno (UI):", e); }
 }
 
+// ==================== CSV FUNCTIONS ====================
+function normalizeTeamName(name) {
+  return name.toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .substring(0, 10);
+}
+
+function findCSVMatch(homeTeam, awayTeam, csvData) {
+  if (!csvData || !csvData.matches) return null;
+  
+  const normHome = normalizeTeamName(homeTeam);
+  const normAway = normalizeTeamName(awayTeam);
+  
+  return csvData.matches.find(m => {
+    const mHome = normalizeTeamName(m.home_team || m.Home || m.HomeTeam || '');
+    const mAway = normalizeTeamName(m.away_team || m.Away || m.AwayTeam || '');
+    return (mHome === normHome && mAway === normAway);
+  });
+}
+
+function extractCSVStats(csvMatch) {
+  if (!csvMatch) return null;
+  
+  return {
+    xg_home: parseFloat(csvMatch.home_xg || csvMatch.xG_home || csvMatch.expected_goals_home || 0),
+    xg_away: parseFloat(csvMatch.away_xg || csvMatch.xG_away || csvMatch.expected_goals_away || 0),
+    btts_prob: parseFloat(csvMatch.btts_percentage || csvMatch.btts_prob || csvMatch.BTTS || 0),
+    over25_prob: parseFloat(csvMatch.over_25_percentage || csvMatch.over25 || csvMatch['Over 2.5'] || 0),
+    over35_prob: parseFloat(csvMatch.over_35_percentage || csvMatch.over35 || csvMatch['Over 3.5'] || 0),
+    corners_home: parseFloat(csvMatch.home_corners_avg || csvMatch.corners_home || csvMatch.home_corners || 0),
+    corners_away: parseFloat(csvMatch.away_corners_avg || csvMatch.corners_away || csvMatch.away_corners || 0),
+    corners_total: parseFloat(csvMatch.total_corners_avg || csvMatch.corners_total || 0),
+    cards_home: parseFloat(csvMatch.home_cards_avg || csvMatch.cards_home || csvMatch.home_yellow_cards || 0),
+    cards_away: parseFloat(csvMatch.away_cards_avg || csvMatch.cards_away || csvMatch.away_yellow_cards || 0),
+    cards_total: parseFloat(csvMatch.total_cards_avg || csvMatch.cards_total || 0),
+    home_form: csvMatch.home_form || csvMatch.form_home || null,
+    away_form: csvMatch.away_form || csvMatch.form_away || null,
+    home_win_prob: parseFloat(csvMatch.home_win_prob || csvMatch.win_home || csvMatch.home_percentage || 0),
+    draw_prob: parseFloat(csvMatch.draw_prob || csvMatch.draw || csvMatch.draw_percentage || 0),
+    away_win_prob: parseFloat(csvMatch.away_win_prob || csvMatch.win_away || csvMatch.away_percentage || 0),
+    home_goals_avg: parseFloat(csvMatch.home_goals_avg || csvMatch.avg_goals_home || 0),
+    away_goals_avg: parseFloat(csvMatch.away_goals_avg || csvMatch.avg_goals_away || 0),
+    home_conceded_avg: parseFloat(csvMatch.home_conceded_avg || csvMatch.avg_conceded_home || 0),
+    away_conceded_avg: parseFloat(csvMatch.away_conceded_avg || csvMatch.avg_conceded_away || 0)
+  };
+}
+
+function enhanceWithCSV(predictions, homeTeam, awayTeam) {
+  if (!state.csvData) return predictions;
+  
+  const csvMatch = findCSVMatch(homeTeam, awayTeam, state.csvData);
+  if (!csvMatch) return predictions;
+  
+  const csvStats = extractCSVStats(csvMatch);
+  state.csvStats = csvStats;
+  
+  const enhanced = predictions.map(pred => {
+    const newPred = { ...pred };
+    let csvBoost = 0;
+    
+    if (pred.market.includes('Match Winner') || pred.market.includes('Esito')) {
+      if (pred.selection.includes('Casa') || pred.selection.includes('Home')) {
+        const diff = Math.abs(pred.probability - csvStats.home_win_prob);
+        if (diff < 15) csvBoost = 5;
+        else if (diff > 30) csvBoost = -8;
+      } else if (pred.selection.includes('Away') || pred.selection.includes('Ospite')) {
+        const diff = Math.abs(pred.probability - csvStats.away_win_prob);
+        if (diff < 15) csvBoost = 5;
+        else if (diff > 30) csvBoost = -8;
+      }
+    }
+    
+    if (pred.market.includes('Over/Under') && pred.market.includes('2.5')) {
+      const csvOver25 = csvStats.over25_prob;
+      if (csvOver25 > 0) {
+        if (pred.selection.includes('Over')) {
+          const diff = Math.abs(pred.probability - csvOver25);
+          if (diff < 10) csvBoost = 7;
+          else if (diff > 25) csvBoost = -10;
+        }
+      }
+    }
+    
+    if (pred.market.includes('BTTS') || pred.market.includes('Both Teams')) {
+      const csvBtts = csvStats.btts_prob;
+      if (csvBtts > 0) {
+        if (pred.selection.includes('Yes')) {
+          const diff = Math.abs(pred.probability - csvBtts);
+          if (diff < 10) csvBoost = 7;
+          else if (diff > 25) csvBoost = -10;
+        }
+      }
+    }
+    
+    if (pred.category === 'corner' && csvStats.corners_total > 0) {
+      const predTotal = pred.market.match(/\d+\.?\d*/);
+      if (predTotal) {
+        const predNum = parseFloat(predTotal[0]);
+        const diff = Math.abs(predNum - csvStats.corners_total);
+        if (diff < 2) csvBoost = 6;
+        else if (diff > 4) csvBoost = -7;
+      }
+    }
+    
+    if (pred.category === 'cards' && csvStats.cards_total > 0) {
+      const predTotal = pred.market.match(/\d+\.?\d*/);
+      if (predTotal) {
+        const predNum = parseFloat(predTotal[0]);
+        const diff = Math.abs(predNum - csvStats.cards_total);
+        if (diff < 2) csvBoost = 6;
+        else if (diff > 3) csvBoost = -7;
+      }
+    }
+    
+    newPred.confidence = clamp(0, pred.confidence + csvBoost, 100);
+    newPred.csvEnhanced = csvBoost !== 0;
+    newPred.csvBoost = csvBoost;
+    
+    return newPred;
+  });
+  
+  return enhanced;
+}
+
+async function loadCSVFile(file) {
+  try {
+    state.loading = true;
+    render();
+    
+    const text = await file.text();
+    
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        if (!results.data || results.data.length === 0) {
+          alert('❌ CSV vuoto o non valido');
+          state.loading = false;
+          render();
+          return;
+        }
+        
+        state.csvData = {
+          filename: file.name,
+          loaded: new Date().toISOString(),
+          matches: results.data,
+          count: results.data.length
+        };
+        
+        localStorage.setItem(STORAGE.csvData, JSON.stringify(state.csvData));
+        
+        alert(`✅ Caricato: ${file.name}\n📊 ${results.data.length} partite`);
+        state.loading = false;
+        state.csvEnhanced = true;
+        render();
+      },
+      error: function(error) {
+        alert('❌ Errore lettura CSV: ' + error);
+        state.loading = false;
+        render();
+      }
+    });
+  } catch(e) {
+    alert('❌ Errore: ' + e.message);
+    state.loading = false;
+    render();
+  }
+}
+
+function clearCSV() {
+  if (!confirm('🗑️ Eliminare dati CSV?')) return;
+  state.csvData = null;
+  state.csvStats = null;
+  state.csvEnhanced = false;
+  localStorage.removeItem(STORAGE.csvData);
+  render();
+}
+
+// ==================== API FUNCTIONS ====================
 async function apiCall(path, params = {}) {
   const url = new URL(AF_BASE + path);
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v); });
@@ -87,605 +278,782 @@ async function apiCall(path, params = {}) {
 }
 
 function factorial(n) { let r = 1; for (let i=2; i<=n; i++) r *= i; return r; }
-function poisson(lambda, k) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
-function probToScore(lambda) { return (1 - Math.exp(-lambda)) * 100; }
-function bivariatePoissonOver(lambdaH, lambdaA, threshold) {
-  const max = Math.floor(threshold); let probUnder = 0;
-  for (let h=0; h<=max; h++) for (let a=0; a<=max; a++) if (h + a <= max) probUnder += poisson(lambdaH, h) * poisson(lambdaA, a);
-  return (1 - probUnder) * 100;
-}
-function calculate1X2(lambdaH, lambdaA) {
-  let home=0, draw=0, away=0;
-  for (let h=0; h<=10; h++) for (let a=0; a<=10; a++) {
-    const p = poisson(lambdaH, h) * poisson(lambdaA, a);
-    if (h > a) home += p; else if (h === a) draw += p; else away += p;
-  }
-  return { home: home*100, draw: draw*100, away: away*100 };
-}
-function impliedProb(odd) { const o = parseFloat(odd); if (!o || o <= 1.0001) return null; return (1 / o) * 100; }
+function poisson(k, lambda) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
 
-async function loadLeagues(force=false) {
-  state.leaguesLoading = true; state.leaguesError = null; render();
+async function loadLeagues(force = false) {
   try {
     if (!force) {
-      const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
-      if (cachedRaw) {
-        try {
-          const cached = JSON.parse(cachedRaw);
-          if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
-            state.leagues = cached.data;
-            if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
-            state.leaguesLoading = false; render(); return;
-          }
-        } catch(e) { console.warn("Cache corrotta, ricarico..."); }
+      const cached = localStorage.getItem(STORAGE.leaguesCache);
+      if (cached) { 
+        const {leagues, ts} = JSON.parse(cached); 
+        if (Date.now() - ts < 86400000) { 
+          state.leagues = leagues; 
+          return; 
+        } 
       }
     }
-
-    const data = await apiCall("/leagues", { current: "true" });
-    const rows = (data.response || [])
-      .filter(r => {
-        // FILTRO: solo leghe dei paesi TOP per evitare localStorage pieno
-        const country = r.country?.name;
-        return TOP_COUNTRIES.includes(country);
-      })
-      .map(r => {
-        const seasons = r.seasons || [];
-        const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
-        return { id: r.league?.id, name: r.league?.name, country: r.country?.name, season };
-      })
-      .filter(x => x.id && x.name && x.season);
-
-    const map = new Map(); rows.forEach(x => map.set(x.id, x));
-    const leagues = [...map.values()].sort((a,b) => (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || ""));
-    
-    state.leagues = leagues;
-    if (!state.selectedLeagueId && leagues.length) { state.selectedLeagueId = leagues[0].id; state.selectedSeason = leagues[0].season; }
-
-    // Salva solo se non supera quota (gestisci errore)
-    try {
-      localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
-    } catch(e) {
-      console.warn("localStorage pieno, uso solo sessione corrente:", e);
-      // Se quota exceeded, NON salvare ma continua comunque
+    state.leaguesLoading = true; render();
+    const data = await apiCall("/leagues");
+    if (data?.response) {
+      const all = data.response.filter(lg => lg.league && lg.seasons && lg.seasons.length && TOP_COUNTRIES.includes(lg.country?.name));
+      state.leagues = all.map(lg => ({ id: lg.league.id, name: lg.league.name, country: lg.country.name, season: lg.seasons[lg.seasons.length - 1].year }));
+      try { localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ leagues: state.leagues, ts: Date.now() })); } catch(e) { console.warn("localStorage pieno:", e); }
     }
-  } catch (e) { 
-    state.leaguesError = "Errore leghe: " + e.message; 
+    state.leaguesLoading = false;
+  } catch (err) { 
+    console.error("Errore loadLeagues:", err);
+    state.leaguesLoading = false; 
+    state.leaguesError = err.message; 
   }
-  finally { state.leaguesLoading = false; render(); }
+  render();
 }
-
-window.reloadLeagues = async () => loadLeagues(true);
-
-let searchTimeout = null;
-window.setLeagueQueryInput = (value) => {
-  state._leagueQueryTemp = value;
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => { state.leagueQuery = value; render(); }, 400);
-};
-
-window.changeLeague = async (leagueId) => {
-  const id = parseInt(leagueId, 10); const l = state.leagues.find(x => x.id === id); if (!l) return;
-  state.selectedLeagueId = l.id; state.selectedSeason = l.season;
-  state.matches = []; state.selectedMatch = null; state.analysisData = null; state.activeTab = "matches";
-  await loadMatches();
-};
 
 async function loadMatches() {
-  if (!state.selectedLeagueId || !state.selectedSeason) { state.error = "Seleziona una lega."; render(); return; }
-  state.loading = true; state.error = null; render();
+  if (!state.selectedLeagueId || !state.selectedSeason) return;
   try {
+    state.loading = true; state.error = null; render();
     const data = await apiCall("/fixtures", { league: state.selectedLeagueId, season: state.selectedSeason, from: state.from, to: state.to, timezone: TZ });
-    state.matches = (data.response || []).map(f => ({
-      id: f.fixture?.id, utcDate: f.fixture?.date, status: f.fixture?.status?.short,
-      referee: f.fixture?.referee, venue: f.fixture?.venue?.name,
-      homeTeam: { id: f.teams?.home?.id, name: f.teams?.home?.name },
-      awayTeam: { id: f.teams?.away?.id, name: f.teams?.away?.name },
-      score: { fullTime: { home: f.goals?.home, away: f.goals?.away } }
-    })).filter(m => m.id && m.homeTeam?.id && m.awayTeam?.id);
-    state.matches.sort((a,b) => (new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
-    if (!state.matches.length) state.error = "Nessuna partita trovata.";
-  } catch (e) { state.error = "Errore: " + e.message; }
-  finally { state.loading = false; render(); }
+    if (!data?.response) throw new Error("Dati non validi");
+    const fixtures = data.response.map(f => ({ 
+      fixtureId: f.fixture.id, 
+      utcDate: f.fixture.date, 
+      homeTeam: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo }, 
+      awayTeam: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo } 
+    }));
+    state.matches = fixtures; 
+    state.loading = false;
+  } catch (err) { 
+    console.error("Errore loadMatches:", err);
+    state.loading = false; 
+    state.error = err.message; 
+  }
+  render();
 }
 
-window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); };
-window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
-
-async function getTeamStats(teamId) {
-  const data = await apiCall("/teams/statistics", { league: state.selectedLeagueId, season: state.selectedSeason, team: teamId });
-  return data.response || null;
-}
-
-async function getH2H(homeId, awayId) {
+async function analyzeMatch(match) {
+  state.selectedMatch = match; 
+  state.isAnalyzing = true; 
+  state.analysisStep = ""; 
+  state.analysisData = null; 
+  state.activeTab = "analysis"; 
+  state.csvStats = null;
+  render();
+  
   try {
-    const data = await apiCall("/fixtures/headtohead", { h2h: `${homeId}-${awayId}`, last: 10 });
-    const matches = data.response || [];
-    return {
-      total: matches.length,
-      homeWins: matches.filter(m => m.teams?.home?.winner === true && m.teams?.home?.id === homeId).length,
-      awayWins: matches.filter(m => m.teams?.away?.winner === true && m.teams?.away?.id === awayId).length,
-      draws: matches.filter(m => m.teams?.home?.winner === false && m.teams?.away?.winner === false).length
-    };
-  } catch(e) { return { total: 0, homeWins: 0, awayWins: 0, draws: 0 }; }
-}
-
-async function getLastMatches(teamId) {
-  try {
-    const data = await apiCall("/fixtures", { team: teamId, last: 5, timezone: TZ });
-    const matches = (data.response || []).filter(m => ["FT","AET","PEN"].includes(m.fixture?.status?.short));
-    if (!matches.length) return { formScore: 50 };
-    let wins = 0, draws = 0;
-    matches.forEach(m => {
-      const isHome = m.teams?.home?.id === teamId;
-      const scored = isHome ? (m.goals?.home || 0) : (m.goals?.away || 0);
-      const conceded = isHome ? (m.goals?.away || 0) : (m.goals?.home || 0);
-      if (scored > conceded) wins++; else if (scored === conceded) draws++;
+    state.analysisStep = "Caricamento statistiche..."; render(); 
+    await new Promise(r => setTimeout(r, 300));
+    
+    const [stats, h2h] = await Promise.all([
+      apiCall("/fixtures/statistics", { fixture: match.fixtureId }),
+      apiCall("/fixtures/headtohead", { h2h: `${match.homeTeam.id}-${match.awayTeam.id}`, last: 5 })
+    ]);
+    
+    state.analysisStep = "Calcolo metriche avanzate..."; render(); 
+    await new Promise(r => setTimeout(r, 300));
+    
+    const homeStats = stats?.response?.[0]?.statistics || [];
+    const awayStats = stats?.response?.[1]?.statistics || [];
+    
+    function getStat(arr, key, def = 0) {
+      const val = arr.find(s => s.type === key)?.value;
+      if (typeof val === "string") {
+        const n = parseFloat(val.replace('%', ''));
+        return isNaN(n) ? def : n;
+      }
+      return typeof val === "number" ? val : def;
+    }
+    
+    const homePoss = getStat(homeStats, "Ball Possession", 50);
+    const awayPoss = getStat(awayStats, "Ball Possession", 50);
+    const homeShots = getStat(homeStats, "Total Shots", 12);
+    const awayShots = getStat(awayStats, "Total Shots", 12);
+    const homeSoT = getStat(homeStats, "Shots on Goal", 5);
+    const awaySoT = getStat(awayStats, "Shots on Goal", 5);
+    const homeAtt = getStat(homeStats, "Total attacks", 80);
+    const awayAtt = getStat(awayStats, "Total attacks", 80);
+    const homeDang = getStat(homeStats, "Dangerous Attacks", 40);
+    const awayDang = getStat(awayStats, "Dangerous Attacks", 40);
+    const homeFouls = getStat(homeStats, "Fouls", 12);
+    const awayFouls = getStat(awayStats, "Fouls", 12);
+    const homeYellow = getStat(homeStats, "Yellow Cards", 2);
+    const awayYellow = getStat(awayStats, "Yellow Cards", 2);
+    const homeCorners = getStat(homeStats, "Corner Kicks", 5);
+    const awayCorners = getStat(awayStats, "Corner Kicks", 5);
+    
+    const xG_home = (homeSoT * 0.12) + (homeAtt * 0.01);
+    const xG_away = (awaySoT * 0.12) + (awayAtt * 0.01);
+    
+    const h2hData = h2h?.response || [];
+    let homeWins = 0, draws = 0, awayWins = 0;
+    h2hData.forEach(g => {
+      const hg = g.goals.home;
+      const ag = g.goals.away;
+      if (hg > ag) homeWins++;
+      else if (hg < ag) awayWins++;
+      else draws++;
     });
-    return { formScore: (wins * 3 + draws) / (matches.length * 3) * 100 };
-  } catch(e) { return { formScore: 50 }; }
-}
-
-async function getInjuriesCount(fixtureId, homeId, awayId) {
-  try {
-    const data = await apiCall("/injuries", { fixture: fixtureId });
-    const rows = data.response || [];
-    return { home: rows.filter(r => r.team?.id === homeId).length, away: rows.filter(r => r.team?.id === awayId).length };
-  } catch(e) { return { home: 0, away: 0 }; }
-}
-
-async function getOddsParsed(fixtureId) {
-  try {
-    const data = await apiCall("/odds", { fixture: fixtureId, timezone: TZ });
-    const r = data?.response?.[0]; if (!r) return null;
-    const bkm = r.bookmakers?.[0]; if (!bkm) return null;
-    const findBet = (names) => {
-      const bets = bkm.bets || [];
-      for (const n of names) {
-        const hit = bets.find(x => (x.name||"").toLowerCase().includes(n.toLowerCase()));
-        if (hit) return hit;
-      }
-      return null;
+    
+    const homeFormArr = h2hData.slice(0, 3).map(g => (g.teams.home.id === match.homeTeam.id ? (g.goals.home > g.goals.away ? 3 : g.goals.home === g.goals.away ? 1 : 0) : (g.goals.away > g.goals.home ? 3 : g.goals.away === g.goals.home ? 1 : 0)));
+    const awayFormArr = h2hData.slice(0, 3).map(g => (g.teams.away.id === match.awayTeam.id ? (g.goals.away > g.goals.home ? 3 : g.goals.away === g.goals.home ? 1 : 0) : (g.goals.home > g.goals.away ? 3 : g.goals.home === g.goals.away ? 1 : 0)));
+    
+    const homeFormScore = homeFormArr.length ? (homeFormArr.reduce((a, b) => a + b, 0) / (homeFormArr.length * 3)) * 100 : 50;
+    const awayFormScore = awayFormArr.length ? (awayFormArr.reduce((a, b) => a + b, 0) / (awayFormArr.length * 3)) * 100 : 50;
+    
+    const injuries_home = 0;
+    const injuries_away = 0;
+    
+    const markets = {
+      xG: { home: xG_home, away: xG_away, total: xG_home + xG_away },
+      h2h: { homeWins, draws, awayWins, total: h2hData.length },
+      homeForm: { formScore: homeFormScore, recentResults: homeFormArr },
+      awayForm: { formScore: awayFormScore, recentResults: awayFormArr },
+      injuries: { home: injuries_home, away: injuries_away },
+      possession: { home: homePoss, away: awayPoss },
+      corners: { home: homeCorners, away: awayCorners, total: homeCorners + awayCorners },
+      cards: { home: homeYellow, away: awayYellow, total: homeYellow + awayYellow }
     };
-    const out = {};
-    const mw = findBet(["Match Winner","1X2"]);
-    if (mw) {
-      const map = {};
-      for (const v of (mw.values || [])) {
-        const key = (v.value || "").toString().toUpperCase();
-        const odd = parseFloat(v.odd); if (!odd) continue;
-        if (["1","HOME"].includes(key)) map["1"] = odd;
-        else if (["X","DRAW"].includes(key)) map["X"] = odd;
-        else if (["2","AWAY"].includes(key)) map["2"] = odd;
-      }
-      if (Object.keys(map).length) out["1X2"] = map;
-    }
-    const btts = findBet(["Both Teams Score","BTTS"]);
-    if (btts) {
-      let gg=null, ng=null;
-      for (const v of (btts.values || [])) {
-        const key = (v.value || "").toString().toLowerCase();
-        const odd = parseFloat(v.odd);
-        if (key.includes("yes")) gg = odd;
-        if (key.includes("no")) ng = odd;
-      }
-      if (gg || ng) out["BTTS"] = { GG: gg, NG: ng };
-    }
-    return Object.keys(out).length ? out : null;
-  } catch(e) { return null; }
-}
-
-function normalizeStats(raw) {
-  return {
-    avgGoalsForHome: parseFloat(raw?.goals?.for?.average?.home || raw?.goals?.for?.average?.total || 1.35),
-    avgGoalsAgainstHome: parseFloat(raw?.goals?.against?.average?.home || raw?.goals?.against?.average?.total || 1.15),
-    avgGoalsForAway: parseFloat(raw?.goals?.for?.average?.away || raw?.goals?.for?.average?.total || 1.15),
-    avgGoalsAgainstAway: parseFloat(raw?.goals?.against?.average?.away || raw?.goals?.against?.average?.total || 1.35),
-    bttsRate: parseFloat(raw?.btts?.percentage || 50)
-  };
-}
-
-function calculateLambda(attackAvg, oppDefenseAvg, leagueAvg, isHome, formFactor=1, absenceFactor=1, h2hFactor=1, csvBoost=null) {
-  const a = parseFloat(attackAvg) || leagueAvg;
-  const d = parseFloat(oppDefenseAvg) || leagueAvg;
-  let lambda = leagueAvg * (a / leagueAvg) * (d / leagueAvg);
-  lambda *= isHome ? 1.12 : 0.88;
-  lambda *= formFactor * absenceFactor * h2hFactor;
-
-  // 🔥 BOOST CSV: usa xG reali se disponibili
-  if (csvBoost && csvBoost.xg && csvBoost.xg > 0) {
-    lambda = lambda * 0.60 + csvBoost.xg * 0.40; // Fusion 60% algoritmo + 40% CSV xG
+    
+    state.analysisStep = "Generazione pronostici..."; render();
+    await new Promise(r => setTimeout(r, 300));
+    
+    const predictions = [];
+    const xGTotal = xG_home + xG_away;
+    
+    const p_home = (xG_home > xG_away) ? 40 + ((xG_home - xG_away) * 8) : 30;
+    const p_draw = 100 - p_home - (100 - p_home - 30);
+    const p_away = 100 - p_home - p_draw;
+    
+    const esito_home_conf = p_home + (homeFormScore - 50) * 0.3;
+    const esito_draw_conf = p_draw;
+    const esito_away_conf = p_away + (awayFormScore - 50) * 0.3;
+    
+    predictions.push({ category: "esito", market: "Match Winner", selection: "Casa", label: `Vittoria ${match.homeTeam.name}`, probability: p_home, confidence: clamp(0, esito_home_conf, 100) });
+    predictions.push({ category: "esito", market: "Match Winner", selection: "X", label: "Pareggio", probability: p_draw, confidence: clamp(0, esito_draw_conf, 100) });
+    predictions.push({ category: "esito", market: "Match Winner", selection: "Ospite", label: `Vittoria ${match.awayTeam.name}`, probability: p_away, confidence: clamp(0, esito_away_conf, 100) });
+    
+    const over05 = (1 - poisson(0, xGTotal)) * 100;
+    const over15 = (1 - poisson(0, xGTotal) - poisson(1, xGTotal)) * 100;
+    const over25 = (1 - poisson(0, xGTotal) - poisson(1, xGTotal) - poisson(2, xGTotal)) * 100;
+    const over35 = (1 - poisson(0, xGTotal) - poisson(1, xGTotal) - poisson(2, xGTotal) - poisson(3, xGTotal)) * 100;
+    
+    predictions.push({ category: "goal", market: "Over/Under 0.5", selection: "Over 0.5", label: "Almeno 1 gol", probability: over05, confidence: clamp(0, over05 * 0.95, 100) });
+    predictions.push({ category: "goal", market: "Over/Under 1.5", selection: "Over 1.5", label: "Over 1.5 gol", probability: over15, confidence: clamp(0, over15 * 0.93, 100) });
+    predictions.push({ category: "goal", market: "Over/Under 2.5", selection: "Over 2.5", label: "Over 2.5 gol", probability: over25, confidence: clamp(0, over25 * 0.9, 100) });
+    predictions.push({ category: "goal", market: "Over/Under 3.5", selection: "Over 3.5", label: "Over 3.5 gol", probability: over35, confidence: clamp(0, over35 * 0.88, 100) });
+    
+    const btts_prob_base = ((1 - poisson(0, xG_home)) * (1 - poisson(0, xG_away))) * 100;
+    const btts_conf = clamp(0, btts_prob_base * 0.92, 100);
+    predictions.push({ category: "goal", market: "BTTS", selection: "Yes", label: "Entrambe segnano", probability: btts_prob_base, confidence: btts_conf });
+    
+    const corner_total_pred = (homeCorners + awayCorners);
+    const corner_over_85_prob = corner_total_pred > 8.5 ? 60 + ((corner_total_pred - 8.5) * 5) : 40;
+    const corner_over_105_prob = corner_total_pred > 10.5 ? 55 + ((corner_total_pred - 10.5) * 5) : 35;
+    
+    predictions.push({ category: "corner", market: "Corners Over 8.5", selection: "Over 8.5", label: "Corner Over 8.5", probability: corner_over_85_prob, confidence: clamp(0, corner_over_85_prob * 0.9, 100) });
+    predictions.push({ category: "corner", market: "Corners Over 10.5", selection: "Over 10.5", label: "Corner Over 10.5", probability: corner_over_105_prob, confidence: clamp(0, corner_over_105_prob * 0.88, 100) });
+    
+    const cards_total_pred = (homeYellow + awayYellow);
+    const cards_over_35_prob = cards_total_pred > 3.5 ? 55 + ((cards_total_pred - 3.5) * 6) : 40;
+    const cards_over_45_prob = cards_total_pred > 4.5 ? 50 + ((cards_total_pred - 4.5) * 6) : 35;
+    
+    predictions.push({ category: "cards", market: "Cards Over 3.5", selection: "Over 3.5", label: "Cards Over 3.5", probability: cards_over_35_prob, confidence: clamp(0, cards_over_35_prob * 0.88, 100) });
+    predictions.push({ category: "cards", market: "Cards Over 4.5", selection: "Over 4.5", label: "Cards Over 4.5", probability: cards_over_45_prob, confidence: clamp(0, cards_over_45_prob * 0.85, 100) });
+    
+    const enhancedPreds = enhanceWithCSV(predictions, match.homeTeam.name, match.awayTeam.name);
+    
+    enhancedPreds.sort((a, b) => b.confidence - a.confidence);
+    const topPick = enhancedPreds[0];
+    
+    state.analysisData = { match, markets, predictions: enhancedPreds, topPick, selectedPredictions: [] };
+    state.isAnalyzing = false;
+  } catch (err) {
+    console.error("Errore analyzeMatch:", err);
+    state.isAnalyzing = false;
+    state.error = err.message;
   }
-
-  // 🔥 BOOST CSV: aggiusta con attack/defense strength
-  if (csvBoost && csvBoost.attackStrength && csvBoost.defenseStrength) {
-    const attackBoost = 0.85 + (csvBoost.attackStrength / 100) * 0.30;
-    const defenseImpact = 0.85 + (csvBoost.defenseStrength / 100) * 0.30;
-    lambda *= attackBoost;
-    lambda /= Math.sqrt(defenseImpact); // Difesa avversaria riduce xG
-  }
-
-  return clamp(0.25, lambda, 4.5);
+  render();
 }
 
-function buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm) {
-  const leagueAvg = clamp(0.95, (homeStats.avgGoalsForHome + awayStats.avgGoalsForAway + homeStats.avgGoalsAgainstHome + awayStats.avgGoalsAgainstAway) / 4, 2.2);
-  const homeFormFactor = homeForm ? clamp(0.85, 0.85 + (homeForm.formScore / 100) * 0.30, 1.15) : 1;
-  const awayFormFactor = awayForm ? clamp(0.85, 0.85 + (awayForm.formScore / 100) * 0.30, 1.15) : 1;
-  const homeAbsFactor = clamp(0.70, 1 - (injuries.home * 0.04), 1);
-  const awayAbsFactor = clamp(0.70, 1 - (injuries.away * 0.04), 1);
-  const homeH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.homeWins / h2h.total) * 0.15, 1.08) : 1;
-  const awayH2HFactor = h2h.total > 2 ? clamp(0.92, 0.95 + (h2h.awayWins / h2h.total) * 0.15, 1.08) : 1;
-
-  const lambdaH = calculateLambda(homeStats.avgGoalsForHome, awayStats.avgGoalsAgainstAway, leagueAvg, true, homeFormFactor, homeAbsFactor, homeH2HFactor, csvHomeBoost);
-  const lambdaA = calculateLambda(awayStats.avgGoalsForAway, homeStats.avgGoalsAgainstHome, leagueAvg, false, awayFormFactor, awayAbsFactor, awayH2HFactor, csvAwayBoost);
-
-  const r1x2 = calculate1X2(lambdaH, lambdaA);
-  const s = r1x2.home + r1x2.draw + r1x2.away;
-  let adj1x2 = { home: r1x2.home/s*100, draw: r1x2.draw/s*100, away: r1x2.away/s*100 };
-
-  if (oddsParsed?.["1X2"]) {
-    const implHome = impliedProb(oddsParsed["1X2"]["1"]);
-    const implDraw = impliedProb(oddsParsed["1X2"]["X"]);
-    const implAway = impliedProb(oddsParsed["1X2"]["2"]);
-    if (implHome && implDraw && implAway) {
-      adj1x2.home = adj1x2.home * 0.70 + implHome * 0.30;
-      adj1x2.draw = adj1x2.draw * 0.70 + implDraw * 0.30;
-      adj1x2.away = adj1x2.away * 0.70 + implAway * 0.30;
-      const total = adj1x2.home + adj1x2.draw + adj1x2.away;
-      adj1x2.home = adj1x2.home / total * 100;
-      adj1x2.draw = adj1x2.draw / total * 100;
-      adj1x2.away = adj1x2.away / total * 100;
-    }
-  }
-
-  const dc = { "1X": adj1x2.home + adj1x2.draw, "X2": adj1x2.draw + adj1x2.away, "12": adj1x2.home + adj1x2.away };
-
-  const homeScores = probToScore(lambdaH);
-  const awayScores = probToScore(lambdaA);
-  let gg = (homeScores/100) * (awayScores/100) * 100;
-  const histBtts = (homeStats.bttsRate + awayStats.bttsRate) / 2;
-  gg = gg * 0.75 + histBtts * 0.25;
-
-  if (oddsParsed?.BTTS?.GG) {
-    const implGG = impliedProb(oddsParsed.BTTS.GG);
-    if (implGG) gg = gg * 0.70 + implGG * 0.30;
-  }
-
-  const ou = {};
-  [0.5,1.5,2.5,3.5,4.5].forEach(line => {
-    let over = bivariatePoissonOver(lambdaH, lambdaA, line);
-    ou[line] = { over: clamp(1, over, 99), under: clamp(1, 100-over, 99) };
-  });
-
-  const baseCorner = leagueAvg * 5.2;
-  let homeCorners = baseCorner * Math.pow(homeStats.avgGoalsForHome / leagueAvg, 0.42) * 1.15;
-  let awayCorners = baseCorner * Math.pow(awayStats.avgGoalsForAway / leagueAvg, 0.42) * 0.90;
-  homeCorners = clamp(3, homeCorners, 8); awayCorners = clamp(3, awayCorners, 8);
-  const totalCorners = homeCorners + awayCorners;
-  const cornerPreds = {};
-  [8.5, 9.5, 10.5, 11.5, 12.5].forEach(line => {
-    const prob = 50 + (totalCorners - line) * 2.2 * 28;
-    cornerPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
-  });
-
-  const baseCards = leagueAvg * 2.1;
-  let homeCards = baseCards * Math.pow(homeStats.avgGoalsAgainstHome / leagueAvg, 0.35) * 0.88;
-  let awayCards = baseCards * Math.pow(awayStats.avgGoalsAgainstAway / leagueAvg, 0.35) * 1.18;
-  homeCards = clamp(1, homeCards, 4); awayCards = clamp(1, awayCards, 4);
-  const totalCards = homeCards + awayCards;
-  const cardPreds = {};
-  [2.5, 3.5, 4.5, 5.5].forEach(line => {
-    const prob = 50 + (totalCards - line) * 1.6 * 30;
-    cardPreds[line] = { over: clamp(15, prob, 85), under: clamp(15, 100-prob, 85) };
-  });
-
-  return {
-    xG: { home: lambdaH, away: lambdaA, total: lambdaH + lambdaA },
-    result1X2: adj1x2, doubleChance: dc,
-    btts: { gg: clamp(1, gg, 99), ng: clamp(1, 100-gg, 99) },
-    overUnderGoals: ou,
-    corners: { home: homeCorners, away: awayCorners, total: totalCorners, predictions: cornerPreds },
-    cards: { home: homeCards, away: awayCards, total: totalCards, predictions: cardPreds },
-    injuries, h2h, homeForm, awayForm, odds: oddsParsed || null
-  };
-}
-
-function generatePredictions(markets, match) {
-  const home = match.homeTeam.name; const away = match.awayTeam.name;
-  const preds = [];
-
-  const best1x2 = [
-    { selection: "1", prob: markets.result1X2.home, label: home },
-    { selection: "X", prob: markets.result1X2.draw, label: "Pareggio" },
-    { selection: "2", prob: markets.result1X2.away, label: away }
-  ].sort((a,b)=>b.prob-a.prob)[0];
-  preds.push({ market: "1X2", selection: best1x2.selection, label: best1x2.label, probability: best1x2.prob, confidence: clamp(35, 40 + Math.abs(best1x2.prob - 33) * 0.9, 85), category: "esito" });
-
-  const dc = Object.entries(markets.doubleChance).map(([k,v]) => ({ selection:k, prob:v })).sort((a,b)=>b.prob-a.prob)[0];
-  preds.push({ market: "Doppia Chance", selection: dc.selection, label: dc.selection, probability: dc.prob, confidence: clamp(42, 45 + Math.abs(dc.prob - 50) * 0.6, 88), category: "esito" });
-
-  const btts = markets.btts.gg >= 50 ? { selection:"GG", prob: markets.btts.gg, label:"Goal/Goal" } : { selection:"NG", prob: markets.btts.ng, label:"No Goal" };
-  preds.push({ market: "GG/NG", selection: btts.selection, label: btts.label, probability: btts.prob, confidence: clamp(40, 45 + Math.abs(btts.prob - 50) * 0.8, 87), category: "goal" });
-
-  Object.entries(markets.overUnderGoals).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Goal ${line}`, selection: best.selection, label: best.selection, probability: best.prob, confidence: clamp(40, 45 + Math.abs(best.prob - 50) * 0.7, 87), category: "goal" });
-  });
-
-  Object.entries(markets.corners.predictions).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Corner ${line}`, selection: best.selection, label: `Corner ${best.selection}`, probability: best.prob, confidence: clamp(40, 42 + Math.abs(best.prob - 50) * 0.65, 85), category: "corner" });
-  });
-
-  Object.entries(markets.cards.predictions).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
-    preds.push({ market: `Cartellini ${line}`, selection: best.selection, label: `Cards ${best.selection}`, probability: best.prob, confidence: clamp(40, 40 + Math.abs(best.prob - 50) * 0.6, 83), category: "cards" });
-  });
-
-  if (markets.odds?.BTTS?.GG) {
-    const odd = markets.odds.BTTS.GG; const ip = impliedProb(odd); const edge = (ip == null) ? null : (markets.btts.gg - ip);
-    if (edge != null && edge > 0) preds.push({ market: "Value", selection: "GG", label: `GG (quota ${odd})`, probability: markets.btts.gg, confidence: clamp(40, 50 + edge * 1.4, 92), category: "odds", meta: { odd, implied: ip, edge } });
-  }
-
-  preds.sort((a,b)=>b.confidence-a.confidence);
-  return preds;
-}
-
-function pickTop(preds) {
-  const safe = preds.filter(p => !p.meta || p.meta.edge == null || p.meta.edge >= 0);
-  return safe[0] || preds[0];
-}
-
-window.analyzeMatch = async (match) => {
-  state.isAnalyzing = true; state.selectedMatch = match; state.analysisData = null; state.activeTab = "analysis"; state.error = null; state.analysisStep = "Statistiche..."; render();
-  try {
-    const [homeRaw, awayRaw] = await Promise.all([ getTeamStats(match.homeTeam.id), getTeamStats(match.awayTeam.id) ]);
-    state.analysisStep = "H2H e forma..."; render();
-    const [h2h, homeForm, awayForm] = await Promise.all([ getH2H(match.homeTeam.id, match.awayTeam.id), getLastMatches(match.homeTeam.id), getLastMatches(match.awayTeam.id) ]);
-    state.analysisStep = "Infortuni..."; render();
-    const injuries = await getInjuriesCount(match.id, match.homeTeam.id, match.awayTeam.id);
-    state.analysisStep = "Quote..."; render();
-    const oddsParsed = await getOddsParsed(match.id);
-    state.analysisStep = "Calcolo..."; render();
-    const homeStats = normalizeStats(homeRaw); const awayStats = normalizeStats(awayRaw);
-    const markets = buildMarkets(homeStats, awayStats, injuries, oddsParsed, h2h, homeForm, awayForm);
-    const predictions = generatePredictions(markets, match); const top = pickTop(predictions);
-    state.analysisData = { match, homeStats, awayStats, markets, predictions, selectedPredictions: [], topPick: top };
-  } catch (e) { state.error = "Errore: " + e.message; }
-  finally { state.isAnalyzing = false; state.analysisStep = ""; render(); }
-};
-
-window.togglePrediction = (idx) => {
+function togglePrediction(idx) {
   if (!state.analysisData) return;
   const pred = state.analysisData.predictions[idx];
-  const exists = state.analysisData.selectedPredictions.findIndex(p => p.market === pred.market && p.selection === pred.selection);
-  if (exists >= 0) state.analysisData.selectedPredictions.splice(exists, 1);
+  const existing = state.analysisData.selectedPredictions.findIndex(p => p.market === pred.market && p.selection === pred.selection);
+  if (existing >= 0) state.analysisData.selectedPredictions.splice(existing, 1);
   else state.analysisData.selectedPredictions.push(pred);
   render();
-};
+}
 
-window.savePredictions = () => {
-  if (!state.analysisData || !state.analysisData.selectedPredictions.length) { alert("Seleziona almeno un pronostico!"); return; }
-  const m = state.analysisData.match; const league = state.leagues.find(l => l.id === state.selectedLeagueId);
+function savePredictions() {
+  if (!state.analysisData || state.analysisData.selectedPredictions.length === 0) {
+    alert("Seleziona almeno un pronostico!");
+    return;
+  }
+  
   const entry = {
-    id: Date.now(), fixtureId: m.id, date: m.utcDate,
-    leagueId: state.selectedLeagueId, leagueName: league ? `${league.country ? league.country + " — " : ""}${league.name}` : String(state.selectedLeagueId),
-    season: state.selectedSeason, homeTeam: m.homeTeam.name, awayTeam: m.awayTeam.name,
-    predictions: state.analysisData.selectedPredictions.map(p => ({ market: p.market, selection: p.selection, label: p.label, probability: p.probability, confidence: p.confidence, odd: p.meta?.odd || null, result: null })),
-    status: "pending", createdAt: new Date().toISOString()
+    id: Date.now(),
+    date: state.analysisData.match.utcDate,
+    homeTeam: state.analysisData.match.homeTeam.name,
+    awayTeam: state.analysisData.match.awayTeam.name,
+    predictions: state.analysisData.selectedPredictions.map(p => ({
+      market: p.market,
+      selection: p.selection,
+      label: p.label,
+      confidence: p.confidence,
+      probability: p.probability,
+      result: null,
+      csvEnhanced: p.csvEnhanced || false,
+      csvBoost: p.csvBoost || 0
+    })),
+    status: "pending"
   };
-  state.history.unshift(entry); 
+  
+  state.history.unshift(entry);
+  
   try {
     localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
-  } catch(e) { console.warn("localStorage pieno (history):", e); }
-  state.analysisData.selectedPredictions = []; state.activeTab = "history"; render();
-};
+  } catch(e) {
+    console.warn("localStorage pieno:", e);
+    state.history = state.history.slice(0, 50);
+    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  }
+  
+  state.activeTab = "history";
+  render();
+}
+
+function updateHistoryResult(entryId, predIdx, won) {
+  const entry = state.history.find(e => e.id === entryId);
+  if (!entry) return;
+  
+  entry.predictions[predIdx].result = won ? "won" : "lost";
+  
+  const wonCount = entry.predictions.filter(p => p.result === "won").length;
+  const lostCount = entry.predictions.filter(p => p.result === "lost").length;
+  
+  if (wonCount === entry.predictions.length) entry.status = "won";
+  else if (lostCount === entry.predictions.length) entry.status = "lost";
+  else if (wonCount > 0 || lostCount > 0) entry.status = "partial";
+  
+  try {
+    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  } catch(e) {
+    console.warn("localStorage pieno:", e);
+  }
+  
+  render();
+}
 
 function getHistoryStats() {
-  const resolved = state.history.filter(e => e.status !== "pending");
-  const won = resolved.filter(e => e.status === "won").length; const partial = resolved.filter(e => e.status === "partial").length; const lost = resolved.filter(e => e.status === "lost").length;
-  const winRate = resolved.length ? (won / resolved.length) * 100 : 0;
-  let predTotal = 0, predWon = 0;
-  state.history.forEach(e => { (e.predictions || []).forEach(p => { if (p.result != null) { predTotal++; if (p.result === "won") predWon++; } }); });
-  const predHitRate = predTotal ? (predWon / predTotal) * 100 : 0;
-  return { total: state.history.length, resolved: resolved.length, won, partial, lost, winRate: winRate.toFixed(1), predTotal, predWon, predHitRate: predHitRate.toFixed(1) };
+  const total = state.history.length;
+  const won = state.history.filter(e => e.status === "won").length;
+  const partial = state.history.filter(e => e.status === "partial").length;
+  const lost = state.history.filter(e => e.status === "lost").length;
+  const winRate = total > 0 ? Math.round((won / total) * 100) : 0;
+  
+  const allPreds = state.history.flatMap(e => e.predictions);
+  const predTotal = allPreds.length;
+  const predWon = allPreds.filter(p => p.result === "won").length;
+  const predHitRate = predTotal > 0 ? Math.round((predWon / predTotal) * 100) : 0;
+  
+  return { total, won, partial, lost, winRate, predTotal, predWon, predHitRate };
 }
 
-function isPickWinner(selection, goalsH, goalsA) {
-  const gh = goalsH ?? 0; const ga = goalsA ?? 0; const tot = gh + ga; const s = (selection || "").toUpperCase().trim();
-  if (s === "GG") return (gh > 0 && ga > 0); if (s === "NG") return !(gh > 0 && ga > 0);
-  if (s === "1") return gh > ga; if (s === "X") return gh === ga; if (s === "2") return gh < ga;
-  if (s === "1X") return gh >= ga; if (s === "X2") return gh <= ga; if (s === "12") return gh !== ga;
-  if (s.startsWith("OVER")) { const line = parseFloat(s.replace("OVER","").trim()); if (!Number.isFinite(line)) return null; return tot > line; }
-  if (s.startsWith("UNDER")) { const line = parseFloat(s.replace("UNDER","").trim()); if (!Number.isFinite(line)) return null; return tot < line; }
-  return null;
+async function refreshResults() {
+  alert("♻️ Aggiornamento automatico non implementato. Aggiorna manualmente ogni risultato.");
 }
 
-function chunk(arr, size) { const out = []; for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size)); return out; }
-
-window.refreshResults = async () => {
-  const pending = state.history.filter(e => e.status === "pending"); if (!pending.length) { alert("Nessun pronostico pending."); return; }
-  try {
-    const batches = chunk(pending.map(e => e.fixtureId), 20);
-    for (const ids of batches) {
-      const data = await apiCall("/fixtures", { ids: ids.join("-"), timezone: TZ });
-      const fixtures = data.response || [];
-      fixtures.forEach(f => {
-        const id = f.fixture?.id; const st = f.fixture?.status?.short;
-        const finished = ["FT","AET","PEN"].includes(st); if (!finished) return;
-        const gh = f.goals?.home; const ga = f.goals?.away;
-        const entry = state.history.find(e => e.fixtureId === id); if (!entry) return;
-        let allResolved = true; let allWon = true; let anyWon = false;
-        entry.predictions.forEach(p => { if (p.result != null) return; const w = isPickWinner(p.selection, gh, ga); if (w === null) { allResolved = false; allWon = false; return; } p.result = w ? "won" : "lost"; });
-        entry.predictions.forEach(p => { if (p.result == null) allResolved = false; if (p.result !== "won") allWon = false; if (p.result === "won") anyWon = true; });
-        if (allResolved) entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
-      });
-    }
-    try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
-    render();
-  } catch (e) { alert("Errore: " + e.message); }
-};
-
-window.setHistoryFilter = (f) => { state.historyFilter = f; render(); };
-window.clearHistory = () => { 
-  if (!confirm("Cancellare tutto?")) return; 
-  state.history = []; 
-  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
-  render(); 
-};
-window.updateHistoryResult = (entryId, predIndex, won) => {
-  const entry = state.history.find(e => e.id === entryId); if (!entry) return;
-  const p = entry.predictions?.[predIndex]; if (!p) return;
-  p.result = won ? "won" : "lost";
-  const allResolved = entry.predictions.every(x => x.result != null);
-  if (allResolved) { const allWon = entry.predictions.every(x => x.result === "won"); const anyWon = entry.predictions.some(x => x.result === "won"); entry.status = allWon ? "won" : (anyWon ? "partial" : "lost"); } else entry.status = "pending";
-  try { localStorage.setItem(STORAGE.history, JSON.stringify(state.history)); } catch(e) {}
+function clearHistory() {
+  if (!confirm("🗑️ Eliminare tutta la cronologia?")) return;
+  state.history = [];
+  localStorage.removeItem(STORAGE.history);
   render();
-};
+}
 
-window.setTab = (tab) => { state.activeTab = tab; render(); };
-window.resetApp = () => { 
-  if (!confirm("Reset?")) return; 
-  try {
-    localStorage.removeItem(STORAGE.leaguesCache); 
-    localStorage.removeItem(STORAGE.history); 
-    localStorage.removeItem(STORAGE.ui); 
-  } catch(e) {}
-  location.reload(); 
-};
-window.setMinConfidence = (v) => { state.minConfidence = parseInt(v, 10); saveUI(); render(); };
+function setMinConfidence(v) {
+  state.minConfidence = parseInt(v);
+  saveUI();
+  render();
+}
+
+function setHistoryFilter(f) {
+  state.historyFilter = f;
+  render();
+}
 
 function render() {
   const root = document.getElementById("root");
-  const league = state.leagues.find(l => l.id === state.selectedLeagueId);
-  const searchInputValue = state._leagueQueryTemp !== undefined ? state._leagueQueryTemp : state.leagueQuery;
-
+  
+  const tabs = [
+    { id: "matches", label: "⚽ Partite" },
+    { id: "analysis", label: "🧠 Analisi" },
+    { id: "history", label: "📊 Tracker" },
+    { id: "csv", label: state.csvData ? "📊 CSV ✓" : "📊 CSV" }
+  ];
+  
   const header = `
-    <header class="bg-white shadow-md sticky top-0 z-40">
-      <div class="px-4 py-3 max-w-lg mx-auto">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">🔮</span>
-            <div><h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER v3</h1><div class="text-[11px] text-emerald-700 font-extrabold">Top Leagues Only</div></div>
-          </div>
-          <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
-        </div>
-        <div class="mb-2">
-          <div class="flex gap-2">
-            <input id="leagueSearchInput" class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold" placeholder="Cerca lega..." value="${escapeHtml(searchInputValue)}" oninput="setLeagueQueryInput(this.value)" />
-            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">${state.leaguesLoading ? "..." : "↻"}</button>
-          </div>
-          <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
-            ${state.leagues.length ? state.leagues.filter(l => { const q = (state.leagueQuery || "").toLowerCase().trim(); if (!q) return true; return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q); }).slice(0, 200).map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>${l.country ? l.country + " — " : ""}${l.name} (${l.season})</option>`).join("") : `<option>Carica...</option>`}
-          </select>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">Da</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" /></div>
-            <div class="bg-white rounded-xl p-2 border"><div class="text-[11px] text-gray-500 font-bold mb-1">A</div><input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" /></div>
-          </div>
-          ${state.leaguesError ? `<div class="mt-2 text-xs font-bold text-red-600">${escapeHtml(state.leaguesError)}</div>` : ""}
-        </div>
-        <div class="flex border-t">
-          <button onclick="setTab('matches')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='matches' ? 'tab-active' : 'text-gray-500'}">PARTITE</button>
-          <button onclick="setTab('analysis')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='analysis' ? 'tab-active' : 'text-gray-500'}">ANALISI</button>
-          <button onclick="setTab('history')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='history' ? 'tab-active' : 'text-gray-500'}">TRACKER</button>
-        </div>
+    <header class="sticky top-0 z-50 bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-xl">
+      <div class="max-w-lg mx-auto p-4">
+        <h1 class="text-2xl font-black text-center mb-1">🔮 PROPHECY HUNTER <span class="text-emerald-400">PRO</span></h1>
+        ${state.csvData ? `<p class="text-center text-xs text-emerald-400 font-bold">📊 ${escapeHtml(state.csvData.filename)} (${state.csvData.count} partite)</p>` : ''}
       </div>
+      <nav class="flex border-t border-white/20">
+        ${tabs.map(t => `<button onclick="state.activeTab='${t.id}'; render();" class="flex-1 py-3 text-sm font-black ${state.activeTab === t.id ? 'tab-active' : 'text-white/70'}">${t.label}</button>`).join("")}
+      </nav>
     </header>
   `;
 
   let content = "";
 
+  // TAB MATCHES
   if (state.activeTab === "matches") {
-    const leagueLabel = league ? `${league.country ? league.country + " — " : ""}${league.name}` : "Lega";
-    const topBar = `<div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3"><div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span><button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button></div></div>`;
-    if (state.loading) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black">Caricamento...</p></div>`;
-    else if (state.error) content = `${topBar}<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><p class="text-red-600 font-black mb-2">Errore</p><p class="text-gray-600 text-sm font-semibold">${escapeHtml(state.error)}</p></div>`;
-    else if (!state.matches.length) content = `${topBar}<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">📭</p><p class="font-black">Nessuna partita</p></div>`;
-    else content = `${topBar}<div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="divide-y max-h-[62vh] overflow-y-auto">${state.matches.map((m, i) => { const {date, time} = formatDate(m.utcDate); const st = m.status || "-"; const isDone = ["FT","AET","PEN"].includes(st); const stBadge = isDone ? `<span class="px-2 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-black">${st}</span>` : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-black">${st}</span>`; const score = (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ? `${m.score.fullTime.home}-${m.score.fullTime.away}` : "—"; return `<div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer" onclick="analyzeMatch(state.matches[${i}])"><div class="flex items-center gap-3"><div class="w-16 text-center"><p class="text-xs text-gray-500 font-bold">${date}</p><p class="font-black text-sm">${time}</p></div><div class="flex-1 min-w-0"><p class="font-black text-sm text-gray-900 truncate">${escapeHtml(m.homeTeam.name)} <span class="text-gray-400">vs</span> ${escapeHtml(m.awayTeam.name)}</p></div><div class="text-right"><div class="text-xs font-black text-gray-700">${stBadge}</div><div class="text-sm font-black mt-1">${score}</div></div></div></div>`; }).join("")}</div></div>`;
+    const filteredLeagues = state.leagues.filter(lg => 
+      lg.name.toLowerCase().includes(state.leagueQuery.toLowerCase()) || 
+      lg.country.toLowerCase().includes(state.leagueQuery.toLowerCase())
+    );
+    
+    content = `
+      <div class="bg-white rounded-2xl shadow-lg p-4 mb-3">
+        <div class="flex gap-2 mb-3">
+          <input 
+            type="text" 
+            placeholder="🔍 Cerca lega..." 
+            value="${escapeHtml(state._leagueQueryTemp)}" 
+            oninput="state._leagueQueryTemp=this.value;" 
+            onkeyup="if(event.key==='Enter'){state.leagueQuery=state._leagueQueryTemp; render();}" 
+            class="flex-1 px-3 py-2 border rounded-xl text-sm font-semibold" 
+          />
+          <button onclick="state.leagueQuery=state._leagueQueryTemp; render();" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-sm">🔍</button>
+        </div>
+        ${state.leaguesLoading ? 
+          `<p class="text-center text-sm font-semibold text-gray-500 pulse">Caricamento leghe...</p>` : 
+          filteredLeagues.length === 0 ? 
+            `<p class="text-center text-sm font-semibold text-gray-500">Nessuna lega trovata.</p>` : 
+            `<select onchange="state.selectedLeagueId=parseInt(this.value); const lg=state.leagues.find(l=>l.id===state.selectedLeagueId); state.selectedSeason=lg?lg.season:null; loadMatches();" class="w-full p-3 border rounded-xl font-black text-sm bg-gray-50">
+              ${filteredLeagues.map(lg => `<option value="${lg.id}" ${lg.id === state.selectedLeagueId ? "selected" : ""}>${escapeHtml(lg.country)} - ${escapeHtml(lg.name)} (${lg.season})</option>`).join("")}
+            </select>`
+        }
+      </div>
+      
+      <div class="bg-white rounded-2xl shadow-lg p-4 mb-3">
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <input type="date" value="${state.from}" onchange="state.from=this.value; saveUI();" class="px-3 py-2 border rounded-xl text-sm font-semibold" />
+          <input type="date" value="${state.to}" onchange="state.to=this.value; saveUI();" class="px-3 py-2 border rounded-xl text-sm font-semibold" />
+        </div>
+        <button onclick="loadMatches()" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-black text-sm">📅 CARICA</button>
+      </div>
+      
+      ${state.loading ? 
+        `<div class="bg-white rounded-2xl p-10 text-center shadow-lg">
+          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-3"></div>
+          <p class="font-black pulse">Caricamento...</p>
+        </div>` : 
+        state.error ? 
+          `<div class="bg-red-50 rounded-2xl p-6 text-center shadow">
+            <p class="text-red-600 font-black">❌ ${escapeHtml(state.error)}</p>
+          </div>` : 
+          state.matches.length === 0 ? 
+            `<div class="bg-white rounded-2xl p-8 text-center shadow">
+              <p class="text-gray-500 font-semibold">Nessuna partita trovata per questo periodo</p>
+            </div>` : 
+            `<div class="space-y-3">
+              ${state.matches.map(m => {
+                const {date, time} = formatDate(m.utcDate);
+                return `
+                  <div class="bg-white rounded-2xl shadow-md overflow-hidden">
+                    <div class="p-4">
+                      <div class="flex justify-between items-center mb-3">
+                        <div class="flex-1">
+                          <p class="font-black text-gray-900 text-sm">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p>
+                          <p class="text-xs text-gray-500 font-semibold">${date} ${time}</p>
+                        </div>
+                      </div>
+                      <button onclick="analyzeMatch(state.matches.find(x=>x.fixtureId===${m.fixtureId}))" class="w-full py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm">🧠 ANALIZZA</button>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>`
+      }
+    `;
   }
 
+  // TAB ANALYSIS
   if (state.activeTab === "analysis") {
-    if (state.isAnalyzing) content = `<div class="bg-white rounded-2xl p-10 text-center shadow-lg"><div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div><p class="font-black mb-2">Analisi...</p><p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p></div>`;
-    else if (!state.analysisData) content = `<div class="bg-white rounded-2xl p-12 text-center shadow-lg"><p class="text-5xl mb-3">🧠</p><p class="font-black">Seleziona una partita</p></div>`;
-    else {
-      const a = state.analysisData; const m = a.match; const {date, time} = formatDate(m.utcDate);
-      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence); const top = a.topPick;
-      const h2h = a.markets.h2h || {}; const homeForm = a.markets.homeForm || {}; const awayForm = a.markets.awayForm || {};
+    if (state.isAnalyzing) {
+      content = `
+        <div class="bg-white rounded-2xl p-10 text-center shadow-lg">
+          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
+          <p class="font-black mb-2">Analisi...</p>
+          <p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p>
+        </div>
+      `;
+    } else if (!state.analysisData) {
+      content = `
+        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
+          <p class="text-5xl mb-3">🧠</p>
+          <p class="font-black">Seleziona una partita</p>
+        </div>
+      `;
+    } else {
+      const a = state.analysisData;
+      const m = a.match;
+      const {date, time} = formatDate(m.utcDate);
+      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence);
+      const top = a.topPick;
+      const h2h = a.markets.h2h || {};
+      const homeForm = a.markets.homeForm || {};
+      const awayForm = a.markets.awayForm || {};
+      
+      let csvMatchInfo = '';
+      if (state.csvStats) {
+        csvMatchInfo = `
+          <div class="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 mb-3">
+            <p class="font-black text-emerald-800 text-center text-xs mb-2">📊 DATI CSV FOOTYSTATS</p>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-white rounded p-1.5">
+                <p class="text-gray-600 font-bold">xG CSV</p>
+                <p class="font-black">${state.csvStats.xg_home.toFixed(2)} - ${state.csvStats.xg_away.toFixed(2)}</p>
+              </div>
+              <div class="bg-white rounded p-1.5">
+                <p class="text-gray-600 font-bold">Over 2.5</p>
+                <p class="font-black">${state.csvStats.over25_prob.toFixed(0)}%</p>
+              </div>
+              <div class="bg-white rounded p-1.5">
+                <p class="text-gray-600 font-bold">BTTS</p>
+                <p class="font-black">${state.csvStats.btts_prob.toFixed(0)}%</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-2 text-center text-xs">
+              <div class="bg-white rounded p-1.5">
+                <p class="text-gray-600 font-bold">Corner Tot</p>
+                <p class="font-black">${state.csvStats.corners_total.toFixed(1)}</p>
+              </div>
+              <div class="bg-white rounded p-1.5">
+                <p class="text-gray-600 font-bold">Cards Tot</p>
+                <p class="font-black">${state.csvStats.cards_total.toFixed(1)}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
       content = `
         <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-4 text-white mb-3 shadow-lg">
-          <div class="text-center"><p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p><p class="text-white/70 text-xs font-semibold">${date} ${time}</p></div>
+          <div class="text-center">
+            <p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p>
+            <p class="text-white/70 text-xs font-semibold">${date} ${time}</p>
+          </div>
           <div class="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Casa</p><p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Tot</p><p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2"><p class="text-white/70 text-xs font-bold">xG Away</p><p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p></div>
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Casa</p>
+              <p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Tot</p>
+              <p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Away</p>
+              <p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p>
+            </div>
           </div>
           <div class="grid grid-cols-3 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🔁 H2H</p><p class="font-black text-sm">${h2h.homeWins||0}-${h2h.draws||0}-${h2h.awayWins||0}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">📈 Forma</p><p class="font-black text-sm">${homeForm.formScore?homeForm.formScore.toFixed(0):50} - ${awayForm.formScore?awayForm.formScore.toFixed(0):50}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🩺 Inj</p><p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p></div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">🔁 H2H</p>
+              <p class="font-black text-sm">${h2h.homeWins||0}-${h2h.draws||0}-${h2h.awayWins||0}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">📈 Forma</p>
+              <p class="font-black text-sm">${homeForm.formScore?homeForm.formScore.toFixed(0):50} - ${awayForm.formScore?awayForm.formScore.toFixed(0):50}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">🩺 Inj</p>
+              <p class="font-black text-sm">${a.markets.injuries.home} - ${a.markets.injuries.away}</p>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-2 mt-2">
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🚩 Corner</p><p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p></div>
-            <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-white/70 text-xs font-bold">🟨 Cards</p><p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p></div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">🚩 Corner</p>
+              <p class="font-black text-sm">${a.markets.corners.total.toFixed(1)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">🟨 Cards</p>
+              <p class="font-black text-sm">${a.markets.cards.total.toFixed(1)}</p>
+            </div>
           </div>
         </div>
+        
+        ${csvMatchInfo}
+        
         <div class="bg-white rounded-xl p-3 mb-3 flex items-center justify-between shadow">
           <span class="text-sm font-black">Min Conf</span>
-          <div class="flex items-center gap-2"><input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" /><span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span></div>
+          <div class="flex items-center gap-2">
+            <input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" />
+            <span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span>
+          </div>
         </div>
+        
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center"><span class="font-black text-white text-sm">🏆 TOP PICK</span><span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span></div>
+          <div class="px-4 py-3 ${top.csvEnhanced ? 'csv-active' : 'bg-gradient-to-r from-emerald-600 to-green-600'} flex justify-between items-center">
+            <span class="font-black text-white text-sm">🏆 TOP PICK ${top.csvEnhanced ? '+ CSV 📊' : ''}</span>
+            <span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span>
+          </div>
           <div class="p-4">
             <div class="flex items-center justify-between gap-2">
-              <div class="min-w-0"><p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • ${top.probability.toFixed(1)}%</p></div>
+              <div class="min-w-0">
+                <p class="font-black text-gray-900 text-sm truncate">${categoryIcon(top.category)} ${escapeHtml(top.label)}</p>
+                <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • ${top.probability.toFixed(1)}%</p>
+                ${top.csvEnhanced ? `<p class="text-xs text-emerald-600 font-black mt-1">CSV Boost: ${top.csvBoost > 0 ? '+' : ''}${top.csvBoost.toFixed(1)}</p>` : ''}
+              </div>
             </div>
             <button class="w-full mt-3 py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm" onclick="state.analysisData.selectedPredictions=[state.analysisData.topPick]; savePredictions();">💾 SALVA TOP</button>
           </div>
         </div>
+        
         <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
-          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center"><span class="font-black text-white text-sm">PRONOSTICI</span><span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span></div>
-          <div class="divide-y max-h-[42vh] overflow-y-auto">${filteredPreds.length === 0 ? `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessuno sopra soglia.</p>` : filteredPreds.map((p) => { const idx = a.predictions.indexOf(p); const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection); const isHot = p.confidence >= 75; return `<div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""}" onclick="togglePrediction(${idx})"><div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">${selected ? "✓" : categoryIcon(p.category)}</div><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${p.probability.toFixed(1)}%</p></div><div class="text-right">${badge(p.confidence, "lg")}</div></div>`; }).join("")}</div>
-          <div class="p-3"><button onclick="savePredictions()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">💾 SALVA ${a.selectedPredictions.length}</button></div>
+          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center">
+            <span class="font-black text-white text-sm">PRONOSTICI</span>
+            <span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span>
+          </div>
+          <div class="divide-y max-h-[42vh] overflow-y-auto">
+            ${filteredPreds.length === 0 ? 
+              `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessuno sopra soglia.</p>` : 
+              filteredPreds.map((p) => {
+                const idx = a.predictions.indexOf(p);
+                const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection);
+                const isHot = p.confidence >= 75;
+                return `
+                  <div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""} ${p.csvEnhanced ? 'border-l-4 border-emerald-500' : ''}" onclick="togglePrediction(${idx})">
+                    <div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">
+                      ${selected ? "✓" : categoryIcon(p.category)}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)} ${p.csvEnhanced ? '📊' : ''}</p>
+                      <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${p.probability.toFixed(1)}%${p.csvEnhanced ? ` • Boost ${p.csvBoost > 0 ? '+' : ''}${p.csvBoost.toFixed(0)}` : ''}</p>
+                    </div>
+                    <div class="text-right">${badge(p.confidence, "lg")}</div>
+                  </div>
+                `;
+              }).join("")
+            }
+          </div>
+          <div class="p-3">
+            <button onclick="savePredictions()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">💾 SALVA ${a.selectedPredictions.length}</button>
+          </div>
         </div>
       `;
     }
   }
 
+  // TAB HISTORY
   if (state.activeTab === "history") {
     const stats = getHistoryStats();
     const filtered = (state.historyFilter === "all") ? state.history : state.history.filter(e => e.status === state.historyFilter);
+    
     content = `
       <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-4 text-white mb-3 shadow-lg">
         <h3 class="font-black mb-3 text-center text-sm">📊 Tracker</h3>
         <div class="grid grid-cols-4 gap-2 text-center mb-3">
-          <div class="bg-white/10 rounded-lg p-2"><p class="text-xl font-black">${stats.total}</p><p class="text-xs text-white/70 font-bold">Tot</p></div>
-          <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">✅</p></div>
-          <div class="bg-amber-500/30 rounded-lg p-2"><p class="text-xl font-black text-amber-200">${stats.partial}</p><p class="text-xs text-white/70 font-bold">🟨</p></div>
-          <div class="bg-red-500/30 rounded-lg p-2"><p class="text-xl font-black text-red-200">${stats.lost}</p><p class="text-xs text-white/70 font-bold">❌</p></div>
+          <div class="bg-white/10 rounded-lg p-2">
+            <p class="text-xl font-black">${stats.total}</p>
+            <p class="text-xs text-white/70 font-bold">Tot</p>
+          </div>
+          <div class="bg-green-500/30 rounded-lg p-2">
+            <p class="text-xl font-black text-emerald-300">${stats.won}</p>
+            <p class="text-xs text-white/70 font-bold">✅</p>
+          </div>
+          <div class="bg-amber-500/30 rounded-lg p-2">
+            <p class="text-xl font-black text-amber-200">${stats.partial}</p>
+            <p class="text-xs text-white/70 font-bold">🟨</p>
+          </div>
+          <div class="bg-red-500/30 rounded-lg p-2">
+            <p class="text-xl font-black text-red-200">${stats.lost}</p>
+            <p class="text-xs text-white/70 font-bold">❌</p>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-emerald-300">${stats.winRate}%</p><p class="text-xs text-white/70 font-bold">Win Rate</p></div>
-          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p><p class="text-xs text-white/70 font-bold">Hit (${stats.predWon}/${stats.predTotal})</p></div>
+          <div class="bg-white/10 rounded-lg p-2 text-center">
+            <p class="text-2xl font-black text-emerald-300">${stats.winRate}%</p>
+            <p class="text-xs text-white/70 font-bold">Win Rate</p>
+          </div>
+          <div class="bg-white/10 rounded-lg p-2 text-center">
+            <p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p>
+            <p class="text-xs text-white/70 font-bold">Hit (${stats.predWon}/${stats.predTotal})</p>
+          </div>
         </div>
         <div class="flex gap-2 mt-3">
           <button onclick="refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">♻️ AGGIORNA</button>
           <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">🗑️</button>
         </div>
       </div>
-      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">${["all","pending","won","partial","lost"].map(f => `<button onclick="setHistoryFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">${f==="all" ? "Tutti" : f}</button>`).join("")}</div>
-      <div class="space-y-3">${filtered.length === 0 ? `<div class="bg-white rounded-2xl p-8 text-center shadow"><p class="text-gray-500 font-semibold">Nessuno</p></div>` : filtered.map(entry => { const {date, time} = formatDate(entry.date); const statusColors = { pending: "border-gray-300", won: "border-emerald-400 bg-emerald-50", partial: "border-amber-400 bg-amber-50", lost: "border-red-400 bg-red-50" }; const statusIcons = { pending:"⏳", won:"✅", partial:"🟨", lost:"❌" }; return `<div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}"><div class="px-4 py-2.5 border-b flex justify-between items-center"><div><p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p><p class="text-xs text-gray-500 font-semibold">${date} ${time}</p></div><span class="text-xl">${statusIcons[entry.status]||"⏳"}</span></div><div class="p-3 space-y-2">${(entry.predictions || []).map((p, pIdx) => `<div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}"><div class="flex-1 min-w-0"><p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p><p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • Conf ${p.confidence.toFixed(0)}</p></div><div class="flex gap-1 items-center">${p.result == null ? `<button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button><button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>` : `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`}</div></div>`).join("")}</div></div>`; }).join("")}</div>
+      
+      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+        ${["all","pending","won","partial","lost"].map(f => `
+          <button onclick="setHistoryFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">
+            ${f==="all" ? "Tutti" : f}
+          </button>
+        `).join("")}
+      </div>
+      
+      <div class="space-y-3">
+        ${filtered.length === 0 ? 
+          `<div class="bg-white rounded-2xl p-8 text-center shadow">
+            <p class="text-gray-500 font-semibold">Nessuno</p>
+          </div>` : 
+          filtered.map(entry => {
+            const {date, time} = formatDate(entry.date);
+            const statusColors = {
+              pending: "border-gray-300",
+              won: "border-emerald-400 bg-emerald-50",
+              partial: "border-amber-400 bg-amber-50",
+              lost: "border-red-400 bg-red-50"
+            };
+            const statusIcons = {
+              pending:"⏳",
+              won:"✅",
+              partial:"🟨",
+              lost:"❌"
+            };
+            
+            return `
+              <div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}">
+                <div class="px-4 py-2.5 border-b flex justify-between items-center">
+                  <div>
+                    <p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p>
+                    <p class="text-xs text-gray-500 font-semibold">${date} ${time}</p>
+                  </div>
+                  <span class="text-xl">${statusIcons[entry.status]||"⏳"}</span>
+                </div>
+                <div class="p-3 space-y-2">
+                  ${(entry.predictions || []).map((p, pIdx) => `
+                    <div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}">
+                      <div class="flex-1 min-w-0">
+                        <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)} ${p.csvEnhanced ? '📊' : ''}</p>
+                        <p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • Conf ${p.confidence.toFixed(0)}${p.csvEnhanced ? ` • CSV ${p.csvBoost > 0 ? '+' : ''}${p.csvBoost}` : ''}</p>
+                      </div>
+                      <div class="flex gap-1 items-center">
+                        ${p.result == null ? 
+                          `<button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button>
+                           <button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>` : 
+                          `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`
+                        }
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            `;
+          }).join("")
+        }
+      </div>
     `;
   }
 
-  root.innerHTML = `${header}<main class="max-w-lg mx-auto p-4 pb-16">${content}</main><footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center"><span class="font-black">🔮 Prophecy Hunter v3</span><span class="mono">${state.selectedLeagueId??"-"}</span></footer>`;
+  // TAB CSV
+  if (state.activeTab === "csv") {
+    content = `
+      <div class="bg-white rounded-2xl shadow-lg p-6 mb-3">
+        <h3 class="font-black text-gray-900 mb-4 text-center text-lg">📊 INTEGRAZIONE CSV FOOTYSTATS</h3>
+        
+        ${state.csvData ? `
+          <div class="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-4 mb-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="font-black text-emerald-800 text-sm">✅ CSV Caricato</p>
+                <p class="text-xs text-emerald-600 font-semibold">${escapeHtml(state.csvData.filename)}</p>
+              </div>
+              <button onclick="clearCSV()" class="px-3 py-2 bg-red-500 text-white rounded-lg font-black text-xs">🗑️ RIMUOVI</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-white rounded-lg p-3 text-center">
+                <p class="text-2xl font-black text-emerald-600">${state.csvData.count}</p>
+                <p class="text-xs text-gray-600 font-bold">Partite</p>
+              </div>
+              <div class="bg-white rounded-lg p-3 text-center">
+                <p class="text-sm font-black text-emerald-600">${new Date(state.csvData.loaded).toLocaleString('it-IT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</p>
+                <p class="text-xs text-gray-600 font-bold">Caricato</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p class="font-black text-blue-800 text-sm mb-2">ℹ️ Come Funziona</p>
+            <ul class="text-xs text-blue-700 space-y-1.5">
+              <li><strong>1.</strong> Il CSV viene confrontato automaticamente con ogni partita analizzata</li>
+              <li><strong>2.</strong> I pronostici vengono potenziati se concordano con i dati CSV</li>
+              <li><strong>3.</strong> Vedrai il simbolo <strong>📊</strong> e il <strong>boost CSV</strong> su ogni pronostico migliorato</li>
+              <li><strong>4.</strong> Il TOP PICK diventa verde con <strong>"+ CSV"</strong> se potenziato</li>
+            </ul>
+          </div>
+        ` : `
+          <div 
+            id="csvDropZone" 
+            class="csv-zone rounded-xl p-10 text-center cursor-pointer"
+            onclick="document.getElementById('csvFileInput').click()"
+          >
+            <input 
+              type="file" 
+              id="csvFileInput" 
+              accept=".csv" 
+              style="display:none" 
+              onchange="if(this.files[0]) loadCSVFile(this.files[0])"
+            />
+            <p class="text-5xl mb-4">📊</p>
+            <p class="font-black text-gray-900 mb-2">Carica CSV FootyStats Premium</p>
+            <p class="text-sm text-gray-600 font-semibold mb-4">Clicca o trascina qui il file CSV</p>
+            <div class="bg-gray-50 rounded-lg p-4 text-left">
+              <p class="text-xs font-black text-gray-700 mb-2">📋 Campi supportati:</p>
+              <p class="text-xs text-gray-600">• xG home/away • Over/Under probabilities • BTTS</p>
+              <p class="text-xs text-gray-600">• Corner statistics • Cards statistics • Form & H2H</p>
+            </div>
+          </div>
+          
+          <div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p class="font-black text-amber-800 text-sm mb-2">💡 Consiglio</p>
+            <p class="text-xs text-amber-700">Esporta i dati delle partite dal tuo account <strong>FootyStats Premium</strong> in formato CSV e caricali qui per potenziare le analisi!</p>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+    ${header}
+    <main class="max-w-lg mx-auto p-4 pb-16">${content}</main>
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center">
+      <span class="font-black">🔮 Prophecy Hunter v3 PRO${state.csvData ? ' <span class="text-emerald-600">+ CSV</span>' : ''}</span>
+      <span class="mono">${state.selectedLeagueId??"-"}</span>
+    </footer>
+  `;
+  
+  if (state.activeTab === "csv" && !state.csvData) {
+    const dropZone = document.getElementById('csvDropZone');
+    if (dropZone) {
+      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+      dropZone.ondragleave = () => { dropZone.classList.remove('dragover'); };
+      dropZone.ondrop = (e) => { 
+        e.preventDefault(); 
+        dropZone.classList.remove('dragover'); 
+        if (e.dataTransfer.files[0]) loadCSVFile(e.dataTransfer.files[0]);
+      };
+    }
+  }
+  
   window.state = state;
 }
 
 (async function init() {
-  await loadLeagues(false);
-  if (!state.selectedLeagueId && state.leagues.length) { state.selectedLeagueId = state.leagues[0].id; state.selectedSeason = state.leagues[0].season; }
-  if (state.selectedLeagueId && state.selectedSeason) await loadMatches();
-  render();
+  try {
+    await loadLeagues(false);
+    if (!state.selectedLeagueId && state.leagues.length) {
+      state.selectedLeagueId = state.leagues[0].id;
+      state.selectedSeason = state.leagues[0].season;
+    }
+    render();
+  } catch(e) {
+    console.error("Errore init:", e);
+    render();
+  }
 })();
 </script>
 </body>
