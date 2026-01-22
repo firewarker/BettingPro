@@ -1,947 +1,589 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Prophecy Hunter Pro - Sistema Betting Intelligente</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prophecy Hunter Pro — League → Fixtures → Analysis</title>
+  <style>
+    :root{
+      --bg1:#0b1220; --bg2:#101b2e; --card:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.09); --bd:rgba(255,255,255,.12);
+      --txt:rgba(255,255,255,.92); --mut:rgba(255,255,255,.72);
+      --a:#7c3aed; --b:#06b6d4; --g:#22c55e; --y:#fbbf24; --r:#ef4444;
+      --shadow: 0 16px 50px rgba(0,0,0,.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:var(--sans); color:var(--txt);
+      background: radial-gradient(1200px 700px at 15% 5%, rgba(124,58,237,.25), transparent 60%),
+                  radial-gradient(900px 600px at 85% 10%, rgba(6,182,212,.22), transparent 55%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2));
+      min-height:100vh;
+    }
+    header{
+      max-width:1400px; margin:0 auto; padding:18px 16px 8px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .brand h1{margin:0; font-size:18px; letter-spacing:.6px}
+    .brand p{margin:2px 0 0; color:var(--mut); font-size:12px}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end}
+    .btn{
+      border:1px solid var(--bd); background: linear-gradient(135deg, rgba(124,58,237,.35), rgba(6,182,212,.18));
+      color:var(--txt); padding:10px 12px; border-radius:12px; cursor:pointer;
+      font-weight:650; letter-spacing:.3px; box-shadow: 0 10px 28px rgba(0,0,0,.22);
+    }
+    .btn.secondary{ background: rgba(255,255,255,.07); }
+    .btn.danger{ background: linear-gradient(135deg, rgba(239,68,68,.32), rgba(249,115,22,.18));}
+    .btn:disabled{opacity:.55; cursor:not-allowed}
+    .pill{
+      border:1px solid var(--bd); background: rgba(255,255,255,.06);
+      padding:8px 10px; border-radius:12px; font-family:var(--mono); font-size:12px; color:var(--mut);
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            color: #fff;
-            min-height: 100vh;
-        }
+    .wrap{max-width:1400px; margin:0 auto; padding:12px 16px 28px;}
+    .grid{
+      display:grid; grid-template-columns: 340px 1fr 420px; gap:14px;
+    }
+    .card{
+      background: var(--card); border:1px solid var(--bd); border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .cardHead h2{margin:0; font-size:13px; color:rgba(255,255,255,.88); letter-spacing:.4px}
+    .cardBody{padding:12px 14px;}
+    .muted{color:var(--mut); font-size:12px; line-height:1.35}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    input, select{
+      background: rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.14);
+      color:var(--txt); padding:10px 10px; border-radius:12px; outline:none;
+    }
+    input::placeholder{color:rgba(255,255,255,.45)}
+    .list{display:flex; flex-direction:column; gap:8px}
+    .item{
+      border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+      padding:10px 10px; border-radius:14px; cursor:pointer;
+      transition: transform .14s ease, background .14s ease, border-color .14s ease;
+    }
+    .item:hover{transform: translateY(-1px); background: rgba(255,255,255,.08)}
+    .item.active{border-color: rgba(124,58,237,.55); background: rgba(124,58,237,.18)}
+    .itemTop{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .itemTitle{font-weight:750; font-size:13px}
+    .badge{
+      font-family:var(--mono); font-size:11px; color:rgba(255,255,255,.82);
+      border:1px solid rgba(255,255,255,.14); padding:4px 8px; border-radius:999px;
+      background: rgba(0,0,0,.22);
+    }
+    .sub{margin-top:4px; color:var(--mut); font-size:12px}
+    .kpi{display:grid; grid-template-columns: repeat(4,1fr); gap:10px}
+    .k{
+      background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      border-radius:14px; padding:10px; text-align:center;
+    }
+    .k .n{font-size:18px; font-weight:850}
+    .k .l{font-size:11px; color:var(--mut); margin-top:3px}
+    .hr{height:1px; background: rgba(255,255,255,.12); margin:12px 0}
+    .small{font-size:12px}
+    .mono{font-family:var(--mono)}
+    .good{color:var(--g)} .warn{color:var(--y)} .bad{color:var(--r)}
+    .bar{height:8px; background: rgba(255,255,255,.10); border-radius:99px; overflow:hidden; margin-top:6px}
+    .fill{height:100%; background: linear-gradient(90deg, var(--r), var(--y), var(--g)); width:0%}
+    .twoCol{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .table{width:100%; border-collapse:separate; border-spacing:0 8px}
+    .table td{padding:10px 10px; background: rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.12)}
+    .table tr td:first-child{border-radius:12px 0 0 12px}
+    .table tr td:last-child{border-radius:0 12px 12px 0; text-align:right; font-family:var(--mono)}
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:7px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+      user-select:none;
+      font-weight:750;
+      font-size:12px;
+    }
+    .chip.active{
+      border-color: rgba(34,197,94,.65);
+      background: rgba(34,197,94,.16);
+    }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            text-align: center;
-            padding: 30px 0;
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            margin-bottom: 25px;
-        }
-
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #ffd700, #fff, #ffd700);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .stats-dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .stat-box {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.2);
-            text-align: center;
-        }
-
-        .stat-box h3 {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-bottom: 10px;
-        }
-
-        .stat-box .value {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-
-        .controls {
-            background: rgba(0,0,0,0.4);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none;
-            color: white;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 600;
-            margin: 5px;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #11998e, #38ef7d);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ee0979, #ff6a00);
-        }
-
-        .filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        select, input {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        .palinsesto {
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            padding: 20px;
-        }
-
-        .match-row {
-            background: rgba(255,255,255,0.08);
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            border-left: 4px solid transparent;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: grid;
-            grid-template-columns: 120px 1fr 200px 150px;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .match-row:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateX(5px);
-        }
-
-        .match-row.hot {
-            border-left-color: #ff4444;
-        }
-
-        .match-row.good {
-            border-left-color: #00ff88;
-        }
-
-        .match-row.medium {
-            border-left-color: #ffd93d;
-        }
-
-        .match-time {
-            font-size: 0.85rem;
-            opacity: 0.7;
-        }
-
-        .match-league {
-            font-size: 0.75rem;
-            background: rgba(255,255,255,0.1);
-            padding: 3px 10px;
-            border-radius: 15px;
-            display: inline-block;
-            margin-top: 5px;
-        }
-
-        .match-teams {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        .top-prediction {
-            text-align: center;
-        }
-
-        .pred-label {
-            font-size: 0.75rem;
-            opacity: 0.7;
-            margin-bottom: 5px;
-        }
-
-        .pred-value {
-            font-size: 1.3rem;
-            font-weight: bold;
-        }
-
-        .confidence {
-            text-align: center;
-        }
-
-        .confidence-score {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .confidence-bar {
-            height: 6px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-
-        .confidence-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #00ff88);
-        }
-
-        /* Modal analisi dettagliata */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            max-width: 900px;
-            width: 95%;
-            border-radius: 20px;
-            padding: 30px;
-            position: relative;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 2rem;
-            cursor: pointer;
-            color: white;
-        }
-
-        .modal-header {
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid rgba(255,255,255,0.2);
-        }
-
-        .modal-header h2 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-        }
-
-        .predictions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            margin: 20px 0;
-        }
-
-        .pred-item {
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .pred-item .label {
-            font-size: 0.8rem;
-            opacity: 0.8;
-            margin-bottom: 8px;
-        }
-
-        .pred-item .value {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .value.high { color: #00ff88; }
-        .value.medium { color: #ffd93d; }
-        .value.low { color: #ff6b6b; }
-
-        .multigol-section {
-            background: rgba(255,215,0,0.1);
-            padding: 20px;
-            border-radius: 12px;
-            margin: 20px 0;
-            border: 2px solid rgba(255,215,0,0.3);
-        }
-
-        .multigol-section h3 {
-            color: #ffd700;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .tracking-section {
-            background: rgba(0,255,136,0.1);
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 25px;
-            border: 2px solid rgba(0,255,136,0.3);
-        }
-
-        .tracking-section h3 {
-            color: #00ff88;
-            margin-bottom: 15px;
-        }
-
-        .prediction-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0;
-        }
-
-        .pred-btn {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .pred-btn:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.05);
-        }
-
-        .pred-btn.selected {
-            background: #00ff88;
-            color: #000;
-            border-color: #00ff88;
-        }
-
-        .result-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top: 4px solid #ffd700;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 30px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-        }
-
-        .error {
-            background: rgba(255,0,0,0.2);
-            border: 2px solid rgba(255,0,0,0.5);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        @media (max-width: 768px) {
-            .match-row {
-                grid-template-columns: 1fr;
-                text-align: center;
-            }
-        }
-    </style>
+    /* Tracker modal */
+    .modal{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.66); z-index:999;
+    }
+    .modal.active{display:flex}
+    .modalBox{
+      width:min(1100px, 94vw); max-height:90vh; overflow:auto;
+      background: linear-gradient(180deg, rgba(18,30,54,.96), rgba(14,22,40,.96));
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:18px; box-shadow: 0 20px 70px rgba(0,0,0,.55);
+    }
+    .modalTop{
+      position:sticky; top:0; background: rgba(14,22,40,.98);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.12);
+    }
+    .x{cursor:pointer; font-size:26px; line-height:1; padding:2px 8px}
+    .predRow{
+      display:grid; grid-template-columns: 1.6fr .9fr .7fr .8fr .9fr; gap:10px;
+      padding:10px; border:1px solid rgba(255,255,255,.12); border-radius:14px;
+      background: rgba(255,255,255,.05);
+      align-items:center;
+    }
+    .predRow .s{font-size:12px; color:var(--mut)}
+    .predRow .t{font-weight:800}
+    .right{text-align:right}
+    @media (max-width:1100px){
+      .grid{grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>⚽ PROPHECY HUNTER PRO</h1>
-            <p>Sistema Betting Intelligente con AI</p>
-        </header>
-
-        <div class="stats-dashboard">
-            <div class="stat-box">
-                <h3>📊 Partite</h3>
-                <div class="value" id="totalMatches">0</div>
-            </div>
-            <div class="stat-box">
-                <h3>✅ Pronostici</h3>
-                <div class="value" id="totalPredictions">0</div>
-            </div>
-            <div class="stat-box">
-                <h3>🎯 Accuracy</h3>
-                <div class="value" id="accuracy">0%</div>
-            </div>
-            <div class="stat-box">
-                <h3>💰 Win Rate</h3>
-                <div class="value" id="winRate">0%</div>
-            </div>
-        </div>
-
-        <div class="controls">
-            <button class="btn" onclick="loadMatches()">📥 CARICA PALINSESTO</button>
-            <button class="btn btn-success" onclick="exportData()">📊 EXPORT CSV</button>
-            <button class="btn btn-danger" onclick="resetStats()">🗑️ RESET STATS</button>
-
-            <div class="filters">
-                <select id="leagueFilter" onchange="filterMatches()">
-                    <option value="">Tutte le Leghe</option>
-                </select>
-                <select id="confidenceFilter" onchange="filterMatches()">
-                    <option value="">Tutte</option>
-                    <option value="hot">🔥 Hot (>80%)</option>
-                    <option value="good">✅ Good (70-80%)</option>
-                    <option value="medium">⚠️ Medium (60-70%)</option>
-                </select>
-                <input type="text" id="searchInput" placeholder="🔍 Cerca..." oninput="filterMatches()">
-            </div>
-        </div>
-
-        <div id="palinsesto" class="palinsesto">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Premi "CARICA PALINSESTO" per iniziare</p>
-            </div>
-        </div>
+  <header>
+    <div class="brand">
+      <h1>Prophecy Hunter Pro</h1>
+      <p>League → Fixtures → Analysis → Save Pick → Auto Check Results</p>
     </div>
-
-    <!-- Modal Analisi Dettagliata -->
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <div class="modal-header">
-                <h2 id="modalTitle">Match Analysis</h2>
-                <p id="modalSubtitle"></p>
-            </div>
-            <div id="modalBody"></div>
-        </div>
+    <div class="actions">
+      <span class="pill">Season: <span id="seasonLabel" class="mono">2025</span></span>
+      <span class="pill">TZ: <span class="mono">Europe/Rome</span></span>
+      <button class="btn secondary" id="btnLeagues">Carica leghe</button>
+      <button class="btn secondary" id="btnTracker">Tracker</button>
+      <button class="btn danger" id="btnReset">Reset app</button>
     </div>
+  </header>
 
-    <script>
-        const API_KEY = 'aeb2864a3d4dbb8395fa53c83a876a93';
-        let allMatches = [];
-        let userPredictions = JSON.parse(localStorage.getItem('predictions') || '[]');
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEAGUES -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>Leghe (da API)</h2>
+          <span class="badge" id="leaguesCount">0</span>
+        </div>
+        <div class="cardBody">
+          <div class="row">
+            <input id="leagueSearch" style="flex:1" placeholder="Cerca lega o paese..." />
+          </div>
+          <div class="hr"></div>
+          <div class="muted">Suggerimento: prima “Carica leghe”, poi seleziona una lega per vedere il palinsesto.</div>
+          <div class="hr"></div>
+          <div id="leaguesList" class="list"></div>
+        </div>
+      </section>
 
-        const LEAGUES = [
-            { id: 135, name: 'Serie A' },
-            { id: 39, name: 'Premier League' },
-            { id: 140, name: 'LaLiga' },
-            { id: 78, name: 'Bundesliga' },
-            { id: 61, name: 'Ligue 1' },
-            { id: 2, name: 'Champions League' },
-            { id: 3, name: 'Europa League' },
-            { id: 94, name: 'Primeira Liga' },
-            { id: 88, name: 'Eredivisie' },
-            { id: 203, name: 'Super Lig' },
-            { id: 71, name: 'Serie A Brazil' },
-            { id: 128, name: 'Liga Argentina' }
-        ];
+      <!-- FIXTURES -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>Palinsesto lega</h2>
+          <span class="badge" id="fixturesCount">0</span>
+        </div>
+        <div class="cardBody">
+          <div class="row">
+            <input id="fromDate" type="date" />
+            <input id="toDate" type="date" />
+            <button class="btn" id="btnFixtures">Carica palinsesto</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <input id="fixtureSearch" style="flex:1" placeholder="Cerca squadra..." />
+            <select id="statusFilter">
+              <option value="all">Tutti</option>
+              <option value="upcoming">Solo upcoming</option>
+              <option value="live">Live</option>
+              <option value="finished">Finiti</option>
+            </select>
+          </div>
+          <div class="hr"></div>
+          <div class="muted" id="fixturesHint">Seleziona una lega per vedere le partite.</div>
+          <div class="hr"></div>
+          <div id="fixturesList" class="list"></div>
+        </div>
+      </section>
 
-        // Funzioni matematiche Poisson
-        function factorial(n) {
-            if (n <= 1) return 1;
-            return n * factorial(n - 1);
-        }
+      <!-- ANALYSIS -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>Analisi & Pronostico</h2>
+          <span class="badge" id="analysisBadge">—</span>
+        </div>
+        <div class="cardBody">
+          <div id="analysisEmpty" class="muted">
+            Seleziona una partita dal palinsesto per vedere analisi, pronostico top e selezionare un prono.
+          </div>
 
-        function poissonProb(lambda, k) {
-            return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
-        }
+          <div id="analysisPanel" style="display:none">
+            <div class="item" style="cursor:default">
+              <div class="itemTop">
+                <div class="itemTitle" id="aTitle">—</div>
+                <span class="badge" id="aLeague">—</span>
+              </div>
+              <div class="sub" id="aMeta">—</div>
+              <div class="bar"><div class="fill" id="aConfFill"></div></div>
+              <div class="sub">Confidence: <span class="mono" id="aConf">—</span></div>
+            </div>
 
-        function calculateOver(xGHome, xGAway, threshold) {
-            const lambda = xGHome + xGAway;
-            let prob = 0;
-            for (let i = 0; i <= Math.floor(threshold); i++) {
-                prob += poissonProb(lambda, i);
-            }
-            return (1 - prob) * 100;
-        }
+            <div class="hr"></div>
 
-        function calculateMG13(xG) {
-            return (poissonProb(xG, 1) + poissonProb(xG, 2) + poissonProb(xG, 3)) * 100;
-        }
+            <div class="kpi">
+              <div class="k"><div class="n mono" id="kXgH">—</div><div class="l">xG casa</div></div>
+              <div class="k"><div class="n mono" id="kXgA">—</div><div class="l">xG ospite</div></div>
+              <div class="k"><div class="n mono" id="kGG">—</div><div class="l">GG%</div></div>
+              <div class="k"><div class="n mono" id="kO25">—</div><div class="l">Over 2.5%</div></div>
+            </div>
 
-        function calculateMG24(xG) {
-            return (poissonProb(xG, 2) + poissonProb(xG, 3) + poissonProb(xG, 4)) * 100;
-        }
+            <div class="hr"></div>
 
-        function calculateGG(xGHome, xGAway) {
-            return (1 - Math.exp(-xGHome)) * (1 - Math.exp(-xGAway)) * 100;
-        }
-
-        // Calcolo xG con variabilità realistica
-        function calculateXG(teamName, isHome, leagueName) {
-            const homeFactor = isHome ? 1.15 : 0.95;
-
-            // Database completo con variazioni
-            const teams = {
-                // Elite
-                'Manchester City': 2.1, 'Liverpool': 2.0, 'Arsenal': 1.85,
-                'Real Madrid': 2.05, 'Barcelona': 1.9, 'Atletico': 1.65,
-                'Bayern': 2.15, 'Dortmund': 1.8, 'Leipzig': 1.7,
-                'PSG': 2.0, 'Monaco': 1.65, 'Marseille': 1.55,
-                'Inter': 1.9, 'Milan': 1.75, 'Napoli': 1.85, 'Juventus': 1.7, 'Roma': 1.6,
-                'Benfica': 1.8, 'Porto': 1.75, 'Sporting': 1.7,
-
-                // Medio-alte
-                'Chelsea': 1.7, 'Tottenham': 1.75, 'Manchester United': 1.65,
-                'Atletico Madrid': 1.65, 'Sevilla': 1.5, 'Valencia': 1.45,
-                'Leverkusen': 1.7, 'Frankfurt': 1.55, 'Wolfsburg': 1.5,
-                'Nice': 1.5, 'Lille': 1.55, 'Lyon': 1.5,
-                'Lazio': 1.65, 'Atalanta': 1.75, 'Fiorentina': 1.55,
-
-                // Medio-basse
-                'Aston Villa': 1.45, 'Newcastle': 1.5, 'Brighton': 1.4,
-                'Real Sociedad': 1.4, 'Betis': 1.45, 'Villarreal': 1.4,
-                'Gladbach': 1.4, 'Stuttgart': 1.45, 'Freiburg': 1.4,
-                'Rennes': 1.4, 'Lens': 1.45, 'Montpellier': 1.35,
-                'Bologna': 1.4, 'Torino': 1.35, 'Udinese': 1.3,
-
-                // Basse
-                'Burnley': 1.1, 'Sheffield': 1.0, 'Luton': 0.95,
-                'Almeria': 1.0, 'Cadiz': 0.95, 'Granada': 0.9,
-                'Darmstadt': 1.0, 'Koln': 0.95, 'Bochum': 0.9,
-                'Clermont': 1.0, 'Lorient': 0.95, 'Metz': 0.9,
-                'Salernitana': 1.0, 'Frosinone': 0.95, 'Empoli': 1.1
-            };
-
-            // Cerca corrispondenza parziale
-            for (const [team, xG] of Object.entries(teams)) {
-                if (teamName.includes(team) || team.includes(teamName.split(' ')[0])) {
-                    // Aggiungi variabilità random (±5%)
-                    const variance = (Math.random() - 0.5) * 0.1;
-                    return (xG + variance) * homeFactor;
-                }
-            }
-
-            // Default con variabilità per lega
-            const leagueFactors = {
-                'Serie A': 1.45,
-                'Premier League': 1.55,
-                'LaLiga': 1.4,
-                'Bundesliga': 1.6,
-                'Ligue 1': 1.35,
-                'Champions League': 1.5
-            };
-
-            const basexG = leagueFactors[leagueName] || 1.4;
-            const variance = (Math.random() - 0.5) * 0.15;
-            return (basexG + variance) * homeFactor;
-        }
-
-        // Calcola tutte le predizioni
-        function calculatePredictions(match) {
-            const xGHome = calculateXG(match.homeTeam, true, match.league);
-            const xGAway = calculateXG(match.awayTeam, false, match.league);
-
-            const gg = calculateGG(xGHome, xGAway);
-            const over05 = calculateOver(xGHome, xGAway, 0.5);
-            const over15 = calculateOver(xGHome, xGAway, 1.5);
-            const over25 = calculateOver(xGHome, xGAway, 2.5);
-            const over35 = calculateOver(xGHome, xGAway, 3.5);
-            const under25 = 100 - over25;
-
-            const mg13Home = calculateMG13(xGHome);
-            const mg13Away = calculateMG13(xGAway);
-            const mg24Home = calculateMG24(xGHome);
-            const mg24Away = calculateMG24(xGAway);
-
-            // Calcola 1X2
-            const diff = xGHome - xGAway;
-            let prob1 = 33.33, probX = 33.33, prob2 = 33.33;
-
-            if (diff > 0.5) {
-                prob1 = 45 + (diff * 8);
-                probX = 30 - (diff * 3);
-                prob2 = 25 - (diff * 5);
-            } else if (diff < -0.5) {
-                prob1 = 25 + (diff * 5);
-                probX = 30 + (diff * 3);
-                prob2 = 45 - (diff * 8);
-            }
-
-            prob1 = Math.max(20, Math.min(70, prob1));
-            prob2 = Math.max(20, Math.min(70, prob2));
-            probX = 100 - prob1 - prob2;
-
-            // Trova il pronostico migliore
-            const predictions = {
-                'GG': gg,
-                'Over 2.5': over25,
-                'Under 2.5': under25,
-                'Over 1.5': over15,
-                '1': prob1,
-                'X': probX,
-                '2': prob2,
-                'MG 1-3 Casa': mg13Home,
-                'MG 1-3 Ospite': mg13Away,
-                'MG 2-4 Casa': mg24Home,
-                'MG 2-4 Ospite': mg24Away
-            };
-
-            let topPred = { name: 'GG', value: gg };
-            for (const [name, value] of Object.entries(predictions)) {
-                if (value > topPred.value) {
-                    topPred = { name, value };
-                }
-            }
-
-            // Confidence basata sulla predizione top
-            const confidence = Math.round(
-                50 + 
-                (topPred.value > 70 ? 30 : topPred.value > 60 ? 20 : topPred.value > 50 ? 10 : 0)
-            );
-
-            return {
-                xGHome: xGHome.toFixed(2),
-                xGAway: xGAway.toFixed(2),
-                gg: gg.toFixed(1),
-                over05: over05.toFixed(1),
-                over15: over15.toFixed(1),
-                over25: over25.toFixed(1),
-                over35: over35.toFixed(1),
-                under25: under25.toFixed(1),
-                mg13Home: mg13Home.toFixed(1),
-                mg13Away: mg13Away.toFixed(1),
-                mg24Home: mg24Home.toFixed(1),
-                mg24Away: mg24Away.toFixed(1),
-                prob1: prob1.toFixed(1),
-                probX: probX.toFixed(1),
-                prob2: prob2.toFixed(1),
-                topPrediction: topPred.name,
-                topValue: topPred.value.toFixed(1),
-                confidence,
-                allPredictions: predictions
-            };
-        }
-
-        // Carica partite
-        async function loadMatches() {
-            const container = document.getElementById('palinsesto');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Caricamento palinsesto...</p></div>';
-
-            allMatches = [];
-            const today = new Date().toISOString().split('T')[0];
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-            try {
-                for (const league of LEAGUES) {
-                    try {
-                        const resp1 = await fetch(
-                            `https://v3.football.api-sports.io/fixtures?league=${league.id}&season=2025&date=${today}`,
-                            { headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' } }
-                        );
-                        const data1 = await resp1.json();
-
-                        const resp2 = await fetch(
-                            `https://v3.football.api-sports.io/fixtures?league=${league.id}&season=2025&date=${tomorrowStr}`,
-                            { headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io' } }
-                        );
-                        const data2 = await resp2.json();
-
-                        const allData = [...(data1.response || []), ...(data2.response || [])];
-
-                        for (const match of allData) {
-                            const matchData = {
-                                id: match.fixture.id,
-                                homeTeam: match.teams.home.name,
-                                awayTeam: match.teams.away.name,
-                                league: league.name,
-                                date: new Date(match.fixture.date).toLocaleDateString('it-IT', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                }),
-                                timestamp: match.fixture.timestamp
-                            };
-
-                            const predictions = calculatePredictions(matchData);
-                            matchData.predictions = predictions;
-                            allMatches.push(matchData);
-                        }
-
-                        await new Promise(r => setTimeout(r, 200));
-                    } catch (e) {
-                        console.warn(`Errore ${league.name}:`, e.message);
-                    }
-                }
-
-                allMatches.sort((a, b) => a.timestamp - b.timestamp);
-
-                if (allMatches.length === 0) {
-                    container.innerHTML = '<div class="error">Nessuna partita trovata. Riprova più tardi.</div>';
-                    return;
-                }
-
-                updateStats();
-                renderMatches();
-                populateFilters();
-
-            } catch (error) {
-                container.innerHTML = `<div class="error">Errore: ${error.message}</div>`;
-            }
-        }
-
-        // Renderizza palinsesto
-        function renderMatches() {
-            const container = document.getElementById('palinsesto');
-
-            let html = '';
-            allMatches.forEach(match => {
-                const p = match.predictions;
-                const confClass = p.confidence > 80 ? 'hot' : p.confidence > 70 ? 'good' : 'medium';
-
-                html += `
-                    <div class="match-row ${confClass}" onclick="showDetails('${match.id}')">
-                        <div>
-                            <div class="match-time">${match.date}</div>
-                            <div class="match-league">${match.league}</div>
-                        </div>
-                        <div class="match-teams">
-                            ${match.homeTeam} vs ${match.awayTeam}
-                        </div>
-                        <div class="top-prediction">
-                            <div class="pred-label">Pronostico Top</div>
-                            <div class="pred-value">${p.topPrediction} • ${p.topValue}%</div>
-                        </div>
-                        <div class="confidence">
-                            <div class="confidence-score">${p.confidence}%</div>
-                            <div class="confidence-bar">
-                                <div class="confidence-fill" style="width: ${p.confidence}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = html;
-        }
-
-        // Mostra dettagli match
-        function showDetails(matchId) {
-            const match = allMatches.find(m => m.id == matchId);
-            if (!match) return;
-
-            const p = match.predictions;
-
-            document.getElementById('modalTitle').textContent = `${match.homeTeam} vs ${match.awayTeam}`;
-            document.getElementById('modalSubtitle').textContent = `${match.league} • ${match.date}`;
-
-            const getPredClass = (val) => val >= 70 ? 'high' : val >= 50 ? 'medium' : 'low';
-
-            let html = `
-                <div class="predictions-grid">
-                    <div class="pred-item">
-                        <div class="label">xG Casa</div>
-                        <div class="value">${p.xGHome}</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">xG Ospite</div>
-                        <div class="value">${p.xGAway}</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">GG%</div>
-                        <div class="value ${getPredClass(p.gg)}">${p.gg}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">Over 2.5</div>
-                        <div class="value ${getPredClass(p.over25)}">${p.over25}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">Under 2.5</div>
-                        <div class="value ${getPredClass(p.under25)}">${p.under25}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">Over 1.5</div>
-                        <div class="value ${getPredClass(p.over15)}">${p.over15}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">1 (Casa)</div>
-                        <div class="value ${getPredClass(p.prob1)}">${p.prob1}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">X (Pareggio)</div>
-                        <div class="value ${getPredClass(p.probX)}">${p.probX}%</div>
-                    </div>
-                    <div class="pred-item">
-                        <div class="label">2 (Ospite)</div>
-                        <div class="value ${getPredClass(p.prob2)}">${p.prob2}%</div>
-                    </div>
+            <div class="twoCol">
+              <div>
+                <div class="muted">Pronostico TOP (quello più probabile)</div>
+                <div class="item" style="cursor:default; margin-top:10px">
+                  <div class="itemTop">
+                    <div class="itemTitle" id="topPick">—</div>
+                    <span class="badge" id="topProb">—</span>
+                  </div>
+                  <div class="sub" id="topExtra">Odds/Value (se disponibili): —</div>
+                  <div class="row" style="margin-top:10px">
+                    <span class="chip" id="chipSaveTop">Salva questo prono</span>
+                  </div>
                 </div>
+              </div>
+              <div>
+                <div class="muted">Mercati (probabilità + value se c’è quota)</div>
+                <table class="table" id="marketsTable"></table>
+              </div>
+            </div>
 
-                <div class="multigol-section">
-                    <h3>🎯 MULTIGOL</h3>
-                    <div class="predictions-grid">
-                        <div class="pred-item">
-                            <div class="label">MG 1-3 Casa</div>
-                            <div class="value ${getPredClass(p.mg13Home)}">${p.mg13Home}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <div class="label">MG 1-3 Ospite</div>
-                            <div class="value ${getPredClass(p.mg13Away)}">${p.mg13Away}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <div class="label">MG 2-4 Casa</div>
-                            <div class="value ${getPredClass(p.mg24Home)}">${p.mg24Home}%</div>
-                        </div>
-                        <div class="pred-item">
-                            <div class="label">MG 2-4 Ospite</div>
-                            <div class="value ${getPredClass(p.mg24Away)}">${p.mg24Away}%</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="hr"></div>
 
-                <div class="tracking-section">
-                    <h3>📊 Traccia il tuo Pronostico</h3>
-                    <p>Seleziona cosa prevedi che succederà:</p>
-                    <div class="prediction-buttons">
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'GG')">GG</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'Over 2.5')">Over 2.5</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'Under 2.5')">Under 2.5</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', '1')">1 (Casa Vince)</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'X')">X (Pareggio)</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', '2')">2 (Ospite Vince)</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'MG 1-3 Casa')">MG 1-3 Casa</button>
-                        <button class="pred-btn" onclick="selectPrediction('${matchId}', 'MG 1-3 Ospite')">MG 1-3 Ospite</button>
-                    </div>
-                    <div id="resultSection" style="display:none;">
-                        <p style="margin-top:15px;">Risultato partita:</p>
-                        <div class="result-buttons">
-                            <button class="btn btn-success" onclick="markResult('${matchId}', true)">✅ Indovinato</button>
-                            <button class="btn btn-danger" onclick="markResult('${matchId}', false)">❌ Sbagliato</button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            <div class="muted">
+              Nota: corner/cartellini pre-match dipendono dalla copertura della lega e dalla disponibilità dati; se non ci sono dati, l’app non forza numeri “fake”.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
 
-            document.getElementById('modalBody').innerHTML = html;
-            document.getElementById('modal').classList.add('active');
-        }
+  <!-- TRACKER MODAL -->
+  <div class="modal" id="trackerModal">
+    <div class="modalBox">
+      <div class="modalTop">
+        <div>
+          <div style="font-weight:900">Tracker pronostici</div>
+          <div class="muted">Salva pronostici e premi “Aggiorna risultati” per controllare automaticamente.</div>
+        </div>
+        <div class="row">
+          <button class="btn secondary" id="btnRefreshResults">Aggiorna risultati</button>
+          <button class="btn danger" id="btnClearTracker">Svuota tracker</button>
+          <div class="x" id="btnCloseTracker">&times;</div>
+        </div>
+      </div>
+      <div class="cardBody">
+        <div class="kpi" style="margin-bottom:12px">
+          <div class="k"><div class="n mono" id="tTotal">0</div><div class="l">Totali</div></div>
+          <div class="k"><div class="n mono" id="tPending">0</div><div class="l">Pending</div></div>
+          <div class="k"><div class="n mono" id="tWon">0</div><div class="l good">Vinti</div></div>
+          <div class="k"><div class="n mono" id="tHit">0%</div><div class="l">Hit rate</div></div>
+        </div>
+        <div id="trackerList" class="list"></div>
+      </div>
+    </div>
+  </div>
 
-        let currentSelection = {};
+<script>
+/* =========================
+   CONFIG
+========================= */
+const API_BASE = "https://v3.football.api-sports.io";
+const API_KEY  = "aeb2864a3d4dbb8395fa53c83a876a93";
+const TZ = "Europe/Rome";
+const DEFAULT_SEASON = 2025; // stagione 2025-26
+document.getElementById("seasonLabel").textContent = DEFAULT_SEASON;
 
-        function selectPrediction(matchId, predType) {
-            currentSelection = { matchId, predType };
+const LS = {
+  leaguesCache: "ph_leagues_cache_v1",
+  tracker: "ph_tracker_v1"
+};
 
-            // Highlight selected
-            document.querySelectorAll('.pred-btn').forEach(btn => btn.classList.remove('selected'));
-            event.target.classList.add('selected');
+let state = {
+  leagues: [],
+  selectedLeague: null, // {leagueId, name, country, season}
+  fixtures: [],
+  selectedFixture: null, // normalized fixture object
+  analysis: null
+};
 
-            document.getElementById('resultSection').style.display = 'block';
-        }
+/* =========================
+   UTILS
+========================= */
+const $ = (id) => document.getElementById(id);
 
-        function markResult(matchId, correct) {
-            if (!currentSelection.predType) {
-                alert('Seleziona prima un pronostico!');
-                return;
-            }
+function clamp(min, val, max){ return Math.max(min, Math.min(max, val)); }
+function fmtPct(x){ return `${(Math.round(x*10)/10).toFixed(1)}%`; }
+function fmtNum(x){ return (Math.round(x*100)/100).toFixed(2); }
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-            userPredictions.push({
-                matchId: currentSelection.matchId,
-                prediction: currentSelection.predType,
-                correct,
-                date: new Date().toISOString()
-            });
+function chunk(arr, size){
+  const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size));
+  return out;
+}
 
-            localStorage.setItem('predictions', JSON.stringify(userPredictions));
-            updateStats();
-            closeModal();
+async function apiGet(path, params={}){
+  const url = new URL(API_BASE + path);
+  Object.entries(params).forEach(([k,v]) => {
+    if(v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
+  });
 
-            alert(correct ? '✅ Ottimo! Pronostico indovinato!' : '❌ Pronostico non indovinato');
-        }
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "x-rapidapi-key": API_KEY,
+      "x-rapidapi-host": "v3.football.api-sports.io"
+    }
+  });
 
-        function closeModal() {
-            document.getElementById('modal').classList.remove('active');
-            currentSelection = {};
-        }
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok){
+    const msg = (data && (data.message || data.errors)) ? JSON.stringify(data.message || data.errors) : res.statusText;
+    throw new Error(`HTTP ${res.status} ${msg}`);
+  }
+  if(data && data.errors && Object.keys(data.errors).length){
+    // non sempre è fatale, ma lo consideriamo errore per fallback
+    throw new Error(`API errors: ${JSON.stringify(data.errors)}`);
+  }
+  return data;
+}
 
-        function updateStats() {
-            document.getElementById('totalMatches').textContent = allMatches.length;
-            document.getElementById('totalPredictions').textContent = userPredictions.length;
+function setBusy(btn, busy, textBusy){
+  if(!btn) return;
+  btn.disabled = busy;
+  if(textBusy){
+    btn.dataset.orig = btn.dataset.orig || btn.textContent;
+    btn.textContent = busy ? textBusy : btn.dataset.orig;
+  }
+}
 
-            if (userPredictions.length > 0) {
-                const correct = userPredictions.filter(p => p.correct).length;
-                const accuracy = ((correct / userPredictions.length) * 100).toFixed(1);
-                const winRate = accuracy; // In questo caso sono uguali
+function niceFixtureTime(f){
+  const d = new Date(f.fixture.date);
+  const date = d.toLocaleDateString("it-IT",{weekday:"short", day:"2-digit", month:"2-digit"});
+  const time = d.toLocaleTimeString("it-IT",{hour:"2-digit", minute:"2-digit"});
+  return `${date} ${time}`;
+}
 
-                document.getElementById('accuracy').textContent = accuracy + '%';
-                document.getElementById('winRate').textContent = winRate + '%';
-            }
-        }
+function statusBucket(statusShort){
+  if(["FT","AET","PEN"].includes(statusShort)) return "finished";
+  if(["1H","HT","2H","ET","BT","P","INT","LIVE"].includes(statusShort)) return "live";
+  return "upcoming";
+}
 
-        function populateFilters() {
-            const leagues = [...new Set(allMatches.map(m => m.league))];
-            const select = document.getElementById('leagueFilter');
-            select.innerHTML = '<option value="">Tutte le Leghe</option>' +
-                leagues.map(l => `<option value="${l}">${l}</option>`).join('');
-        }
+/* =========================
+   MATH: POISSON (goals)
+========================= */
+function factorial(n){
+  let r=1; for(let i=2;i<=n;i++) r*=i; return r;
+}
+function poissonP(lambda, k){
+  return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
+}
+function probGG(lh, la){
+  return (1 - Math.exp(-lh)) * (1 - Math.exp(-la)) * 100;
+}
+function probOverTotal(lh, la, threshold){
+  const lt = lh + la;
+  let under=0;
+  for(let k=0;k<=Math.floor(threshold);k++) under += poissonP(lt, k);
+  return (1-under) * 100;
+}
+function prob1X2(lh, la){
+  // somma probabilità su griglia 0..10
+  let p1=0, px=0, p2=0;
+  for(let h=0;h<=10;h++){
+    for(let a=0;a<=10;a++){
+      const p = poissonP(lh,h) * poissonP(la,a);
+      if(h>a) p1 += p;
+      else if(h===a) px += p;
+      else p2 += p;
+    }
+  }
+  return { "1": p1*100, "X": px*100, "2": p2*100 };
+}
 
-        function filterMatches() {
-            // Implementa filtri
-            renderMatches();
-        }
+/* =========================
+   STATS -> xG (goals)
+   Usa team statistics se disponibili; altrimenti fallback sensato.
+========================= */
+function safeGet(obj, path, fallback=null){
+  try{
+    return path.split(".").reduce((acc, k) => acc && acc[k] !== undefined ? acc[k] : undefined, obj) ?? fallback;
+  }catch(e){ return fallback; }
+}
 
-        function exportData() {
-            if (allMatches.length === 0) return alert('Carica prima il palinsesto!');
+function buildXG(homeStats, awayStats, injuries, fixture){
+  // Obiettivo: numeri diversi per match, basati su medie squadra (home/away) + piccoli aggiustamenti.
+  const hf = parseFloat(safeGet(homeStats, "goals.for.average.home", safeGet(homeStats,"goals.for.average.total", "1.40")));
+  const ha = parseFloat(safeGet(homeStats, "goals.against.average.home", safeGet(homeStats,"goals.against.average.total", "1.20")));
+  const af = parseFloat(safeGet(awayStats, "goals.for.average.away", safeGet(awayStats,"goals.for.average.total", "1.20")));
+  const aa = parseFloat(safeGet(awayStats, "goals.against.average.away", safeGet(awayStats,"goals.against.average.total", "1.35")));
 
-            let csv = 'Match,Lega,Data,Pronostico,Probabilità,Confidence\n';
-            allMatches.forEach(m => {
-                const p = m.predictions;
-                csv += `"${m.homeTeam} vs ${m.awayTeam}",${m.league},"${m.date}",${p.topPrediction},${p.topValue}%,${p.confidence}%\n`;
-            });
+  // base: attacco casa vs difesa trasferta e viceversa
+  let xgH = (hf * 0.62) + (aa * 0.38);
+  let xgA = (af * 0.62) + (ha * 0.38);
 
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'prophecy_hunter_' + new Date().toISOString().split('T')[0] + '.csv';
-            a.click();
-        }
+  // home advantage
+  xgH *= 1.10;
+  xgA *= 0.95;
 
-        function resetStats() {
-            if (confirm('Reset tutte le statistiche?')) {
-                userPredictions = [];
-                localStorage.removeItem('predictions');
-                updateStats();
-                alert('✅ Statistiche resettate!');
-            }
-        }
+  // malus infortuni/assenze (se endpoint restituisce dati)
+  const injHome = injuries?.homeCount ?? 0;
+  const injAway = injuries?.awayCount ?? 0;
+  const mH = clamp(0.70, 1 - injHome*0.04, 1.00);
+  const mA = clamp(0.70, 1 - injAway*0.04, 1.00);
+  xgH *= mH;
+  xgA *= mA;
 
-        updateStats();
-    </script>
-</body>
-</html>
+  // clamp realistico
+  xgH = clamp(0.25, xgH, 3.60);
+  xgA = clamp(0.25, xgA, 3.60);
+
+  return { xgH, xgA, injHome, injAway };
+}
+
+/* =========================
+   ODDS (if available)
+========================= */
+function parseOdds(oddsPayload){
+  // Struttura odds: response[0].bookmakers[].bets[]
+  // Non tutte le leghe hanno copertura odds.
+  try{
+    const r = oddsPayload?.response?.[0];
+    if(!r) return null;
+    const bkm = r.bookmakers?.[0];
+    if(!bkm) return null;
+
+    const getBet = (name) => bkm.bets?.find(x => (x.name || "").toLowerCase().includes(name.toLowerCase()));
+    const out = {};
+
+    // 1X2 (Match Winner)
+    const mw = getBet("Match Winner") || getBet("1X2") || getBet("Winner");
+    if(mw){
+      // values: [{value:"Home", odd:"1.90"}, ...] oppure "1","X","2"
+      const map = {};
+      for(const v of mw.values || []){
+        const key = (v.value || "").toString().toUpperCase();
+        const odd = parseFloat(v.odd);
+        if(!odd) continue;
+        if(["1","HOME"].includes(key)) map["1"] = odd;
+        else if(["X","DRAW"].includes(key)) map["X"] = odd;
+        else if(["2","AWAY"].includes(key)) map["2"] = odd;
+      }
+      if(Object.keys(map).length) out["1X2"] = map;
+    }
+
+    // BTTS
+    const btts = getBet("Both Teams Score") || getBet("BTTS");
+    if(btts){
+      let gg=null, ng=null;
+      for(const v of btts.values || []){
+        const key = (v.value || "").toString().toLowerCase();
+        const odd = parseFloat(v.odd);
+        if(key.includes("yes")) gg = odd;
+        if(key.includes("no")) ng = odd;
+      }
+      if(gg || ng) out["BTTS"] = { GG: gg, NG: ng };
+    }
+
+    // Over/Under 2.5
+    const ou = getBet("Goals Over/Under") || getBet("Over/Under");
+    if(ou){
+      let o25=null, u25=null, o15=null, u15=null, u45=null, o45=null;
+      for(const v of ou.values || []){
+        const key = (v.value || "").toString();
+        const odd = parseFloat(v.odd);
+        if(key.includes("Over 2.5")) o25 = odd;
+        if(key.includes("Under 2.5")) u25 = odd;
+        if(key.includes("Over 1.5")) o15 = odd;
+        if(key.includes("Under 1.5")) u15 = odd;
+        if(key.includes("Over 4.5")) o45 = odd;
+        if(key.includes("Under 4.5")) u45 = odd;
+      }
+      out["OU"] = { o15, u15, o25, u25, o45, u45 };
+    }
+
+    return Object.keys(out).length ? out : null;
+  }catch(e){
+    return null;
+  }
+}
+
+function impliedProbPct(odd){
+  if(!odd || odd <= 1.0001) return null;
+  return (1/odd) * 100;
+}
+
+/* =========================
+   ANALYSIS ENGINE (goals + odds + injuries + referee name)
+   Corner/cards: mostrati solo se disponibili in statistiche pre-match (spesso non lo sono).
+========================= */
+function buildMarketsFromModel(model, odds){
+  const { xgH, xgA } = model;
+  const pGG  = probGG(xgH, xgA);
+  const pO15 = probOverTotal(xgH, xgA, 1.5);
+  const pO25 = probOverTotal(xgH, xgA, 2.5);
+  const pU25 = 100 - pO25;
+  const pU45 = 100 - probOverTotal(xgH, xgA, 4.5);
+  const r1x2 = prob1X2(xgH, xgA);
+  const dc = {
+    "1X": r1x2["1"] + r1x2["X"],
+    "X2": r1x2["X"] + r1x2["2"],
+    "12": r1x2["1"] + r1x2["2"]
+  };
+
+  // Candidati “giocabili” (alta probabilità)
+  const candidates = [
+    { key:"O15", label:"Over 1.5", prob:pO15, odd: odds?.OU?.o15 },
+    { key:"U45", label:"Under 4.5", prob:pU45, odd: odds?.OU?.u45 },
+    { key:"BTTS_GG", label:"GG", prob:pGG, odd: odds?.BTTS?.GG },
+    { key:"OU25_O", label:"Over 2.5", prob:pO25, odd: odds?.OU?.o25 },
+    { key:"OU25_U", label:"Under 2.5", prob:pU25, odd: odds?.OU?.u25 },
+    { key:"DC_1X", label:"1X", prob: dc["1X"], odd: null },
+    { key:"DC_X2", label:"X2", prob: dc["X2"], odd: null },
+    { key:"1X2_1", label:"1", prob: r1x2["1"], odd: odds?.["1X2"]?.["1"] },
+    { key:"1X2_X", label:"X", prob: r1x2["X"], odd: odds?.["1X2"]?.["X"] },
+    { key:"1X2_2", label:"2", prob: r1x2["2"], odd: odds?.["1X2"]?.["2"] }
+  ];
+
+  // calcolo “value” se c’è quota
+  for(const c of candidates){
+    const ip = impliedProbPct(c.odd);
+    c.implied = ip;
+    c.valueEdge = (ip==null) ? null : (c.prob - ip);
+  }
+
+  // TOP = più probabile, ma evito pronostici “banali” oltre 92% (spesso irreali)
+  const sorted = [...candidates].sort((a,b) => b.prob - a.prob);
+  let top = sorted.find(x => x.prob <= 92) || sorted[0];
+
+  // confidence (0-100) = funzione della probabilità top e stabilità (distanza da 50)
+  const conf = clamp(40, 35 + (top.prob * 0.65) + (Math.abs(top.prob-50) * 0.25), 95);
+
+  return { pGG, pO25, top, conf, candidates, r1x2, dc };
+}
+
+/* =========================
+   LOAD LEAGUES (dynamic)
+========================= */
+async function loadLeagues(){
+  const btn = $("btnLeagues");
+  setBusy(btn, true, "Carico...");
+  $("leaguesList").innerHTML = `<div class="muted">Caricamento leghe...</div>`;
+  try{
+    // tenta con current=true per ridurre
