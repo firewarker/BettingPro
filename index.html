@@ -1,888 +1,1327 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎯 PRO BETTING ANALYZER | Algoritmo Predittivo Avanzato</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .loader { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .pulse-glow { animation: pulse-glow 2s infinite; }
-        @keyframes pulse-glow { 
-            0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); } 
-            50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.8); } 
-        }
-        .match-card:hover { transform: translateY(-2px); transition: all 0.3s; }
-        .top-pick { border-left: 4px solid #10b981; background: linear-gradient(to right, #ecfdf5, white); }
-        .confidence-high { color: #10b981; font-weight: bold; }
-        .confidence-medium { color: #f59e0b; font-weight: bold; }
-        .confidence-low { color: #ef4444; font-weight: bold; }
-        .stat-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; margin: 2px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROPHECY HUNTER — API-Football PRO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .loader { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+    .tab-active { border-bottom: 3px solid #10b981; color: #10b981; background: #ecfdf5; }
+    .hot { animation: glow 2s infinite; }
+    @keyframes glow { 0%,100%{ box-shadow:0 0 6px rgba(16,185,129,.55);} 50%{ box-shadow:0 0 18px rgba(16,185,129,.85);} }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100">
-    <div id="root"></div>
 
-    <script>
-        // ============================================================
-        // 🎯 PRO BETTING ANALYZER - API-FOOTBALL INTEGRATION
-        // ============================================================
+<body class="bg-gray-100">
+  <div id="root"></div>
 
-        const API_KEY = 'aeb2864a3d4dbb8395fa53c83a876a93';
-        const API_BASE = 'https://v3.football.api-sports.io';
-        const DB_KEY = 'proBettingTrackerV3';
+<script>
+/**
+ * PROPHECY HUNTER — API-Football PRO (single-file)
+ * Flow:
+ * 1) Carica TUTTE le leghe (dinamico) -> /leagues?current=true
+ * 2) Seleziona lega -> palinsesto -> /fixtures?league&season&from&to&timezone
+ * 3) Seleziona match -> analisi -> /teams/statistics (home/away) + /injuries + /odds (opzionali)
+ * 4) Salva pronostico -> tracker localStorage
+ * 5) Aggiorna risultati -> /fixtures?ids=ID1-ID2-... (batch)
+ */
 
-        // ============================================================
-        // 📊 CAMPIONATI DISPONIBILI (TUTTI I PRINCIPALI MONDIALI)
-        // ============================================================
-        const LEAGUES = {
-            // 🏆 TOP 5 EUROPEI
-            135: { name: "Serie A", country: "Italia", flag: "🇮🇹", season: 2025, category: "Top Europei" },
-            140: { name: "La Liga", country: "Spagna", flag: "🇪🇸", season: 2025, category: "Top Europei" },
-            39: { name: "Premier League", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Top Europei" },
-            78: { name: "Bundesliga", country: "Germania", flag: "🇩🇪", season: 2025, category: "Top Europei" },
-            61: { name: "Ligue 1", country: "Francia", flag: "🇫🇷", season: 2025, category: "Top Europei" },
+// =====================
+// CONFIG
+// =====================
+const AF_BASE = "https://v3.football.api-sports.io";
+const AF_KEY_HARDCODED = "aeb2864a3d4dbb8395fa53c83a876a93"; // tua PRO key (richiesto: hardcoded)
+const TZ = "Europe/Rome";
 
-            // 🏆 COPPE EUROPEE
-            2: { name: "Champions League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
-            3: { name: "Europa League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
-            848: { name: "Conference League", country: "Europa", flag: "🏆", season: 2025, category: "Coppe Europee" },
+const STORAGE = {
+  leaguesCache: "ph_af_leagues_cache_v1",
+  history: "ph_af_history_v1",
+  ui: "ph_af_ui_v1"
+};
 
-            // 🌍 ALTRI CAMPIONATI EUROPEI
-            94: { name: "Primeira Liga", country: "Portogallo", flag: "🇵🇹", season: 2025, category: "Altri Europei" },
-            88: { name: "Eredivisie", country: "Olanda", flag: "🇳🇱", season: 2025, category: "Altri Europei" },
-            144: { name: "Jupiler Pro League", country: "Belgio", flag: "🇧🇪", season: 2025, category: "Altri Europei" },
-            203: { name: "Süper Lig", country: "Turchia", flag: "🇹🇷", season: 2025, category: "Altri Europei" },
-            235: { name: "Premier League", country: "Russia", flag: "🇷🇺", season: 2025, category: "Altri Europei" },
-            179: { name: "Premiership", country: "Scozia", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", season: 2025, category: "Altri Europei" },
-            106: { name: "Superliga", country: "Danimarca", flag: "🇩🇰", season: 2025, category: "Altri Europei" },
-            113: { name: "Allsvenskan", country: "Svezia", flag: "🇸🇪", season: 2025, category: "Altri Europei" },
-            119: { name: "Superligaen", country: "Norvegia", flag: "🇳🇴", season: 2025, category: "Altri Europei" },
-            197: { name: "Super League", country: "Grecia", flag: "🇬🇷", season: 2025, category: "Altri Europei" },
-            271: { name: "Super League", country: "Svizzera", flag: "🇨🇭", season: 2025, category: "Altri Europei" },
-            218: { name: "Bundesliga", country: "Austria", flag: "🇦🇹", season: 2025, category: "Altri Europei" },
+// =====================
+// STATE
+// =====================
+let state = {
+  leagues: [],
+  leaguesLoading: false,
+  leaguesError: null,
 
-            // 🌎 AMERICHE
-            253: { name: "MLS", country: "USA", flag: "🇺🇸", season: 2025, category: "Americhe" },
-            71: { name: "Brasileirão Serie A", country: "Brasile", flag: "🇧🇷", season: 2025, category: "Americhe" },
-            128: { name: "Liga Profesional", country: "Argentina", flag: "🇦🇷", season: 2025, category: "Americhe" },
-            262: { name: "Liga MX", country: "Messico", flag: "🇲🇽", season: 2025, category: "Americhe" },
+  leagueQuery: "",
+  selectedLeagueId: null,
+  selectedSeason: null,
 
-            // 🌏 ASIA & OCEANIA
-            188: { name: "J1 League", country: "Giappone", flag: "🇯🇵", season: 2025, category: "Asia & Oceania" },
-            292: { name: "K League 1", country: "Corea del Sud", flag: "🇰🇷", season: 2025, category: "Asia & Oceania" },
-            307: { name: "Saudi Pro League", country: "Arabia Saudita", flag: "🇸🇦", season: 2025, category: "Asia & Oceania" },
-            357: { name: "A-League", country: "Australia", flag: "🇦🇺", season: 2025, category: "Asia & Oceania" },
+  from: isoDate(new Date()),
+  to: isoDate(addDays(new Date(), 7)),
 
-            // 🌍 AFRICA
-            301: { name: "Premier League", country: "Egitto", flag: "🇪🇬", season: 2025, category: "Africa" },
-            288: { name: "Botola Pro", country: "Marocco", flag: "🇲🇦", season: 2025, category: "Africa" },
+  matches: [],
+  loading: false,
+  error: null,
 
-            // 🏴󠁧󠁢󠁥󠁮󠁧󠁿 INGHILTERRA (TUTTE LE DIVISIONI)
-            40: { name: "Championship", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
-            41: { name: "League One", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
-            42: { name: "League Two", country: "Inghilterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", season: 2025, category: "Inghilterra" },
+  activeTab: "matches", // matches | analysis | history
+  selectedMatch: null,
 
-            // 🇮🇹 ITALIA (TUTTE LE DIVISIONI)
-            136: { name: "Serie B", country: "Italia", flag: "🇮🇹", season: 2025, category: "Italia" },
+  isAnalyzing: false,
+  analysisStep: "",
+  analysisData: null,
 
-            // 🇪🇸 SPAGNA (TUTTE LE DIVISIONI)
-            141: { name: "La Liga 2", country: "Spagna", flag: "🇪🇸", season: 2025, category: "Spagna" },
+  minConfidence: 60,
 
-            // 🇩🇪 GERMANIA (TUTTE LE DIVISIONI)
-            79: { name: "Bundesliga 2", country: "Germania", flag: "🇩🇪", season: 2025, category: "Germania" },
+  history: JSON.parse(localStorage.getItem(STORAGE.history) || "[]"),
+  historyFilter: "all"
+};
 
-            // 🇫🇷 FRANCIA (TUTTE LE DIVISIONI)
-            62: { name: "Ligue 2", country: "Francia", flag: "🇫🇷", season: 2025, category: "Francia" }
+// restore UI
+try {
+  const savedUI = JSON.parse(localStorage.getItem(STORAGE.ui) || "{}");
+  if (savedUI.from) state.from = savedUI.from;
+  if (savedUI.to) state.to = savedUI.to;
+  if (typeof savedUI.minConfidence === "number") state.minConfidence = savedUI.minConfidence;
+} catch(e) {}
+
+// =====================
+// API
+// =====================
+async function apiCall(path, params = {}) {
+  const url = new URL(AF_BASE + path);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
+  });
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "x-rapidapi-key": AF_KEY_HARDCODED,
+      "x-rapidapi-host": "v3.football.api-sports.io"
+    }
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (data?.errors && Object.keys(data.errors).length) throw new Error(JSON.stringify(data.errors));
+  return data;
+}
+
+// =====================
+// HELPERS
+// =====================
+function isoDate(d) { return d.toISOString().slice(0,10); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function clamp(min, v, max) { return Math.max(min, Math.min(max, v)); }
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit" }),
+    time: d.toLocaleTimeString("it-IT", { hour:"2-digit", minute:"2-digit" })
+  };
+}
+
+function badge(value, size="sm") {
+  const v = parseFloat(value);
+  let cls = "bg-red-100 text-red-700";
+  if (v >= 70) cls = "bg-green-100 text-green-700";
+  else if (v >= 55) cls = "bg-amber-100 text-amber-700";
+  const sizeClass = (size==="lg") ? "px-3 py-1.5 text-sm" : "px-2 py-0.5 text-xs";
+  return `<span class="rounded-xl font-black ${cls} ${sizeClass}">${Math.round(v)}</span>`;
+}
+
+function categoryIcon(cat) {
+  return ({
+    esito: "🏁",
+    goal: "⚽",
+    odds: "💹",
+    injuries: "🩺",
+    info: "ℹ️"
+  }[cat] || "📌");
+}
+
+function saveUI() {
+  localStorage.setItem(STORAGE.ui, JSON.stringify({
+    from: state.from,
+    to: state.to,
+    minConfidence: state.minConfidence
+  }));
+}
+
+// =====================
+// MATH (Poisson)
+// =====================
+function factorial(n) { let r = 1; for (let i=2; i<=n; i++) r *= i; return r; }
+function poisson(lambda, k) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
+function probToScore(lambda) { return (1 - Math.exp(-lambda)) * 100; }
+
+function bivariatePoissonOver(lambdaH, lambdaA, threshold) {
+  const max = Math.floor(threshold);
+  let probUnder = 0;
+  for (let h=0; h<=max; h++) {
+    for (let a=0; a<=max; a++) {
+      if (h + a <= max) probUnder += poisson(lambdaH, h) * poisson(lambdaA, a);
+    }
+  }
+  return (1 - probUnder) * 100;
+}
+
+function calculate1X2(lambdaH, lambdaA) {
+  let home=0, draw=0, away=0;
+  for (let h=0; h<=10; h++) {
+    for (let a=0; a<=10; a++) {
+      const p = poisson(lambdaH, h) * poisson(lambdaA, a);
+      if (h > a) home += p;
+      else if (h === a) draw += p;
+      else away += p;
+    }
+  }
+  return { home: home*100, draw: draw*100, away: away*100 };
+}
+
+function impliedProb(odd) {
+  const o = parseFloat(odd);
+  if (!o || o <= 1.0001) return null;
+  return (1 / o) * 100;
+}
+
+// =====================
+// ODDS PARSER (optional)
+// =====================
+function parseOdds(oddsPayload) {
+  try {
+    const r = oddsPayload?.response?.[0];
+    if (!r) return null;
+    const bkm = r.bookmakers?.[0];
+    if (!bkm) return null;
+
+    const findBet = (names) => {
+      const bets = bkm.bets || [];
+      const lower = (s) => (s || "").toLowerCase();
+      for (const n of names) {
+        const hit = bets.find(x => lower(x.name) === lower(n) || lower(x.name).includes(lower(n)));
+        if (hit) return hit;
+      }
+      return null;
+    };
+
+    const out = {};
+
+    // 1X2
+    const mw = findBet(["Match Winner","1X2","Winner"]);
+    if (mw) {
+      const map = {};
+      for (const v of (mw.values || [])) {
+        const key = (v.value || "").toString().toUpperCase();
+        const odd = parseFloat(v.odd);
+        if (!odd) continue;
+        if (["1","HOME"].includes(key)) map["1"] = odd;
+        else if (["X","DRAW"].includes(key)) map["X"] = odd;
+        else if (["2","AWAY"].includes(key)) map["2"] = odd;
+      }
+      if (Object.keys(map).length) out["1X2"] = map;
+    }
+
+    // BTTS
+    const btts = findBet(["Both Teams Score","BTTS"]);
+    if (btts) {
+      let gg=null, ng=null;
+      for (const v of (btts.values || [])) {
+        const key = (v.value || "").toString().toLowerCase();
+        const odd = parseFloat(v.odd);
+        if (key.includes("yes")) gg = odd;
+        if (key.includes("no")) ng = odd;
+      }
+      if (gg || ng) out["BTTS"] = { GG: gg, NG: ng };
+    }
+
+    // OU
+    const ou = findBet(["Goals Over/Under","Over/Under"]);
+    if (ou) {
+      const m = {};
+      for (const v of (ou.values || [])) {
+        const key = (v.value || "").toString();
+        const odd = parseFloat(v.odd);
+        if (!odd) continue;
+        if (key.includes("Over 1.5")) m.o15 = odd;
+        if (key.includes("Under 1.5")) m.u15 = odd;
+        if (key.includes("Over 2.5")) m.o25 = odd;
+        if (key.includes("Under 2.5")) m.u25 = odd;
+        if (key.includes("Over 3.5")) m.o35 = odd;
+        if (key.includes("Under 3.5")) m.u35 = odd;
+        if (key.includes("Over 4.5")) m.o45 = odd;
+        if (key.includes("Under 4.5")) m.u45 = odd;
+      }
+      out["OU"] = m;
+    }
+
+    return Object.keys(out).length ? out : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+// =====================
+// LEAGUES (dynamic)
+// =====================
+async function loadLeagues(force=false) {
+  state.leaguesLoading = true;
+  state.leaguesError = null;
+  render();
+
+  try {
+    if (!force) {
+      const cachedRaw = localStorage.getItem(STORAGE.leaguesCache);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached?.ts && Array.isArray(cached.data) && (Date.now() - cached.ts) < 24*60*60*1000) {
+          state.leagues = cached.data;
+          if (!state.selectedLeagueId && state.leagues.length) {
+            state.selectedLeagueId = state.leagues[0].id;
+            state.selectedSeason = state.leagues[0].season;
+          }
+          state.leaguesLoading = false;
+          render();
+          return;
+        }
+      }
+    }
+
+    const data = await apiCall("/leagues", { current: "true" });
+    const rows = (data.response || [])
+      .map(r => {
+        const seasons = r.seasons || [];
+        const season = seasons.length ? Math.max(...seasons.map(s => s.year).filter(Boolean)) : null;
+        return {
+          id: r.league?.id,
+          name: r.league?.name,
+          type: r.league?.type,
+          logo: r.league?.logo,
+          country: r.country?.name,
+          flag: r.country?.flag,
+          season
         };
+      })
+      .filter(x => x.id && x.name && x.season);
 
-        // ============================================================
-        // 🔧 UTILITY FUNCTIONS
-        // ============================================================
+    // dedup
+    const map = new Map();
+    rows.forEach(x => map.set(x.id, x));
+    const leagues = [...map.values()].sort((a,b) =>
+      (a.country || "").localeCompare(b.country || "") || (a.name || "").localeCompare(b.name || "")
+    );
 
-        async function apiCall(endpoint) {
-            try {
-                const response = await fetch(`${API_BASE}${endpoint}`, {
-                    headers: {
-                        'x-apisports-key': API_KEY
-                    }
-                });
-                const data = await response.json();
+    state.leagues = leagues;
+    if (!state.selectedLeagueId && leagues.length) {
+      state.selectedLeagueId = leagues[0].id;
+      state.selectedSeason = leagues[0].season;
+    }
 
-                console.log('API Response:', data);
+    localStorage.setItem(STORAGE.leaguesCache, JSON.stringify({ ts: Date.now(), data: leagues }));
+  } catch (e) {
+    state.leaguesError = "Errore leghe: " + e.message;
+  } finally {
+    state.leaguesLoading = false;
+    render();
+  }
+}
 
-                if (data.errors && Object.keys(data.errors).length > 0) {
-                    console.error('API Error:', data.errors);
-                    return null;
-                }
-                return data.response;
-            } catch (error) {
-                console.error('Fetch error:', error);
-                return null;
-            }
+window.reloadLeagues = async () => loadLeagues(true);
+
+window.setLeagueQuery = (v) => {
+  state.leagueQuery = v;
+  render();
+};
+
+window.changeLeague = async (leagueId) => {
+  const id = parseInt(leagueId, 10);
+  const l = state.leagues.find(x => x.id === id);
+  if (!l) return;
+  state.selectedLeagueId = l.id;
+  state.selectedSeason = l.season;
+  state.matches = [];
+  state.selectedMatch = null;
+  state.analysisData = null;
+  state.activeTab = "matches";
+  await loadMatches();
+};
+
+// =====================
+// FIXTURES (palinsesto)
+// =====================
+async function loadMatches() {
+  if (!state.selectedLeagueId || !state.selectedSeason) {
+    state.error = "Seleziona una lega.";
+    render();
+    return;
+  }
+
+  state.loading = true;
+  state.error = null;
+  render();
+
+  try {
+    const data = await apiCall("/fixtures", {
+      league: state.selectedLeagueId,
+      season: state.selectedSeason,
+      from: state.from,
+      to: state.to,
+      timezone: TZ
+    });
+
+    state.matches = (data.response || []).map(f => ({
+      id: f.fixture?.id,
+      utcDate: f.fixture?.date,
+      status: f.fixture?.status?.short,
+      referee: f.fixture?.referee,
+      venue: f.fixture?.venue?.name,
+      homeTeam: { id: f.teams?.home?.id, name: f.teams?.home?.name, shortName: f.teams?.home?.name },
+      awayTeam: { id: f.teams?.away?.id, name: f.teams?.away?.name, shortName: f.teams?.away?.name },
+      score: { fullTime: { home: f.goals?.home, away: f.goals?.away } },
+      _raw: f
+    })).filter(m => m.id && m.homeTeam?.id && m.awayTeam?.id);
+
+    state.matches.sort((a,b) => (new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
+
+    if (!state.matches.length) state.error = "Nessuna partita trovata nel range. Cambia le date.";
+  } catch (e) {
+    state.error = "Errore palinsesto: " + e.message;
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+window.setFrom = async (v) => { state.from = v; saveUI(); await loadMatches(); };
+window.setTo = async (v) => { state.to = v; saveUI(); await loadMatches(); };
+
+// =====================
+// ANALISI (team stats + injuries + odds)
+// =====================
+async function getTeamStats(teamId) {
+  const data = await apiCall("/teams/statistics", {
+    league: state.selectedLeagueId,
+    season: state.selectedSeason,
+    team: teamId
+  });
+  return data.response || null;
+}
+
+async function getInjuriesCount(fixtureId, homeId, awayId) {
+  try {
+    const data = await apiCall("/injuries", { fixture: fixtureId });
+    const rows = data.response || [];
+    return {
+      home: rows.filter(r => r.team?.id === homeId).length,
+      away: rows.filter(r => r.team?.id === awayId).length
+    };
+  } catch(e) {
+    return { home: 0, away: 0 };
+  }
+}
+
+async function getOddsParsed(fixtureId) {
+  try {
+    const data = await apiCall("/odds", { fixture: fixtureId, timezone: TZ });
+    return parseOdds(data);
+  } catch(e) {
+    return null;
+  }
+}
+
+function normalizeStats(raw) {
+  // fallback robusti
+  return {
+    played: raw?.fixtures?.played?.total || 0,
+    avgGoalsForHome: parseFloat(raw?.goals?.for?.average?.home || raw?.goals?.for?.average?.total || 1.35),
+    avgGoalsAgainstHome: parseFloat(raw?.goals?.against?.average?.home || raw?.goals?.against?.average?.total || 1.15),
+    avgGoalsForAway: parseFloat(raw?.goals?.for?.average?.away || raw?.goals?.for?.average?.total || 1.15),
+    avgGoalsAgainstAway: parseFloat(raw?.goals?.against?.average?.away || raw?.goals?.against?.average?.total || 1.35),
+    bttsRate: parseFloat(raw?.btts?.percentage || 50),
+    // over25: qui metto fallback 50 (puoi migliorarlo usando altri campi se vuoi)
+    over25Rate: 50
+  };
+}
+
+function calculateLambda(attackAvg, oppDefenseAvg, leagueAvg, isHome, absenceFactor=1) {
+  const a = parseFloat(attackAvg) || leagueAvg;
+  const d = parseFloat(oppDefenseAvg) || leagueAvg;
+  const attackStrength = a / leagueAvg;
+  const defenseWeakness = d / leagueAvg;
+  let lambda = leagueAvg * attackStrength * defenseWeakness;
+  lambda *= isHome ? 1.12 : 0.88;
+  lambda *= absenceFactor;
+  return clamp(0.25, lambda, 4.0);
+}
+
+function buildMarkets(homeStats, awayStats, injuries, oddsParsed) {
+  // stima leagueAvg da dati delle due squadre (semplice ma efficace)
+  const leagueAvg = clamp(0.95, (
+    homeStats.avgGoalsForHome +
+    awayStats.avgGoalsForAway +
+    homeStats.avgGoalsAgainstHome +
+    awayStats.avgGoalsAgainstAway
+  ) / 4, 2.2);
+
+  const homeAbsFactor = clamp(0.70, 1 - (injuries.home * 0.04), 1);
+  const awayAbsFactor = clamp(0.70, 1 - (injuries.away * 0.04), 1);
+
+  const lambdaH = calculateLambda(homeStats.avgGoalsForHome, awayStats.avgGoalsAgainstAway, leagueAvg, true, homeAbsFactor);
+  const lambdaA = calculateLambda(awayStats.avgGoalsForAway, homeStats.avgGoalsAgainstHome, leagueAvg, false, awayAbsFactor);
+
+  const r1x2 = calculate1X2(lambdaH, lambdaA);
+  const s = r1x2.home + r1x2.draw + r1x2.away;
+  const adj1x2 = { home: r1x2.home/s*100, draw: r1x2.draw/s*100, away: r1x2.away/s*100 };
+
+  const dc = { "1X": adj1x2.home + adj1x2.draw, "X2": adj1x2.draw + adj1x2.away, "12": adj1x2.home + adj1x2.away };
+
+  const homeScores = probToScore(lambdaH);
+  const awayScores = probToScore(lambdaA);
+  let gg = (homeScores/100) * (awayScores/100) * 100;
+  const histBtts = (homeStats.bttsRate + awayStats.bttsRate) / 2;
+  gg = gg * 0.75 + histBtts * 0.25;
+
+  const ou = {};
+  [0.5,1.5,2.5,3.5,4.5].forEach(line => {
+    let over = bivariatePoissonOver(lambdaH, lambdaA, line);
+    if (line === 2.5) {
+      const histOver = (homeStats.over25Rate + awayStats.over25Rate) / 2;
+      over = over * 0.75 + histOver * 0.25;
+    }
+    ou[line] = { over: clamp(1, over, 99), under: clamp(1, 100-over, 99) };
+  });
+
+  return {
+    xG: { home: lambdaH, away: lambdaA, total: lambdaH + lambdaA },
+    result1X2: adj1x2,
+    doubleChance: dc,
+    btts: { gg: clamp(1, gg, 99), ng: clamp(1, 100-gg, 99) },
+    overUnderGoals: ou,
+    injuries,
+    odds: oddsParsed || null
+  };
+}
+
+function generatePredictions(markets, match) {
+  const home = match.homeTeam.name;
+  const away = match.awayTeam.name;
+
+  const preds = [];
+
+  // 1X2
+  const best1x2 = [
+    { selection: "1", prob: markets.result1X2.home, label: home },
+    { selection: "X", prob: markets.result1X2.draw, label: "Pareggio" },
+    { selection: "2", prob: markets.result1X2.away, label: away }
+  ].sort((a,b)=>b.prob-a.prob)[0];
+
+  preds.push({
+    market: "1X2",
+    selection: best1x2.selection,
+    label: best1x2.label,
+    probability: best1x2.prob,
+    confidence: clamp(35, 40 + Math.abs(best1x2.prob - 33) * 0.9, 82),
+    category: "esito"
+  });
+
+  // Double chance
+  const dc = Object.entries(markets.doubleChance).map(([k,v]) => ({ selection:k, prob:v })).sort((a,b)=>b.prob-a.prob)[0];
+  preds.push({
+    market: "Doppia Chance",
+    selection: dc.selection,
+    label: dc.selection,
+    probability: dc.prob,
+    confidence: clamp(42, 45 + Math.abs(dc.prob - 50) * 0.6, 88),
+    category: "esito"
+  });
+
+  // GG/NG
+  const btts = markets.btts.gg >= 50 ? { selection:"GG", prob: markets.btts.gg, label:"Goal/Goal" } : { selection:"NG", prob: markets.btts.ng, label:"No Goal" };
+  preds.push({
+    market: "GG/NG",
+    selection: btts.selection,
+    label: btts.label,
+    probability: btts.prob,
+    confidence: clamp(40, 45 + Math.abs(btts.prob - 50) * 0.7, 85),
+    category: "goal"
+  });
+
+  // Over/Under (linee)
+  Object.entries(markets.overUnderGoals).forEach(([line, data]) => {
+    const best = data.over >= 50 ? { selection:`OVER ${line}`, prob:data.over } : { selection:`UNDER ${line}`, prob:data.under };
+    preds.push({
+      market: `Goal ${line}`,
+      selection: best.selection,
+      label: best.selection,
+      probability: best.prob,
+      confidence: clamp(40, 45 + Math.abs(best.prob - 50) * 0.65, 85),
+      category: "goal"
+    });
+  });
+
+  // Value bets se odds disponibili
+  if (markets.odds?.BTTS?.GG) {
+    const odd = markets.odds.BTTS.GG;
+    const ip = impliedProb(odd);
+    const edge = (ip == null) ? null : (markets.btts.gg - ip);
+    preds.push({
+      market: "Value",
+      selection: "GG",
+      label: `GG (quota ${odd})`,
+      probability: markets.btts.gg,
+      confidence: clamp(40, 50 + (edge || 0) * 1.2, 90),
+      category: "odds",
+      meta: { odd, implied: ip, edge }
+    });
+  }
+
+  if (markets.odds?.OU?.o25) {
+    const odd = markets.odds.OU.o25;
+    const ip = impliedProb(odd);
+    const p = markets.overUnderGoals[2.5].over;
+    const edge = (ip == null) ? null : (p - ip);
+    preds.push({
+      market: "Value",
+      selection: "OVER 2.5",
+      label: `Over 2.5 (quota ${odd})`,
+      probability: p,
+      confidence: clamp(40, 50 + (edge || 0) * 1.2, 90),
+      category: "odds",
+      meta: { odd, implied: ip, edge }
+    });
+  }
+
+  preds.sort((a,b)=>b.confidence-a.confidence);
+  return preds;
+}
+
+function pickTop(preds) {
+  const safe = preds.filter(p => !p.meta || p.meta.edge == null || p.meta.edge >= 0);
+  return safe[0] || preds[0];
+}
+
+window.analyzeMatch = async (match) => {
+  state.isAnalyzing = true;
+  state.selectedMatch = match;
+  state.analysisData = null;
+  state.activeTab = "analysis";
+  state.error = null;
+  state.analysisStep = "Caricamento statistiche...";
+  render();
+
+  try {
+    const [homeRaw, awayRaw] = await Promise.all([
+      getTeamStats(match.homeTeam.id),
+      getTeamStats(match.awayTeam.id)
+    ]);
+
+    state.analysisStep = "Infortuni/assenze...";
+    render();
+    const injuries = await getInjuriesCount(match.id, match.homeTeam.id, match.awayTeam.id);
+
+    state.analysisStep = "Quote (se disponibili)...";
+    render();
+    const oddsParsed = await getOddsParsed(match.id);
+
+    state.analysisStep = "Calcolo algoritmo...";
+    render();
+    const homeStats = normalizeStats(homeRaw);
+    const awayStats = normalizeStats(awayRaw);
+
+    const markets = buildMarkets(homeStats, awayStats, injuries, oddsParsed);
+    const predictions = generatePredictions(markets, match);
+    const top = pickTop(predictions);
+
+    state.analysisData = {
+      match,
+      homeStats,
+      awayStats,
+      markets,
+      predictions,
+      selectedPredictions: [],
+      topPick: top
+    };
+  } catch (e) {
+    state.error = "Errore analisi: " + e.message;
+  } finally {
+    state.isAnalyzing = false;
+    state.analysisStep = "";
+    render();
+  }
+};
+
+// =====================
+// PICK SELECTION + SAVE
+// =====================
+window.togglePrediction = (idx) => {
+  if (!state.analysisData) return;
+  const pred = state.analysisData.predictions[idx];
+  const exists = state.analysisData.selectedPredictions.findIndex(p => p.market === pred.market && p.selection === pred.selection);
+  if (exists >= 0) state.analysisData.selectedPredictions.splice(exists, 1);
+  else state.analysisData.selectedPredictions.push(pred);
+  render();
+};
+
+window.savePredictions = () => {
+  if (!state.analysisData) return;
+  if (!state.analysisData.selectedPredictions.length) {
+    alert("Seleziona almeno un pronostico!");
+    return;
+  }
+
+  const m = state.analysisData.match;
+  const league = state.leagues.find(l => l.id === state.selectedLeagueId);
+
+  const entry = {
+    id: Date.now(),
+    fixtureId: m.id,
+    date: m.utcDate,
+    leagueId: state.selectedLeagueId,
+    leagueName: league ? `${league.country ? league.country + " — " : ""}${league.name}` : String(state.selectedLeagueId),
+    season: state.selectedSeason,
+    homeTeam: m.homeTeam.name,
+    awayTeam: m.awayTeam.name,
+    predictions: state.analysisData.selectedPredictions.map(p => ({
+      market: p.market,
+      selection: p.selection,
+      label: p.label,
+      probability: p.probability,
+      confidence: p.confidence,
+      odd: p.meta?.odd || null,
+      result: null // won/lost
+    })),
+    status: "pending", // pending | won | partial | lost
+    createdAt: new Date().toISOString()
+  };
+
+  state.history.unshift(entry);
+  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  state.analysisData.selectedPredictions = [];
+  state.activeTab = "history";
+  render();
+};
+
+// =====================
+// HISTORY / RESULTS
+// =====================
+function getHistoryStats() {
+  const resolved = state.history.filter(e => e.status !== "pending");
+  const won = resolved.filter(e => e.status === "won").length;
+  const partial = resolved.filter(e => e.status === "partial").length;
+  const lost = resolved.filter(e => e.status === "lost").length;
+  const winRate = resolved.length ? (won / resolved.length) * 100 : 0;
+
+  let predTotal = 0, predWon = 0;
+  state.history.forEach(e => {
+    (e.predictions || []).forEach(p => {
+      if (p.result != null) {
+        predTotal++;
+        if (p.result === "won") predWon++;
+      }
+    });
+  });
+
+  const predHitRate = predTotal ? (predWon / predTotal) * 100 : 0;
+
+  return {
+    total: state.history.length,
+    resolved: resolved.length,
+    won, partial, lost,
+    winRate: winRate.toFixed(1),
+    predTotal,
+    predWon,
+    predHitRate: predHitRate.toFixed(1)
+  };
+}
+
+function isPickWinner(selection, goalsH, goalsA) {
+  const gh = goalsH ?? 0;
+  const ga = goalsA ?? 0;
+  const tot = gh + ga;
+  const s = (selection || "").toUpperCase().trim();
+
+  if (s === "GG") return (gh > 0 && ga > 0);
+  if (s === "NG") return !(gh > 0 && ga > 0);
+
+  if (s === "1") return gh > ga;
+  if (s === "X") return gh === ga;
+  if (s === "2") return gh < ga;
+
+  if (s === "1X") return gh >= ga;
+  if (s === "X2") return gh <= ga;
+  if (s === "12") return gh !== ga;
+
+  if (s.startsWith("OVER")) {
+    const line = parseFloat(s.replace("OVER","").trim());
+    if (!Number.isFinite(line)) return null;
+    return tot > line;
+  }
+  if (s.startsWith("UNDER")) {
+    const line = parseFloat(s.replace("UNDER","").trim());
+    if (!Number.isFinite(line)) return null;
+    return tot < line;
+  }
+
+  return null;
+}
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
+  return out;
+}
+
+window.refreshResults = async () => {
+  const pending = state.history.filter(e => e.status === "pending");
+  if (!pending.length) { alert("Nessun pronostico pending."); return; }
+
+  try {
+    const batches = chunk(pending.map(e => e.fixtureId), 20);
+    for (const ids of batches) {
+      const data = await apiCall("/fixtures", { ids: ids.join("-"), timezone: TZ });
+      const fixtures = data.response || [];
+
+      fixtures.forEach(f => {
+        const id = f.fixture?.id;
+        const st = f.fixture?.status?.short;
+        const finished = ["FT","AET","PEN"].includes(st);
+        if (!finished) return;
+
+        const gh = f.goals?.home;
+        const ga = f.goals?.away;
+
+        const entry = state.history.find(e => e.fixtureId === id);
+        if (!entry) return;
+
+        // valuta ogni pred
+        let allResolved = true;
+        let allWon = true;
+        let anyWon = false;
+
+        entry.predictions.forEach(p => {
+          if (p.result != null) return;
+          const w = isPickWinner(p.selection, gh, ga);
+          if (w === null) { allResolved = false; allWon = false; return; }
+          p.result = w ? "won" : "lost";
+        });
+
+        entry.predictions.forEach(p => {
+          if (p.result == null) allResolved = false;
+          if (p.result !== "won") allWon = false;
+          if (p.result === "won") anyWon = true;
+        });
+
+        if (allResolved) {
+          entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
         }
+      });
+    }
 
-        function getDB() {
-            const data = localStorage.getItem(DB_KEY);
-            return data ? JSON.parse(data) : { predictions: [], stats: { total: 0, won: 0, lost: 0 } };
-        }
+    localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+    render();
+  } catch (e) {
+    alert("Errore update risultati: " + e.message);
+  }
+};
 
-        function saveDB(db) {
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
-        }
+window.setHistoryFilter = (f) => { state.historyFilter = f; render(); };
 
-        function getDateRange() {
-            const today = new Date();
-            const futureDate = new Date();
-            futureDate.setDate(today.getDate() + 15);
+window.clearHistory = () => {
+  if (!confirm("Cancellare tutto lo storico?")) return;
+  state.history = [];
+  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  render();
+};
 
-            const formatDate = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
+// manual override (opzionale)
+window.updateHistoryResult = (entryId, predIndex, won) => {
+  const entry = state.history.find(e => e.id === entryId);
+  if (!entry) return;
+  const p = entry.predictions?.[predIndex];
+  if (!p) return;
 
-            return {
-                from: formatDate(today),
-                to: formatDate(futureDate)
-            };
-        }
+  p.result = won ? "won" : "lost";
+  const allResolved = entry.predictions.every(x => x.result != null);
+  if (allResolved) {
+    const allWon = entry.predictions.every(x => x.result === "won");
+    const anyWon = entry.predictions.some(x => x.result === "won");
+    entry.status = allWon ? "won" : (anyWon ? "partial" : "lost");
+  } else {
+    entry.status = "pending";
+  }
 
-        // ============================================================
-        // 🧮 ALGORITMO PREDITTIVO AVANZATO
-        // ============================================================
+  localStorage.setItem(STORAGE.history, JSON.stringify(state.history));
+  render();
+};
 
-        function calculateAdvancedPrediction(fixture, statistics, h2h, odds, injuries) {
-            const predictions = {
-                '1': { label: 'Casa Vince', score: 0, factors: [] },
-                'X': { label: 'Pareggio', score: 0, factors: [] },
-                '2': { label: 'Trasferta Vince', score: 0, factors: [] },
-                'OVER_2.5': { label: 'Over 2.5 Gol', score: 0, factors: [] },
-                'UNDER_2.5': { label: 'Under 2.5 Gol', score: 0, factors: [] },
-                'BTTS_YES': { label: 'GG (Entrambe Segnano)', score: 0, factors: [] },
-                'BTTS_NO': { label: 'NG (No Entrambe)', score: 0, factors: [] }
-            };
+// =====================
+// TABS + RESET
+// =====================
+window.setTab = (tab) => { state.activeTab = tab; render(); };
+window.resetApp = () => {
+  if (!confirm("Reset totale? (cancella cache leghe + storico)")) return;
+  localStorage.removeItem(STORAGE.leaguesCache);
+  localStorage.removeItem(STORAGE.history);
+  localStorage.removeItem(STORAGE.ui);
+  location.reload();
+};
 
-            // STATISTICHE PARTITA (solo se già giocata o in corso)
-            if (statistics && statistics.length === 2) {
-                const homeStats = statistics.find(s => s.team.id === fixture.teams.home.id);
-                const awayStats = statistics.find(s => s.team.id === fixture.teams.away.id);
+window.setMinConfidence = (v) => {
+  state.minConfidence = parseInt(v, 10);
+  saveUI();
+  render();
+};
 
-                if (homeStats && awayStats) {
-                    const getStat = (stats, type) => {
-                        const stat = stats.statistics.find(s => s.type === type);
-                        return stat ? (parseInt(stat.value) || 0) : 0;
-                    };
+// =====================
+// RENDER
+// =====================
+function render() {
+  const root = document.getElementById("root");
+  const league = state.leagues.find(l => l.id === state.selectedLeagueId);
 
-                    const homePossession = getStat(homeStats, 'Ball Possession');
-                    const awayPossession = getStat(awayStats, 'Ball Possession');
+  const header = `
+    <header class="bg-white shadow-md sticky top-0 z-40">
+      <div class="px-4 py-3 max-w-lg mx-auto">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">🔮</span>
+            <div>
+              <h1 class="font-black text-gray-900 text-sm">PROPHECY HUNTER</h1>
+              <div class="text-[11px] text-emerald-700 font-extrabold">API-Football PRO • All Leagues</div>
+            </div>
+          </div>
+          <button onclick="resetApp()" class="text-red-600 font-bold text-xs">RESET</button>
+        </div>
 
-                    if (homePossession > awayPossession + 10) {
-                        predictions['1'].score += 15;
-                        predictions['1'].factors.push(`Possesso: ${homePossession}%`);
-                    } else if (awayPossession > homePossession + 10) {
-                        predictions['2'].score += 15;
-                        predictions['2'].factors.push(`Possesso: ${awayPossession}%`);
-                    }
+        <div class="mb-2">
+          <div class="flex gap-2">
+            <input
+              class="flex-1 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold"
+              placeholder="Cerca lega o paese..."
+              value="${escapeHtml(state.leagueQuery || "")}"
+              oninput="setLeagueQuery(this.value)"
+            />
+            <button onclick="reloadLeagues()" class="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold">
+              ${state.leaguesLoading ? "..." : "Ricarica"}
+            </button>
+          </div>
 
-                    const homeShotsOnGoal = getStat(homeStats, 'Shots on Goal');
-                    const awayShotsOnGoal = getStat(awayStats, 'Shots on Goal');
-
-                    if (homeShotsOnGoal > awayShotsOnGoal + 3) {
-                        predictions['1'].score += 12;
-                        predictions['1'].factors.push(`Tiri: ${homeShotsOnGoal} vs ${awayShotsOnGoal}`);
-                    } else if (awayShotsOnGoal > homeShotsOnGoal + 3) {
-                        predictions['2'].score += 12;
-                        predictions['2'].factors.push(`Tiri: ${awayShotsOnGoal} vs ${homeShotsOnGoal}`);
-                    }
-
-                    const homeCorners = getStat(homeStats, 'Corner Kicks');
-                    const awayCorners = getStat(awayStats, 'Corner Kicks');
-
-                    if (homeCorners > awayCorners + 3) {
-                        predictions['1'].score += 8;
-                        predictions['1'].factors.push(`Corner: ${homeCorners}-${awayCorners}`);
-                    } else if (awayCorners > homeCorners + 3) {
-                        predictions['2'].score += 8;
-                        predictions['2'].factors.push(`Corner: ${awayCorners}-${homeCorners}`);
-                    }
-
-                    const homeRed = getStat(homeStats, 'Red Cards');
-                    const awayRed = getStat(awayStats, 'Red Cards');
-
-                    if (homeRed > 0) {
-                        predictions['2'].score += 20;
-                        predictions['2'].factors.push(`Espulso in casa`);
-                    }
-                    if (awayRed > 0) {
-                        predictions['1'].score += 20;
-                        predictions['1'].factors.push(`Espulso in trasferta`);
-                    }
-                }
+          <select onchange="changeLeague(this.value)" class="w-full mt-2 px-3 py-2 bg-gray-100 rounded-xl text-sm font-bold">
+            ${
+              state.leagues.length
+                ? state.leagues
+                    .filter(l => {
+                      const q = (state.leagueQuery || "").toLowerCase().trim();
+                      if (!q) return true;
+                      return (l.name || "").toLowerCase().includes(q) || (l.country || "").toLowerCase().includes(q);
+                    })
+                    .slice(0, 300)
+                    .map(l => `<option value="${l.id}" ${String(l.id)===String(state.selectedLeagueId) ? "selected" : ""}>
+                      ${l.country ? l.country + " — " : ""}${l.name} (season ${l.season})
+                    </option>`)
+                    .join("")
+                : `<option>Carica leghe...</option>`
             }
+          </select>
 
-            // HEAD TO HEAD
-            if (h2h && h2h.length > 0) {
-                const last5 = h2h.slice(0, 5);
-                let homeWins = 0, draws = 0, awayWins = 0;
-                let totalGoals = 0, bothScored = 0;
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="bg-white rounded-xl p-2 border">
+              <div class="text-[11px] text-gray-500 font-bold mb-1">Da</div>
+              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.from}" onchange="setFrom(this.value)" />
+            </div>
+            <div class="bg-white rounded-xl p-2 border">
+              <div class="text-[11px] text-gray-500 font-bold mb-1">A</div>
+              <input type="date" class="w-full px-2 py-1.5 bg-gray-50 rounded-lg text-sm font-bold" value="${state.to}" onchange="setTo(this.value)" />
+            </div>
+          </div>
 
-                last5.forEach(match => {
-                    const homeGoals = match.goals.home || 0;
-                    const awayGoals = match.goals.away || 0;
-                    totalGoals += homeGoals + awayGoals;
+          ${state.leaguesError ? `<div class="mt-2 text-xs font-bold text-red-600">${escapeHtml(state.leaguesError)}</div>` : ""}
+        </div>
 
-                    if (homeGoals > 0 && awayGoals > 0) bothScored++;
+        <div class="flex border-t">
+          <button onclick="setTab('matches')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='matches' ? 'tab-active' : 'text-gray-500'}">PARTITE</button>
+          <button onclick="setTab('analysis')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='analysis' ? 'tab-active' : 'text-gray-500'}">ANALISI</button>
+          <button onclick="setTab('history')" class="flex-1 py-2.5 text-xs font-black ${state.activeTab==='history' ? 'tab-active' : 'text-gray-500'}">TRACKER</button>
+        </div>
+      </div>
+    </header>
+  `;
 
-                    if (match.teams.home.id === fixture.teams.home.id) {
-                        if (homeGoals > awayGoals) homeWins++;
-                        else if (homeGoals === awayGoals) draws++;
-                        else awayWins++;
-                    } else {
-                        if (awayGoals > homeGoals) homeWins++;
-                        else if (homeGoals === awayGoals) draws++;
-                        else awayWins++;
-                    }
-                });
+  // CONTENT
+  let content = "";
 
-                const avgGoals = totalGoals / last5.length;
+  // MATCHES TAB
+  if (state.activeTab === "matches") {
+    const leagueLabel = league ? `${league.country ? league.country + " — " : ""}${league.name}` : "Lega";
+    const topBar = `
+      <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
+        <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
+          <span class="font-black text-white text-sm">${escapeHtml(leagueLabel)}</span>
+          <button onclick="loadMatches()" class="text-white/90 text-xs font-black">AGGIORNA</button>
+        </div>
+        <div class="px-4 py-2 text-xs text-gray-600 font-semibold">
+          Range: <span class="mono">${state.from}</span> → <span class="mono">${state.to}</span> • TZ: <span class="mono">${TZ}</span>
+        </div>
+      </div>
+    `;
 
-                if (homeWins > awayWins + 1) {
-                    predictions['1'].score += 10;
-                    predictions['1'].factors.push(`H2H: ${homeWins}W ultimi 5`);
-                } else if (awayWins > homeWins + 1) {
-                    predictions['2'].score += 10;
-                    predictions['2'].factors.push(`H2H: ${awayWins}W ultimi 5`);
-                }
-
-                if (draws >= 2) {
-                    predictions['X'].score += 12;
-                    predictions['X'].factors.push(`H2H: ${draws}X ultimi 5`);
-                }
-
-                if (avgGoals > 3) {
-                    predictions['OVER_2.5'].score += 12;
-                    predictions['OVER_2.5'].factors.push(`H2H media: ${avgGoals.toFixed(1)} gol`);
-                } else if (avgGoals < 2) {
-                    predictions['UNDER_2.5'].score += 12;
-                    predictions['UNDER_2.5'].factors.push(`H2H media: ${avgGoals.toFixed(1)} gol`);
-                }
-
-                if (bothScored >= 3) {
-                    predictions['BTTS_YES'].score += 10;
-                    predictions['BTTS_YES'].factors.push(`GG in ${bothScored}/5 H2H`);
-                } else if (bothScored <= 1) {
-                    predictions['BTTS_NO'].score += 10;
-                    predictions['BTTS_NO'].factors.push(`NG in ${5-bothScored}/5 H2H`);
-                }
-            }
-
-            // QUOTE (Se disponibili)
-            if (odds && odds.length > 0) {
-                const mainOdds = odds.find(o => o.bookmakers && o.bookmakers.length > 0);
-                if (mainOdds && mainOdds.bookmakers[0]) {
-                    const bookmaker = mainOdds.bookmakers[0];
-                    const matchWinner = bookmaker.bets.find(b => b.name === 'Match Winner');
-                    const goalsOU = bookmaker.bets.find(b => b.name === 'Goals Over/Under');
-                    const btts = bookmaker.bets.find(b => b.name === 'Both Teams Score');
-
-                    if (matchWinner && matchWinner.values) {
-                        const homeOdd = parseFloat(matchWinner.values.find(v => v.value === 'Home')?.odd || 0);
-                        const drawOdd = parseFloat(matchWinner.values.find(v => v.value === 'Draw')?.odd || 0);
-                        const awayOdd = parseFloat(matchWinner.values.find(v => v.value === 'Away')?.odd || 0);
-
-                        if (homeOdd < 2.0 && homeOdd > 0) {
-                            predictions['1'].score += 15;
-                            predictions['1'].factors.push(`Quota favorita: ${homeOdd}`);
-                        } else if (homeOdd > 3.5) {
-                            predictions['2'].score += 10;
-                        }
-
-                        if (awayOdd < 2.0 && awayOdd > 0) {
-                            predictions['2'].score += 15;
-                            predictions['2'].factors.push(`Quota favorita: ${awayOdd}`);
-                        } else if (awayOdd > 3.5) {
-                            predictions['1'].score += 10;
-                        }
-
-                        if (drawOdd < 3.2 && drawOdd > 0) {
-                            predictions['X'].score += 10;
-                            predictions['X'].factors.push(`Quota X: ${drawOdd}`);
-                        }
-                    }
-
-                    if (goalsOU && goalsOU.values) {
-                        const over25 = parseFloat(goalsOU.values.find(v => v.value === 'Over 2.5')?.odd || 0);
-                        const under25 = parseFloat(goalsOU.values.find(v => v.value === 'Under 2.5')?.odd || 0);
-
-                        if (over25 < 1.8 && over25 > 0) {
-                            predictions['OVER_2.5'].score += 12;
-                            predictions['OVER_2.5'].factors.push(`Quota Over 2.5: ${over25}`);
-                        }
-                        if (under25 < 1.8 && under25 > 0) {
-                            predictions['UNDER_2.5'].score += 12;
-                            predictions['UNDER_2.5'].factors.push(`Quota Under 2.5: ${under25}`);
-                        }
-                    }
-
-                    if (btts && btts.values) {
-                        const bttsYes = parseFloat(btts.values.find(v => v.value === 'Yes')?.odd || 0);
-                        const bttsNo = parseFloat(btts.values.find(v => v.value === 'No')?.odd || 0);
-
-                        if (bttsYes < 1.7 && bttsYes > 0) {
-                            predictions['BTTS_YES'].score += 10;
-                            predictions['BTTS_YES'].factors.push(`Quota GG: ${bttsYes}`);
-                        }
-                        if (bttsNo < 1.7 && bttsNo > 0) {
-                            predictions['BTTS_NO'].score += 10;
-                            predictions['BTTS_NO'].factors.push(`Quota NG: ${bttsNo}`);
-                        }
-                    }
-                }
-            }
-
-            // INFORTUNI E ASSENZE
-            if (injuries && injuries.length > 0) {
-                const homeInjuries = injuries.filter(i => i.team.id === fixture.teams.home.id);
-                const awayInjuries = injuries.filter(i => i.team.id === fixture.teams.away.id);
-
-                if (homeInjuries.length > 3) {
-                    predictions['2'].score += 12;
-                    predictions['1'].score -= 8;
-                    predictions['2'].factors.push(`${homeInjuries.length} assenti in casa`);
-                }
-
-                if (awayInjuries.length > 3) {
-                    predictions['1'].score += 12;
-                    predictions['2'].score -= 8;
-                    predictions['1'].factors.push(`${awayInjuries.length} assenti in trasferta`);
-                }
-            }
-
-            // FATTORE CASA
-            predictions['1'].score += 10;
-            predictions['1'].factors.push('Fattore casa');
-
-            // CALCOLA IL MIGLIORE
-            let bestPrediction = null;
-            let maxScore = 0;
-
-            Object.keys(predictions).forEach(key => {
-                if (predictions[key].score > maxScore) {
-                    maxScore = predictions[key].score;
-                    bestPrediction = key;
-                }
-            });
-
-            // CONFIDENCE LEVEL
-            let confidence = 'BASSA';
-            if (maxScore > 60) confidence = 'ALTA';
-            else if (maxScore > 40) confidence = 'MEDIA';
-
-            return {
-                best: bestPrediction,
-                confidence: confidence,
-                score: maxScore,
-                all: predictions
-            };
-        }
-
-        // ============================================================
-        // 📱 REACT-LIKE COMPONENT
-        // ============================================================
-
-        class App {
-            constructor() {
-                this.state = {
-                    selectedLeague: 135,
-                    fixtures: [],
-                    loading: false,
-                    selectedMatch: null,
-                    matchDetails: null,
-                    view: 'fixtures',
-                    db: getDB(),
-                    filterCategory: 'all'
-                };
-                this.render();
-            }
-
-            async loadFixtures() {
-                this.setState({ loading: true, fixtures: [] });
-
-                const league = this.state.selectedLeague;
-                const leagueData = LEAGUES[league];
-                const dates = getDateRange();
-
-                console.log(`Loading fixtures for league ${league}, season ${leagueData.season}`);
-                console.log(`Date range: ${dates.from} to ${dates.to}`);
-
-                // Usa date range invece di "next"
-                const fixtures = await apiCall(`/fixtures?league=${league}&season=${leagueData.season}&from=${dates.from}&to=${dates.to}`);
-
-                if (fixtures && fixtures.length > 0) {
-                    // Ordina per data
-                    fixtures.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
-                    this.setState({ fixtures, loading: false });
-                } else {
-                    this.setState({ loading: false });
-                    alert(`Nessuna partita trovata per ${leagueData.name} nei prossimi 15 giorni. Prova un altro campionato.`);
-                }
-            }
-
-            async loadMatchDetails(fixtureId) {
-                this.setState({ loading: true, view: 'match-detail' });
-
-                // Carica dettagli partita in parallelo
-                const [statistics, h2h, odds, injuries] = await Promise.all([
-                    apiCall(`/fixtures/statistics?fixture=${fixtureId}`),
-                    apiCall(`/fixtures/headtohead?h2h=${this.state.selectedMatch.teams.home.id}-${this.state.selectedMatch.teams.away.id}`),
-                    apiCall(`/odds?fixture=${fixtureId}`),
-                    apiCall(`/injuries?fixture=${fixtureId}`)
-                ]);
-
-                const prediction = calculateAdvancedPrediction(
-                    this.state.selectedMatch,
-                    statistics,
-                    h2h,
-                    odds,
-                    injuries
-                );
-
-                this.setState({
-                    matchDetails: {
-                        statistics,
-                        h2h,
-                        odds,
-                        injuries,
-                        prediction
-                    },
-                    loading: false
-                });
-            }
-
-            selectMatch(fixture) {
-                this.setState({ selectedMatch: fixture });
-                this.loadMatchDetails(fixture.fixture.id);
-            }
-
-            savePrediction(fixtureId, prediction) {
-                const db = this.state.db;
-                db.predictions.push({
-                    id: fixtureId,
-                    prediction,
-                    date: new Date().toISOString(),
-                    status: 'pending'
-                });
-                saveDB(db);
-                this.setState({ db });
-                alert(`Pronostico "${prediction}" salvato! Controlla le statistiche dopo il risultato finale.`);
-            }
-
-            setState(newState) {
-                this.state = { ...this.state, ...newState };
-                this.render();
-            }
-
-            render() {
-                const root = document.getElementById('root');
-                root.innerHTML = this.getHTML();
-                this.attachEvents();
-            }
-
-            getHTML() {
-                if (this.state.view === 'match-detail') {
-                    return this.renderMatchDetail();
-                }
-                return this.renderFixtures();
-            }
-
-            renderFixtures() {
-                const { selectedLeague, fixtures, loading, db, filterCategory } = this.state;
-
-                // Raggruppa leghe per categoria
-                const categories = {};
-                Object.keys(LEAGUES).forEach(id => {
-                    const league = LEAGUES[id];
-                    if (!categories[league.category]) {
-                        categories[league.category] = [];
-                    }
-                    categories[league.category].push({ id, ...league });
-                });
-
-                const filteredLeagues = filterCategory === 'all' 
-                    ? Object.keys(LEAGUES) 
-                    : categories[filterCategory].map(l => l.id);
+    if (state.loading) {
+      content = `
+        ${topBar}
+        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
+          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
+          <p class="font-black">Caricamento palinsesto...</p>
+        </div>
+      `;
+    } else if (state.error) {
+      content = `
+        ${topBar}
+        <div class="bg-white rounded-2xl p-10 text-center shadow-lg">
+          <p class="text-red-600 font-black mb-2">Errore</p>
+          <p class="text-gray-600 text-sm font-semibold">${escapeHtml(state.error)}</p>
+        </div>
+      `;
+    } else if (!state.matches.length) {
+      content = `
+        ${topBar}
+        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
+          <p class="text-5xl mb-3">📭</p>
+          <p class="font-black">Nessuna partita</p>
+          <p class="text-gray-500 text-sm font-semibold mt-1">Prova ad allargare il range date.</p>
+        </div>
+      `;
+    } else {
+      content = `
+        ${topBar}
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div class="divide-y max-h-[62vh] overflow-y-auto">
+            ${
+              state.matches.map((m, i) => {
+                const {date, time} = formatDate(m.utcDate);
+                const st = m.status || "-";
+                const isDone = ["FT","AET","PEN"].includes(st);
+                const stBadge = isDone ? `<span class="px-2 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-black">${st}</span>`
+                                      : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-black">${st}</span>`;
+                const score = (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ? `${m.score.fullTime.home}-${m.score.fullTime.away}` : "—";
 
                 return `
-                    <div class="min-h-screen p-4">
-                        <!-- HEADER -->
-                        <div class="max-w-6xl mx-auto mb-6 bg-white rounded-xl shadow-lg p-6">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">🎯 PRO BETTING ANALYZER</h1>
-                            <p class="text-gray-600">Algoritmo predittivo con statistiche avanzate, quote, infortuni e arbitro</p>
-                            <p class="text-sm text-green-600 mt-2">✅ API-Football PRO attiva | 50+ Campionati Disponibili</p>
-
-                            <!-- STATS -->
-                            <div class="mt-4 grid grid-cols-3 gap-4">
-                                <div class="bg-blue-50 p-3 rounded-lg text-center">
-                                    <div class="text-2xl font-bold text-blue-600">${db.stats.total}</div>
-                                    <div class="text-sm text-gray-600">Pronostici Totali</div>
-                                </div>
-                                <div class="bg-green-50 p-3 rounded-lg text-center">
-                                    <div class="text-2xl font-bold text-green-600">${db.stats.won}</div>
-                                    <div class="text-sm text-gray-600">Vinti</div>
-                                </div>
-                                <div class="bg-red-50 p-3 rounded-lg text-center">
-                                    <div class="text-2xl font-bold text-red-600">${db.stats.lost}</div>
-                                    <div class="text-sm text-gray-600">Persi</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- CATEGORY FILTER -->
-                        <div class="max-w-6xl mx-auto mb-4">
-                            <label class="block text-gray-700 font-semibold mb-2">Filtra per Categoria:</label>
-                            <select id="categoryFilter" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none">
-                                <option value="all">🌍 Tutte le Categorie (50+ Campionati)</option>
-                                ${Object.keys(categories).map(cat => `
-                                    <option value="${cat}" ${cat === filterCategory ? 'selected' : ''}>
-                                        ${cat} (${categories[cat].length} campionati)
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-
-                        <!-- LEAGUE SELECTOR -->
-                        <div class="max-w-6xl mx-auto mb-6">
-                            <label class="block text-gray-700 font-semibold mb-2">Seleziona Campionato:</label>
-                            <select id="leagueSelect" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none">
-                                ${filteredLeagues.map(id => `
-                                    <option value="${id}" ${id == selectedLeague ? 'selected' : ''}>
-                                        ${LEAGUES[id].flag} ${LEAGUES[id].name} (${LEAGUES[id].country}) - Stagione ${LEAGUES[id].season}
-                                    </option>
-                                `).join('')}
-                            </select>
-                            <button id="loadBtn" class="mt-3 w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">
-                                📊 CARICA PARTITE (Prossimi 15 giorni)
-                            </button>
-                        </div>
-
-                        <!-- LOADING -->
-                        ${loading ? `
-                            <div class="max-w-6xl mx-auto text-center py-12">
-                                <div class="loader border-4 border-green-500 border-t-transparent rounded-full w-12 h-12 mx-auto mb-4"></div>
-                                <p class="text-gray-600">Caricamento partite...</p>
-                            </div>
-                        ` : ''}
-
-                        <!-- FIXTURES LIST -->
-                        ${!loading && fixtures.length > 0 ? `
-                            <div class="max-w-6xl mx-auto">
-                                <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Palinsesto Partite (${fixtures.length} partite trovate)</h2>
-                                <div class="space-y-3">
-                                    ${fixtures.map(f => this.renderFixtureCard(f)).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        ${!loading && fixtures.length === 0 ? `
-                            <div class="max-w-6xl mx-auto text-center py-12 bg-white rounded-xl shadow">
-                                <p class="text-gray-500 text-lg">Seleziona un campionato e clicca "Carica Partite"</p>
-                                <p class="text-sm text-gray-400 mt-2">Disponibili partite nei prossimi 15 giorni</p>
-                            </div>
-                        ` : ''}
+                  <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer" onclick="analyzeMatch(state.matches[${i}])">
+                    <div class="flex items-center gap-3">
+                      <div class="w-16 text-center">
+                        <p class="text-xs text-gray-500 font-bold">${date}</p>
+                        <p class="font-black text-sm">${time}</p>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="font-black text-sm text-gray-900 truncate">${escapeHtml(m.homeTeam.name)} <span class="text-gray-400">vs</span> ${escapeHtml(m.awayTeam.name)}</p>
+                        <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(m.venue || "Stadio n/d")} • Ref: ${escapeHtml(m.referee || "n/d")}</p>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-xs font-black text-gray-700">${stBadge}</div>
+                        <div class="text-sm font-black mt-1">${score}</div>
+                      </div>
                     </div>
+                  </div>
                 `;
+              }).join("")
             }
+          </div>
+        </div>
+      `;
+    }
+  }
 
-            renderFixtureCard(fixture) {
-                const date = new Date(fixture.fixture.date);
-                const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  // ANALYSIS TAB
+  if (state.activeTab === "analysis") {
+    if (state.isAnalyzing) {
+      content = `
+        <div class="bg-white rounded-2xl p-10 text-center shadow-lg">
+          <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
+          <p class="font-black mb-2">Analisi in corso...</p>
+          <p class="text-emerald-600 font-extrabold pulse text-sm">${escapeHtml(state.analysisStep || "")}</p>
+        </div>
+      `;
+    } else if (!state.analysisData) {
+      content = `
+        <div class="bg-white rounded-2xl p-12 text-center shadow-lg">
+          <p class="text-5xl mb-3">🧠</p>
+          <p class="font-black">Seleziona una partita</p>
+          <p class="text-gray-500 text-sm font-semibold mt-1">Vai su “PARTITE” e tocca un match.</p>
+        </div>
+      `;
+    } else {
+      const a = state.analysisData;
+      const m = a.match;
+      const {date, time} = formatDate(m.utcDate);
 
-                const status = fixture.fixture.status.short;
-                const statusText = status === 'NS' ? 'Non iniziata' : 
-                                 status === 'FT' ? 'Finita' : 
-                                 status === 'LIVE' ? '⚡ LIVE' : status;
+      const filteredPreds = a.predictions.filter(p => p.confidence >= state.minConfidence);
+      const top = a.topPick;
 
-                return `
-                    <div class="match-card bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg" data-fixture-id="${fixture.fixture.id}">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-sm text-gray-500">${dateStr} - ${timeStr}</span>
-                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${fixture.league.name} | ${statusText}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center space-x-3 flex-1">
-                                        <img src="${fixture.teams.home.logo}" class="w-8 h-8" alt="${fixture.teams.home.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Crect fill=%22%23ddd%22 width=%2232%22 height=%2232%22/%3E%3C/svg%3E'">
-                                        <span class="font-semibold text-gray-800">${fixture.teams.home.name}</span>
-                                    </div>
-                                    <div class="px-4 text-gray-400 font-bold">
-                                        ${fixture.goals.home !== null ? `${fixture.goals.home} - ${fixture.goals.away}` : 'VS'}
-                                    </div>
-                                    <div class="flex items-center space-x-3 flex-1 justify-end">
-                                        <span class="font-semibold text-gray-800">${fixture.teams.away.name}</span>
-                                        <img src="${fixture.teams.away.logo}" class="w-8 h-8" alt="${fixture.teams.away.name}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Crect fill=%22%23ddd%22 width=%2232%22 height=%2232%22/%3E%3C/svg%3E'">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ml-4">
-                                <button class="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition">
-                                    ANALIZZA →
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+      content = `
+        <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-4 text-white mb-3 shadow-lg">
+          <div class="text-center">
+            <p class="font-black">${escapeHtml(m.homeTeam.name)} vs ${escapeHtml(m.awayTeam.name)}</p>
+            <p class="text-white/70 text-xs font-semibold">${date} ${time} • League ID: <span class="mono">${state.selectedLeagueId}</span> • Season: <span class="mono">${state.selectedSeason}</span></p>
+          </div>
 
-            renderMatchDetail() {
-                const { selectedMatch, matchDetails, loading } = this.state;
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center text-sm">
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Casa</p>
+              <p class="font-black text-lg">${a.markets.xG.home.toFixed(2)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Tot</p>
+              <p class="font-black text-lg text-emerald-300">${a.markets.xG.total.toFixed(2)}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2">
+              <p class="text-white/70 text-xs font-bold">xG Away</p>
+              <p class="font-black text-lg">${a.markets.xG.away.toFixed(2)}</p>
+            </div>
+          </div>
 
-                if (loading || !matchDetails) {
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">Assenze (injuries)</p>
+              <p class="font-black text-sm">Casa ${a.markets.injuries.home} • Away ${a.markets.injuries.away}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-2 text-center">
+              <p class="text-white/70 text-xs font-bold">Odds</p>
+              <p class="font-black text-sm">${a.markets.odds ? "Disponibili" : "Non disponibili"}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-3 mb-3 flex items-center justify-between shadow">
+          <span class="text-sm font-black">Min Confidence</span>
+          <div class="flex items-center gap-2">
+            <input type="range" min="40" max="85" value="${state.minConfidence}" onchange="setMinConfidence(this.value)" class="w-28" />
+            <span class="font-black text-emerald-600 w-10 text-right">${state.minConfidence}</span>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
+          <div class="px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 flex justify-between items-center">
+            <span class="font-black text-white text-sm">TOP PICK</span>
+            <span class="text-white/90 text-xs font-black">${badge(top.confidence, "lg")}</span>
+          </div>
+          <div class="p-4">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(top.label)}</p>
+                <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(top.market)} • ${escapeHtml(top.selection)} • Prob ${top.probability.toFixed(1)}%</p>
+              </div>
+              <div class="text-right">
+                ${top.meta?.odd ? `<div class="text-xs font-black text-gray-700">Quota <span class="mono">${top.meta.odd}</span></div>` : `<div class="text-xs font-black text-gray-400">Quota n/d</div>`}
+                ${top.meta?.edge != null ? `<div class="text-xs font-black ${top.meta.edge >= 0 ? "text-emerald-700" : "text-red-700"}">Value ${top.meta.edge.toFixed(1)}%</div>` : ``}
+              </div>
+            </div>
+            <button class="w-full mt-3 py-2.5 bg-gray-900 text-white rounded-xl font-black text-sm"
+              onclick="state.analysisData.selectedPredictions=[state.analysisData.topPick]; savePredictions();">
+              SALVA TOP PICK
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-3">
+          <div class="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 flex justify-between items-center">
+            <span class="font-black text-white text-sm">PRONOSTICI (filtrati)</span>
+            <span class="text-white/80 text-xs font-black">${filteredPreds.length} / ${a.predictions.length}</span>
+          </div>
+
+          <div class="divide-y max-h-[42vh] overflow-y-auto">
+            ${
+              filteredPreds.length === 0
+                ? `<p class="p-4 text-center text-gray-500 text-sm font-semibold">Nessun pronostico sopra soglia.</p>`
+                : filteredPreds.map((p) => {
+                    const idx = a.predictions.indexOf(p);
+                    const selected = a.selectedPredictions.some(x => x.market === p.market && x.selection === p.selection);
+                    const isHot = p.confidence >= 75;
+
                     return `
-                        <div class="min-h-screen flex items-center justify-center">
-                            <div class="text-center">
-                                <div class="loader border-4 border-green-500 border-t-transparent rounded-full w-16 h-16 mx-auto mb-4"></div>
-                                <p class="text-gray-600 text-lg">Analisi in corso...</p>
-                                <p class="text-sm text-gray-500 mt-2">Caricamento statistiche, H2H, quote e infortuni</p>
-                            </div>
+                      <div class="px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${selected ? "bg-emerald-50" : ""} ${isHot ? "hot" : ""}"
+                        onclick="togglePrediction(${idx})">
+                        <div class="w-8 h-8 rounded-lg ${selected ? "bg-emerald-600 text-white" : "bg-gray-100"} flex items-center justify-center text-sm font-black">
+                          ${selected ? "✓" : categoryIcon(p.category)}
                         </div>
+
+                        <div class="flex-1 min-w-0">
+                          <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p>
+                          <p class="text-xs text-gray-500 font-semibold truncate">${escapeHtml(p.market)} • ${escapeHtml(p.selection)} • Prob ${p.probability.toFixed(1)}%</p>
+                          ${p.meta?.odd ? `<p class="text-[11px] text-gray-500 font-semibold">Quota ${p.meta.odd} • Implied ${p.meta.implied?.toFixed(1) ?? "n/d"}% • Value ${p.meta.edge?.toFixed(1) ?? "n/d"}%</p>` : ``}
+                        </div>
+
+                        <div class="text-right">
+                          ${badge(p.confidence, "lg")}
+                        </div>
+                      </div>
                     `;
-                }
+                  }).join("")
+            }
+          </div>
 
-                const { prediction, statistics, h2h, odds, injuries } = matchDetails;
-                const bestPred = prediction.all[prediction.best];
+          <div class="p-3">
+            <button onclick="savePredictions()"
+              class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-lg">
+              SALVA ${a.selectedPredictions.length} PRONOSTICI
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-white rounded-xl p-3 shadow">
+            <p class="text-xs text-gray-500 font-bold mb-1">1X2 (Poisson)</p>
+            <div class="flex justify-between text-xs font-black">
+              <span>1 ${a.markets.result1X2.home.toFixed(0)}%</span>
+              <span>X ${a.markets.result1X2.draw.toFixed(0)}%</span>
+              <span>2 ${a.markets.result1X2.away.toFixed(0)}%</span>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl p-3 shadow">
+            <p class="text-xs text-gray-500 font-bold mb-1">GG/NG</p>
+            <div class="flex justify-between text-xs font-black">
+              <span>GG ${a.markets.btts.gg.toFixed(0)}%</span>
+              <span>NG ${a.markets.btts.ng.toFixed(0)}%</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // HISTORY TAB
+  if (state.activeTab === "history") {
+    const stats = getHistoryStats();
+    const filtered = (state.historyFilter === "all")
+      ? state.history
+      : state.history.filter(e => e.status === state.historyFilter);
+
+    content = `
+      <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-4 text-white mb-3 shadow-lg">
+        <h3 class="font-black mb-3 text-center text-sm">Statistiche Tracker</h3>
+        <div class="grid grid-cols-4 gap-2 text-center mb-3">
+          <div class="bg-white/10 rounded-lg p-2"><p class="text-xl font-black">${stats.total}</p><p class="text-xs text-white/70 font-bold">Tot</p></div>
+          <div class="bg-green-500/30 rounded-lg p-2"><p class="text-xl font-black text-emerald-300">${stats.won}</p><p class="text-xs text-white/70 font-bold">Vinti</p></div>
+          <div class="bg-amber-500/30 rounded-lg p-2"><p class="text-xl font-black text-amber-200">${stats.partial}</p><p class="text-xs text-white/70 font-bold">Parz</p></div>
+          <div class="bg-red-500/30 rounded-lg p-2"><p class="text-xl font-black text-red-200">${stats.lost}</p><p class="text-xs text-white/70 font-bold">Persi</p></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-emerald-300">${stats.winRate}%</p><p class="text-xs text-white/70 font-bold">Win Rate</p></div>
+          <div class="bg-white/10 rounded-lg p-2 text-center"><p class="text-2xl font-black text-sky-300">${stats.predHitRate}%</p><p class="text-xs text-white/70 font-bold">Hit Rate (${stats.predWon}/${stats.predTotal})</p></div>
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button onclick="refreshResults()" class="flex-1 py-2.5 bg-emerald-500 rounded-xl font-black text-sm">AGGIORNA RISULTATI</button>
+          <button onclick="clearHistory()" class="px-4 py-2.5 bg-red-500 rounded-xl font-black text-sm">SVUOTA</button>
+        </div>
+      </div>
+
+      <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+        ${["all","pending","won","partial","lost"].map(f => `
+          <button onclick="setHistoryFilter('${f}')"
+            class="px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap ${state.historyFilter===f ? "bg-emerald-600 text-white" : "bg-white text-gray-700 border"}">
+            ${f==="all" ? "Tutti" : f}
+          </button>
+        `).join("")}
+      </div>
+
+      <div class="space-y-3">
+        ${
+          filtered.length === 0
+            ? `<div class="bg-white rounded-2xl p-8 text-center shadow"><p class="text-gray-500 font-semibold">Nessun pronostico</p></div>`
+            : filtered.map(entry => {
+                const {date, time} = formatDate(entry.date);
+                const statusColors = {
+                  pending: "border-gray-300",
+                  won: "border-emerald-400 bg-emerald-50",
+                  partial: "border-amber-400 bg-amber-50",
+                  lost: "border-red-400 bg-red-50"
+                };
+                const statusIcons = { pending:"⏳", won:"✅", partial:"🟨", lost:"❌" };
 
                 return `
-                    <div class="min-h-screen p-4 pb-20">
-                        <div class="max-w-6xl mx-auto">
-                            <!-- BACK BUTTON -->
-                            <button id="backBtn" class="mb-4 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                                ← Torna al Palinsesto
-                            </button>
-
-                            <!-- MATCH HEADER -->
-                            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                <div class="text-center mb-4">
-                                    <div class="text-sm text-gray-500 mb-2">${selectedMatch.league.name}</div>
-                                    <div class="text-lg text-gray-600">${new Date(selectedMatch.fixture.date).toLocaleString('it-IT')}</div>
-                                </div>
-                                <div class="flex items-center justify-center space-x-8">
-                                    <div class="text-center">
-                                        <img src="${selectedMatch.teams.home.logo}" class="w-20 h-20 mx-auto mb-2" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23ddd%22 width=%2280%22 height=%2280%22/%3E%3C/svg%3E'">
-                                        <div class="font-bold text-lg">${selectedMatch.teams.home.name}</div>
-                                    </div>
-                                    <div class="text-3xl font-bold text-gray-400">
-                                        ${selectedMatch.goals.home !== null ? `${selectedMatch.goals.home} - ${selectedMatch.goals.away}` : 'VS'}
-                                    </div>
-                                    <div class="text-center">
-                                        <img src="${selectedMatch.teams.away.logo}" class="w-20 h-20 mx-auto mb-2" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23ddd%22 width=%2280%22 height=%2280%22/%3E%3C/svg%3E'">
-                                        <div class="font-bold text-lg">${selectedMatch.teams.away.name}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- BEST PREDICTION -->
-                            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-xl p-6 mb-6 pulse-glow">
-                                <div class="text-center">
-                                    <div class="text-sm uppercase tracking-wider mb-2">🎯 Pronostico Consigliato</div>
-                                    <div class="text-3xl font-bold mb-2">${bestPred.label}</div>
-                                    <div class="text-xl mb-4">Affidabilità: ${prediction.confidence} (${prediction.score} punti)</div>
-                                    <div class="text-sm opacity-90">
-                                        ${bestPred.factors.length > 0 ? `Basato su: ${bestPred.factors.join(' • ')}` : 'Analisi basata su fattore casa e dati storici'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- ALL PREDICTIONS -->
-                            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                <h3 class="text-xl font-bold mb-4">📊 Tutti i Pronostici Disponibili</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    ${Object.keys(prediction.all).map(key => {
-                                        const pred = prediction.all[key];
-                                        const isBest = key === prediction.best;
-                                        const percentage = prediction.score > 0 ? ((pred.score / prediction.score) * 100).toFixed(0) : 0;
-                                        return `
-                                            <div class="border-2 ${isBest ? 'border-green-500 bg-green-50' : 'border-gray-200'} rounded-lg p-4 ${isBest ? 'top-pick' : ''}">
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <span class="font-bold">${pred.label}</span>
-                                                    <span class="text-2xl font-bold ${pred.score > 50 ? 'confidence-high' : pred.score > 30 ? 'confidence-medium' : 'confidence-low'}">
-                                                        ${pred.score}
-                                                    </span>
-                                                </div>
-                                                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                                    <div class="bg-green-500 h-2 rounded-full" style="width: ${percentage}%"></div>
-                                                </div>
-                                                <div class="text-xs text-gray-600">
-                                                    ${pred.factors.length > 0 ? pred.factors.join(' • ') : 'Nessun fattore rilevante disponibile'}
-                                                </div>
-                                                ${isBest ? '<div class="mt-2 text-green-600 font-bold text-sm">✓ CONSIGLIATO DALL'ALGORITMO</div>' : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-
-                            <!-- STATISTICS -->
-                            ${statistics && statistics.length === 2 ? `
-                                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                    <h3 class="text-xl font-bold mb-4">📈 Statistiche Partita</h3>
-                                    <div class="space-y-3">
-                                        ${this.renderStatComparison(statistics, 'Ball Possession', '%')}
-                                        ${this.renderStatComparison(statistics, 'Shots on Goal', '')}
-                                        ${this.renderStatComparison(statistics, 'Total Shots', '')}
-                                        ${this.renderStatComparison(statistics, 'Corner Kicks', '')}
-                                        ${this.renderStatComparison(statistics, 'Yellow Cards', '')}
-                                        ${this.renderStatComparison(statistics, 'Red Cards', '')}
-                                        ${this.renderStatComparison(statistics, 'Fouls', '')}
-                                    </div>
-                                </div>
-                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Statistiche non ancora disponibili (partita non iniziata)</p></div>'}
-
-                            <!-- H2H -->
-                            ${h2h && h2h.length > 0 ? `
-                                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                    <h3 class="text-xl font-bold mb-4">🔄 Scontri Diretti (Ultimi 5)</h3>
-                                    <div class="space-y-2">
-                                        ${h2h.slice(0, 5).map(match => {
-                                            const date = new Date(match.fixture.date).toLocaleDateString('it-IT');
-                                            return `
-                                                <div class="flex items-center justify-between border-b pb-2">
-                                                    <span class="text-sm text-gray-500">${date}</span>
-                                                    <span class="font-semibold">${match.teams.home.name} ${match.goals.home || 0} - ${match.goals.away || 0} ${match.teams.away.name}</span>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                </div>
-                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Nessuno scontro diretto recente disponibile</p></div>'}
-
-                            <!-- INJURIES -->
-                            ${injuries && injuries.length > 0 ? `
-                                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                                    <h3 class="text-xl font-bold mb-4">🚑 Infortuni e Assenze</h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <h4 class="font-semibold mb-2">${selectedMatch.teams.home.name}</h4>
-                                            ${injuries.filter(i => i.team.id === selectedMatch.teams.home.id).map(inj => `
-                                                <div class="text-sm text-gray-700 mb-1">⚠️ ${inj.player.name} - ${inj.player.reason || 'Infortunato'}</div>
-                                            `).join('') || '<div class="text-sm text-gray-500">Nessun infortunato</div>'}
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold mb-2">${selectedMatch.teams.away.name}</h4>
-                                            ${injuries.filter(i => i.team.id === selectedMatch.teams.away.id).map(inj => `
-                                                <div class="text-sm text-gray-700 mb-1">⚠️ ${inj.player.name} - ${inj.player.reason || 'Infortunato'}</div>
-                                            `).join('') || '<div class="text-sm text-gray-500">Nessun infortunato</div>'}
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : '<div class="bg-white rounded-xl shadow-lg p-6 mb-6"><p class="text-gray-500">Nessun infortunio segnalato</p></div>'}
-
-                            <!-- SAVE PREDICTION -->
-                            <div class="bg-white rounded-xl shadow-lg p-6">
-                                <h3 class="text-xl font-bold mb-4">💾 Salva il Tuo Pronostico</h3>
-                                <p class="text-gray-600 mb-4">Seleziona un pronostico per tracciare le tue statistiche:</p>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    ${Object.keys(prediction.all).map(key => `
-                                        <button class="save-pred-btn bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition" data-prediction="${key}">
-                                            ${prediction.all[key].label}
-                                        </button>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        </div>
+                  <div class="bg-white rounded-2xl shadow-md overflow-hidden border-2 ${statusColors[entry.status] || "border-gray-300"}">
+                    <div class="px-4 py-2.5 border-b flex justify-between items-center">
+                      <div>
+                        <p class="font-black text-gray-900 text-sm">${escapeHtml(entry.homeTeam)} vs ${escapeHtml(entry.awayTeam)}</p>
+                        <p class="text-xs text-gray-500 font-semibold">${date} ${time} • ${escapeHtml(entry.leagueName || "")}</p>
+                      </div>
+                      <span class="text-xl">${statusIcons[entry.status] || "⏳"}</span>
                     </div>
-                `;
-            }
 
-            renderStatComparison(statistics, statName, unit) {
-                const homeStats = statistics[0];
-                const awayStats = statistics[1];
-
-                const homeStat = homeStats.statistics.find(s => s.type === statName);
-                const awayStat = awayStats.statistics.find(s => s.type === statName);
-
-                if (!homeStat || !awayStat) return '';
-
-                const homeValue = parseInt(homeStat.value) || 0;
-                const awayValue = parseInt(awayStat.value) || 0;
-                const total = homeValue + awayValue || 1;
-                const homePerc = (homeValue / total * 100).toFixed(0);
-                const awayPerc = (awayValue / total * 100).toFixed(0);
-
-                return `
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="font-semibold">${homeStats.team.name}: ${homeValue}${unit}</span>
-                            <span class="text-gray-600">${statName}</span>
-                            <span class="font-semibold">${awayValue}${unit} :${awayStats.team.name}</span>
-                        </div>
-                        <div class="flex h-6 rounded-full overflow-hidden bg-gray-200">
-                            <div class="bg-blue-500 flex items-center justify-center text-white text-xs font-bold" style="width: ${homePerc}%">${homePerc > 15 ? homePerc + '%' : ''}</div>
-                            <div class="bg-red-500 flex items-center justify-center text-white text-xs font-bold" style="width: ${awayPerc}%">${awayPerc > 15 ? awayPerc + '%' : ''}</div>
-                        </div>
+                    <div class="p-3 space-y-2">
+                      ${
+                        (entry.predictions || []).map((p, pIdx) => `
+                          <div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg ${p.result === "won" ? "bg-emerald-100" : p.result === "lost" ? "bg-red-100" : "bg-gray-50"}">
+                            <div class="flex-1 min-w-0">
+                              <p class="font-black text-gray-900 text-sm truncate">${escapeHtml(p.label)}</p>
+                              <p class="text-xs text-gray-600 font-semibold truncate">${escapeHtml(p.market)} • ${escapeHtml(p.selection)} • Conf ${p.confidence.toFixed(0)}</p>
+                            </div>
+                            <div class="flex gap-1 items-center">
+                              ${
+                                p.result == null
+                                  ? `
+                                    <button onclick="updateHistoryResult(${entry.id}, ${pIdx}, true)" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-black">W</button>
+                                    <button onclick="updateHistoryResult(${entry.id}, ${pIdx}, false)" class="px-2.5 py-1 bg-red-600 text-white rounded text-xs font-black">L</button>
+                                  `
+                                  : `<span class="text-lg font-black">${p.result === "won" ? "✅" : "❌"}</span>`
+                              }
+                            </div>
+                          </div>
+                        `).join("")
+                      }
                     </div>
+                  </div>
                 `;
-            }
-
-            attachEvents() {
-                // Category filter
-                const categoryFilter = document.getElementById('categoryFilter');
-                if (categoryFilter) {
-                    categoryFilter.addEventListener('change', (e) => {
-                        this.setState({ filterCategory: e.target.value });
-                    });
-                }
-
-                // League selector
-                const leagueSelect = document.getElementById('leagueSelect');
-                if (leagueSelect) {
-                    leagueSelect.addEventListener('change', (e) => {
-                        this.setState({ selectedLeague: parseInt(e.target.value) });
-                    });
-                }
-
-                // Load button
-                const loadBtn = document.getElementById('loadBtn');
-                if (loadBtn) {
-                    loadBtn.addEventListener('click', () => this.loadFixtures());
-                }
-
-                // Match cards
-                document.querySelectorAll('.match-card').forEach(card => {
-                    card.addEventListener('click', () => {
-                        const fixtureId = card.dataset.fixtureId;
-                        const fixture = this.state.fixtures.find(f => f.fixture.id == fixtureId);
-                        if (fixture) this.selectMatch(fixture);
-                    });
-                });
-
-                // Back button
-                const backBtn = document.getElementById('backBtn');
-                if (backBtn) {
-                    backBtn.addEventListener('click', () => {
-                        this.setState({ view: 'fixtures', selectedMatch: null, matchDetails: null });
-                    });
-                }
-
-                // Save prediction buttons
-                document.querySelectorAll('.save-pred-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const prediction = btn.dataset.prediction;
-                        this.savePrediction(this.state.selectedMatch.fixture.id, prediction);
-                    });
-                });
-            }
+              }).join("")
         }
+      </div>
+    `;
+  }
 
-        // ============================================================
-        // 🚀 APP INITIALIZATION
-        // ============================================================
-        const app = new App();
-    </script>
+  root.innerHTML = `
+    ${header}
+    <main class="max-w-lg mx-auto p-4 pb-16">
+      ${content}
+    </main>
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 text-xs text-gray-500 max-w-lg mx-auto flex justify-between items-center">
+      <span class="font-black">API-Football PRO</span>
+      <span class="mono">league=${state.selectedLeagueId ?? "-"} season=${state.selectedSeason ?? "-"}</span>
+    </footer>
+  `;
+
+  // expose state for onclick usage in template
+  window.state = state;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll("\"","&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// =====================
+// BOOT
+// =====================
+(async function init() {
+  await loadLeagues(false);
+
+  // se leagues caricate ma nessuna selezione (edge case)
+  if (!state.selectedLeagueId && state.leagues.length) {
+    state.selectedLeagueId = state.leagues[0].id;
+    state.selectedSeason = state.leagues[0].season;
+  }
+
+  // carica palinsesto subito
+  if (state.selectedLeagueId && state.selectedSeason) {
+    await loadMatches();
+  }
+
+  render();
+})();
+</script>
 </body>
 </html>
