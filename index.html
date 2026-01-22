@@ -254,6 +254,7 @@
                 <h3>🔑 API Configuration</h3>
                 <input type="password" id="apiKey" placeholder="Inserisci API key...">
                 <button class="btn" onclick="saveApiKey()">💾 Salva</button>
+                <div id="apiStatus" class="api-status"></div>
                 <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7;">
                     La tua API key è salvata localmente (sicura).
                 </p>
@@ -405,8 +406,34 @@
             const key = document.getElementById('apiKey').value.trim();
             if (!key) return alert('Inserisci una API key!');
             localStorage.setItem('bettingApiKey', key);
-            alert('✅ API key salvata!');
-            document.getElementById('apiKey').value = '';
+            
+            // Test immediato API key
+            testApiKey(key);
+        }
+        
+        async function testApiKey(key) {
+            const status = document.getElementById('apiStatus');
+            status.textContent = '⏳ Testando API key...';
+            status.className = 'api-status show';
+            
+            try {
+                const res = await fetch(`${API_URL}/timezone`, {
+                    headers: { 'x-apisports-key': key }
+                });
+                
+                if (res.ok) {
+                    status.textContent = '✅ API key valida e funzionante!';
+                    status.className = 'api-status show success';
+                } else {
+                    status.textContent = '❌ API key non valida o scaduta!';
+                    status.className = 'api-status show error';
+                }
+            } catch (e) {
+                status.textContent = '⚠️ Errore connessione: ' + e.message;
+                status.className = 'api-status show error';
+            }
+            
+            setTimeout(() => status.classList.remove('show'), 5000);
         }
         
         function getApiKey() {
@@ -451,23 +478,32 @@
             const key = getApiKey();
             if (!key) throw new Error('API key non configurata');
             
-            const res = await fetch(`${API_URL}/teams?search=${team}&league=${league}&season=2024`, {
+            // Prova SENZA season per la ricerca team
+            let res = await fetch(`${API_URL}/teams?search=${encodeURIComponent(team)}&league=${league}`, {
                 headers: { 'x-apisports-key': key }
             });
             
-            const data = await res.json();
-            if (!data.response[0]) throw new Error(`Team ${team} non trovato`);
+            let data = await res.json();
+            if (!data.response || !data.response[0]) {
+                throw new Error(`Team ${team} non trovato`);
+            }
             
             const teamId = data.response[0].team.id;
             const teamName = data.response[0].team.name;
             
             await new Promise(r => setTimeout(r, 500));
             
-            const res2 = await fetch(`${API_URL}/fixtures?team=${teamId}&last=10&season=2024`, {
+            // Usa &last=10 SENZA season per ottenere ultimi match
+            const res2 = await fetch(`${API_URL}/fixtures?team=${teamId}&last=10`, {
                 headers: { 'x-apisports-key': key }
             });
             
-            const matches = (await res2.json()).response;
+            const matchesData = await res2.json();
+            const matches = matchesData.response || [];
+            
+            if (matches.length === 0) {
+                throw new Error(`Nessun match recente trovato per ${teamName}`);
+            }
             
             let gf = 0, ga = 0, form = 0;
             matches.forEach(m => {
@@ -733,41 +769,60 @@
                 const from = fromDate.toISOString().split('T')[0];
                 const to = toDate.toISOString().split('T')[0];
                 
+                console.log(`[PALINSESTO] Periodo: ${from} → ${to}`);
+                console.log(`[PALINSESTO] Campionato: ${leagueValue === 'all' ? 'TUTTI' : leagueValue}`);
+                
                 let allFixtures = [];
                 
                 if (leagueValue === 'all') {
                     // Carica TUTTI i campionati
                     const leagues = [135, 39, 140, 78, 61, 88, 94, 40, 136, 2, 3, 848];
+                    console.log(`[PALINSESTO] Caricamento di ${leagues.length} campionati...`);
                     
                     for (const league of leagues) {
-                        const url = `${API_URL}/fixtures?league=${league}&season=2024&from=${from}&to=${to}`;
+                        // NON specificare season - usa solo date!
+                        const url = `${API_URL}/fixtures?league=${league}&from=${from}&to=${to}`;
+                        console.log(`[API] ${url}`);
+                        
                         const res = await fetch(url, {
                             headers: { 'x-apisports-key': key }
                         });
                         
                         if (res.ok) {
                             const data = await res.json();
+                            const count = data.response ? data.response.length : 0;
+                            console.log(`[API] League ${league}: ${count} partite`);
                             allFixtures = allFixtures.concat(data.response || []);
+                        } else {
+                            console.error(`[API] Errore league ${league}: ${res.status}`);
                         }
                         
                         await new Promise(r => setTimeout(r, 300)); // Rate limiting
                     }
                 } else {
-                    // Carica singolo campionato
-                    const url = `${API_URL}/fixtures?league=${leagueValue}&season=2024&from=${from}&to=${to}`;
+                    // Carica singolo campionato - NON specificare season
+                    const url = `${API_URL}/fixtures?league=${leagueValue}&from=${from}&to=${to}`;
+                    console.log(`[API] ${url}`);
+                    
                     const res = await fetch(url, {
                         headers: { 'x-apisports-key': key }
                     });
                     
-                    if (!res.ok) throw new Error('Errore API');
+                    if (!res.ok) {
+                        console.error(`[API] Errore: ${res.status}`);
+                        throw new Error(`Errore API (${res.status})`);
+                    }
                     
                     const data = await res.json();
+                    console.log(`[API] Risposta:`, data);
                     allFixtures = data.response || [];
                 }
                 
+                console.log(`[PALINSESTO] TOTALE: ${allFixtures.length} partite trovate!`);
                 displayFixtures(allFixtures);
                 
             } catch (error) {
+                console.error('[PALINSESTO] Errore:', error);
                 alert('Errore: ' + error.message);
                 document.getElementById('fixturesList').innerHTML = '<p style="text-align:center;color:var(--danger);">Errore caricamento partite</p>';
             } finally {
@@ -779,7 +834,18 @@
             const list = document.getElementById('fixturesList');
             
             if (fixtures.length === 0) {
-                list.innerHTML = '<div class="section"><p style="text-align:center;">Nessuna partita trovata</p></div>';
+                list.innerHTML = `
+                    <div class="section">
+                        <h3 style="color:var(--warning); text-align:center;">⚠️ Nessuna partita trovata</h3>
+                        <p style="text-align:center; margin-top:1rem;">
+                            Oggi potrebbe non esserci nessuna partita per il campionato selezionato.<br><br>
+                            <strong>Prova:</strong><br>
+                            🔹 Seleziona "TUTTI I CAMPIONATI"<br>
+                            🔹 Seleziona "Prossimi 3 giorni" o "Prossima settimana"<br>
+                            🔹 Premi F12 → Console per vedere eventuali errori
+                        </p>
+                    </div>
+                `;
                 return;
             }
             
@@ -791,7 +857,10 @@
                 byDate[date].push(f);
             });
             
-            let html = '';
+            let html = `<div class="section" style="text-align:center; margin-bottom:1rem; background:rgba(16,185,129,0.2); border:2px solid var(--success);">
+                <h3 style="color:var(--success);">✅ Trovate ${fixtures.length} partite!</h3>
+            </div>`;
+            
             Object.keys(byDate).sort().forEach(date => {
                 html += `
                     <div class="section" style="margin-bottom:1rem;">
