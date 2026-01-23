@@ -125,12 +125,17 @@
     .mini-label { font-size: 0.7rem; color: var(--text-gray); text-transform: uppercase; margin-top: 4px; }
 
     .loading { text-align: center; padding: 60px; color: var(--text-gray); }
+
+    /* Fallback logo */
+    .logo-fallback { width: 40px; height: 40px; background: #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; }
   </style>
 </head>
 <body>
   <div id="app"></div>
 
   <script type="module">
+    console.log("BettingPro v6 FULL - Starting...");
+
     const CONFIG = {
       KEY_FOOTBALL: 'aeb2864a3d4dbb8395fa53c83a876a93',
       KEY_FOOTY: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
@@ -148,24 +153,42 @@
       search: '',
       match: null,
       analysis: null,
-      loading: false
+      loading: false,
+      footyStatsTeams: new Map()
     };
 
     // --- UTILS & MATH ---
+    const esc = t => String(t||'').replace(/</g,'&lt;');
     const poisson = (lambda, k) => {
+        if (lambda <= 0) return k === 0 ? 1 : 0;
         let r = Math.exp(-lambda);
         for(let i=0; i<k; i++) r *= lambda / (i+1);
         return r;
     };
-
     const clamp = (min, val, max) => Math.max(min, Math.min(max, val));
 
     // --- API ---
     async function apiCall(url, params, headers={}) {
         const u = new URL(url);
         Object.keys(params).forEach(k => u.searchParams.append(k, params[k]));
-        const res = await fetch(CONFIG.PROXY + encodeURIComponent(u.toString()), { headers });
-        return res.json();
+        try {
+            const res = await fetch(CONFIG.PROXY + encodeURIComponent(u.toString()), { headers });
+            if(!res.ok) throw new Error(res.statusText);
+            return res.json();
+        } catch(e) {
+            console.error("API Error", e);
+            throw e;
+        }
+    }
+
+    async function callFooty(endpoint, params) {
+        const u = new URL(CONFIG.URL_FOOTY + endpoint);
+        u.searchParams.append('key', CONFIG.KEY_FOOTY);
+        Object.keys(params).forEach(k => u.searchParams.append(k, params[k]));
+        try {
+            const res = await fetch(CONFIG.PROXY + encodeURIComponent(u.toString()));
+            return res.json();
+        } catch(e) { return null; }
     }
 
     // --- LOGIC ---
@@ -174,11 +197,15 @@
 
         try {
             // 1. Load Matches (Today -> Next 30 fallback)
-            let data = await apiCall(`${CONFIG.URL_FOOTBALL}/fixtures`, {
-                date: new Date().toISOString().split('T')[0], timezone: 'Europe/Rome'
-            }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' });
+            let data = null;
+            try {
+                data = await apiCall(`${CONFIG.URL_FOOTBALL}/fixtures`, {
+                    date: new Date().toISOString().split('T')[0], timezone: 'Europe/Rome'
+                }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' });
+            } catch(e) {}
 
-            if(!data.response?.length) {
+            if(!data?.response?.length) {
+                 console.log("No matches today, loading next 30...");
                  data = await apiCall(`${CONFIG.URL_FOOTBALL}/fixtures`, {
                     next: 30, timezone: 'Europe/Rome'
                 }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' });
@@ -201,10 +228,25 @@
                 (a.country + a.name).localeCompare(b.country + b.name)
             );
 
+            // 4. Load FootyStats (Background)
+            loadFootyData();
+
             filterMatches();
         } catch(e) { console.error(e); }
 
         state.loading = false; render();
+    }
+
+    async function loadFootyData() {
+        const res = await callFooty('/todays-matches', {});
+        if(res?.data) {
+            res.data.forEach(m => {
+                if(m.home_name && m.away_name) {
+                    const k = m.home_name.toLowerCase().replace(/\s/g,'') + m.away_name.toLowerCase().replace(/\s/g,'');
+                    state.footyStatsTeams.set(k, m);
+                }
+            });
+        }
     }
 
     function filterMatches() {
@@ -238,54 +280,71 @@
 
         try {
             // Fetch Stats
-            const [hs, as, h2hRes] = await Promise.all([
-                apiCall(`${CONFIG.URL_FOOTBALL}/teams/statistics`, { team: match.home.id, league: match.league.id, season: match.league.season }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' }),
-                apiCall(`${CONFIG.URL_FOOTBALL}/teams/statistics`, { team: match.away.id, league: match.league.id, season: match.league.season }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' }),
-                apiCall(`${CONFIG.URL_FOOTBALL}/fixtures/headtohead`, { h2h: `${match.home.id}-${match.away.id}`, last: 5 }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' })
-            ]);
+            let hStats, aStats, h2h = [];
+            try {
+                const [hs, as, h2hRes] = await Promise.all([
+                    apiCall(`${CONFIG.URL_FOOTBALL}/teams/statistics`, { team: match.home.id, league: match.league.id, season: match.league.season || 2024 }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' }),
+                    apiCall(`${CONFIG.URL_FOOTBALL}/teams/statistics`, { team: match.away.id, league: match.league.id, season: match.league.season || 2024 }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' }),
+                    apiCall(`${CONFIG.URL_FOOTBALL}/fixtures/headtohead`, { h2h: `${match.home.id}-${match.away.id}`, last: 5 }, { 'x-rapidapi-key': CONFIG.KEY_FOOTBALL, 'x-rapidapi-host': 'v3.football.api-sports.io' })
+                ]);
+                hStats = hs.response;
+                aStats = as.response;
+                h2h = h2hRes.response;
+            } catch(e) { console.warn("Stats error", e); }
 
-            // RealMatch v4 Algo logic (simplified for clarity but effective)
-            const hStats = hs.response;
-            const aStats = as.response;
+            // Check FootyStats
+            let fs = null;
+            const k = match.home.name.toLowerCase().replace(/\s/g,'') + match.away.name.toLowerCase().replace(/\s/g,'');
+            if(state.footyStatsTeams.has(k)) fs = state.footyStatsTeams.get(k);
 
-            // xG Calc
-            let xG_h = 1.35, xG_a = 1.10;
+            // --- ALGO V6 ---
+            let xG_h = 1.35, xG_a = 1.10; // Default
+
+            // 1. Base Stats
             if(hStats && aStats) {
-                // Attacco Casa vs Difesa Ospite
-                const attH = parseFloat(hStats.goals.for.average.home) || 1.3;
-                const defA = parseFloat(aStats.goals.against.average.away) || 1.4;
+                const attH = parseFloat(hStats.goals?.for?.average?.home || 1.3);
+                const defA = parseFloat(aStats.goals?.against?.average?.away || 1.4);
                 xG_h = (attH + defA) / 2;
 
-                // Attacco Ospite vs Difesa Casa
-                const attA = parseFloat(aStats.goals.for.average.away) || 1.1;
-                const defH = parseFloat(hStats.goals.against.average.home) || 1.2;
+                const attA = parseFloat(aStats.goals?.for?.average?.away || 1.1);
+                const defH = parseFloat(hStats.goals?.against?.average?.home || 1.2);
                 xG_a = (attA + defH) / 2;
             }
 
-            // Cards & Corners (Added as requested)
-            const cardsH = parseFloat(hStats?.cards?.yellow?.['0-15']?.total || 1.8) * 2.5; // Stima su totali
-            const cardsA = parseFloat(aStats?.cards?.yellow?.['0-15']?.total || 2.0) * 2.5;
-            const cornersH = parseFloat(hStats?.goals?.for?.total?.home || 50) / (hStats?.fixtures?.played?.home || 10) * 1.5 + 2; // Approx da gol (se mancano dati precisi)
-            const cornersA = parseFloat(aStats?.goals?.for?.total?.away || 40) / (aStats?.fixtures?.played?.away || 10) * 1.5 + 1.5;
+            // 2. FootyStats Integration
+            if(fs) {
+                if(fs.home_xg) xG_h = (xG_h + fs.home_xg) / 2;
+                if(fs.away_xg) xG_a = (xG_a + fs.away_xg) / 2;
+            }
 
-            // Probabilities (Poisson)
-            let p1=0, pX=0, p2=0, pO25=0;
+            // 3. Poisson Distribution
+            let p1=0, pX=0, p2=0, pO25=0, pBTTS=0;
+            const p0_h = poisson(xG_h, 0);
+            const p0_a = poisson(xG_a, 0);
+            pBTTS = (1 - p0_h) * (1 - p0_a) * 100;
+
             for(let i=0; i<7; i++) for(let j=0; j<7; j++) {
                 const p = poisson(xG_h, i) * poisson(xG_a, j);
                 if(i>j) p1+=p; else if(i==j) pX+=p; else p2+=p;
                 if(i+j > 2.5) pO25+=p;
             }
 
+            // 4. Corners & Cards (Estimated)
+            const cornH = (parseFloat(hStats?.cards?.yellow?.['0-15']?.total || 5) * 1.2) + 2; 
+            const cornA = (parseFloat(aStats?.cards?.yellow?.['0-15']?.total || 4) * 1.2) + 1;
+            const cardH = parseFloat(hStats?.cards?.yellow?.['0-15']?.total || 1.5);
+            const cardA = parseFloat(aStats?.cards?.yellow?.['0-15']?.total || 1.8);
+
             state.analysis = {
                 xg: { h: xG_h, a: xG_a },
                 probs: { 1: p1*100, X: pX*100, 2: p2*100, O25: pO25*100, U25: (1-pO25)*100 },
-                corners: { h: cornersH, a: cornersA, tot: cornersH+cornersA },
-                cards: { h: cardsH, a: cardsA, tot: cardsH+cardsA },
+                corners: { h: cornH, a: cornA, tot: cornH+cornA },
+                cards: { h: cardH, a: cardA, tot: cardH+cardA },
                 predictions: [
-                    { m: 'Esito Finale', v: p1>p2 ? '1' : '2', p: Math.max(p1,p2)*100 },
+                    { m: 'Esito Finale', v: p1>p2 ? (p1>pX?'1':'X') : (p2>pX?'2':'X'), p: Math.max(p1,p2,pX)*100 },
                     { m: 'Under/Over 2.5', v: pO25>0.5 ? 'Over' : 'Under', p: Math.max(pO25, 1-pO25)*100 },
-                    { m: 'Corner Totali', v: `Over ${Math.floor(cornersH+cornersA - 1.5)}`, p: 65 },
-                    { m: 'Cartellini', v: `Over ${Math.floor(cardsH+cardsA - 0.5)}`, p: 60 }
+                    { m: 'Gol/NoGol', v: pBTTS>50 ? 'Gol' : 'NoGol', p: Math.max(pBTTS, 100-pBTTS) },
+                    { m: 'Corner Totali', v: `Over ${Math.floor(cornH+cornA - 1.5)}`, p: 65 }
                 ]
             };
 
@@ -299,14 +358,14 @@
 
         if(state.view === 'list') {
             app.innerHTML = `
-                <header class="header"><div class="header-inner"><div class="brand">BettingPro v5</div></div></header>
+                <header class="header"><div class="header-inner"><div class="brand">BettingPro v6 FULL</div></div></header>
                 <main class="main">
                     <div class="control-panel">
                         <select class="select-league" id="leagueSelect">
                             <option value="ALL">🌍 Tutti i campionati</option>
                             ${state.leagues.map(l => `<option value="${l.id}" ${state.selectedLeague==l.id?'selected':''}>${l.country} - ${l.name}</option>`).join('')}
                         </select>
-                        <input class="search-input" id="search" placeholder="Cerca squadra..." value="${state.search}">
+                        <input class="search-input" id="search" placeholder="Cerca squadra..." value="${esc(state.search)}">
                     </div>
 
                     ${state.loading ? '<div class="loading">Caricamento partite...</div>' : ''}
@@ -327,7 +386,6 @@
                 </main>
             `;
 
-            // Events
             document.getElementById('leagueSelect').onchange = e => { state.selectedLeague = e.target.value; filterMatches(); };
             document.getElementById('search').oninput = e => { state.search = e.target.value; filterMatches(); };
 
@@ -389,13 +447,10 @@
         }
     }
 
-    // --- ACTIONS ---
     window.openMatch = (id) => analyze(state.matches.find(m => m.id === id));
     window.goBack = () => { state.view = 'list'; render(); };
 
-    // --- INIT ---
     loadData();
-
   </script>
 </body>
 </html>
