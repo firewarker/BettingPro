@@ -1178,58 +1178,38 @@
 
     // === DATA LOADING ===
     async function loadMatches() {
-  state.loading.matches = true;
-  state.error = null;
-  render();
+      state.loading.matches = true;
+      state.error = null;
+      render();
 
-  try {
-    // Prendi le prossime X partite (più affidabile di from/to), poi filtra a 7 giorni in JS
-    const data = await callAPIFootball('/fixtures', { next: 500, timezone: 'Europe/Rome' });
+      try {
+        const data = await callAPIFootball('/fixtures', {
+          next: 500,
+          timezone: 'Europe/Rome'
+        });
 
-    const nowSec = Math.floor(Date.now() / 1000);
-    const toSec = nowSec + 7 * 24 * 60 * 60;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const toSec = nowSec + (7 * 24 * 60 * 60);
+        const liveStatus = ['1H','2H','HT','ET','P','LIVE','BT'];
 
-    if (data?.response) {
-      const mapped = data.response.map(f => ({
-        id: f.fixture.id,
-        date: f.fixture.date,
-        timestamp: f.fixture.timestamp,
-        status: f.fixture.status.short,
-        elapsed: f.fixture.status.elapsed,
-        league: { id: f.league.id, name: f.league.name, country: f.league.country, logo: f.league.logo, season: f.league.season },
-        home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
-        away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
-        goals: f.goals
-      }));
-
-      // Tieni solo match nei prossimi 7 giorni (e includi eventuali LIVE)
-      const liveStatus = ['1H','2H','HT','ET','P','LIVE','BT'];
-      state.matches = mapped.filter(m =>
-        liveStatus.includes(m.status) || (m.timestamp >= nowSec && m.timestamp <= toSec)
-      );
-
-      const leagueMap = new Map();
-      state.matches.forEach(m => leagueMap.set(m.league.id, m.league));
-      state.leagues = Array.from(leagueMap.values()).sort((a,b) =>
-        normalizeStr(`${a.country} ${a.name}`).localeCompare(normalizeStr(`${b.country} ${b.name}`), 'it')
-      );
-
-      state.filteredMatches = sortMatchesAlpha([...state.matches]);
-    } else {
-      state.matches = [];
-      state.filteredMatches = [];
-    }
-
-    await loadFootyStatsData();
-  } catch (err) {
-    console.error(err);
-    state.error = 'Errore di connessione. Riprova tra qualche secondo.';
-  } finally {
-    state.loading.matches = false;
-    render();
-  }
-}
-
+        if (data?.response) {
+          state.matches = data.response.map(f => ({
+            id: f.fixture.id,
+            date: f.fixture.date,
+            timestamp: f.fixture.timestamp,
+            status: f.fixture.status.short,
+            elapsed: f.fixture.status.elapsed,
+            league: {
+              id: f.league.id,
+              name: f.league.name,
+              country: f.league.country,
+              logo: f.league.logo,
+              season: f.league.season
+            },
+            home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
+            away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+            goals: f.goals
+          })).filter(m => liveStatus.includes(m.status) || (m.timestamp >= nowSec && m.timestamp <= toSec));
 
           // Extract leagues
           const leagueMap = new Map();
@@ -1842,9 +1822,6 @@ return {
                 <div class="prob-bar-track"><div class="prob-bar-fill green" style="width: ${(d.xG.away / 3) * 100}%"></div></div>
                 <span class="prob-value">${d.xG.away.toFixed(2)}</span>
               </div>
-
-              <div class="card-insight">${esc(d.insights?.xg || '')}</div>
-
             </div>
 
             <div class="analysis-card">
@@ -1852,6 +1829,7 @@ return {
                 <div class="card-title-icon">📊</div>
                 <span class="card-title-text">Probabilità 1X2</span>
               </div>
+              <div class="card-insight">${esc(d.insights?.esito || '')}</div>
               <div class="prob-row">
                 <span class="prob-label">1 Casa</span>
                 <div class="prob-bar-track"><div class="prob-bar-fill cyan" style="width: ${d.p1X2.home}%"></div></div>
@@ -1874,6 +1852,7 @@ return {
                 <div class="card-title-icon">🎯</div>
                 <span class="card-title-text">Over/Under & BTTS</span>
               </div>
+              <div class="card-insight">${esc(d.insights?.gol || '')}</div>
               ${[1.5, 2.5, 3.5].map(l => `
                 <div class="prob-row">
                   <span class="prob-label">O/U ${l}</span>
@@ -1893,6 +1872,7 @@ return {
                 <div class="card-title-icon">🚩</div>
                 <span class="card-title-text">Corner & Cartellini</span>
               </div>
+              <div class="card-insight">${esc(d.insights?.h2h || '')}</div>
               <div class="stat-grid">
                 <div class="stat-box">
                   <div class="stat-box-label">${m.home.name.split(' ')[0]}</div>
@@ -1934,6 +1914,7 @@ return {
                 <div class="card-title-icon">🎲</div>
                 <span class="card-title-text">Risultati Esatti più Probabili</span>
               </div>
+              <div class="card-insight">${esc(d.insights?.h2h || '')}</div>
               <div class="scores-grid">
                 ${d.exactScores.map((s, i) => `
                   <div class="score-box ${i === 0 ? 'highlight' : ''}">
