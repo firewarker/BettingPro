@@ -1010,6 +1010,15 @@
     // === UTILITIES ===
     const esc = (t) => String(t||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
     
+    // Debounce utility
+    let searchTimeout = null;
+    const debounce = (fn, delay) => {
+      return (...args) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => fn(...args), delay);
+      };
+    };
+    
     const formatTime = (d) => {
       if (!d) return '--:--';
       const date = new Date(d);
@@ -1854,9 +1863,14 @@
     }
 
     function attachEvents() {
+      // Debounced search - ritarda l'aggiornamento per evitare problemi di input
+      const debouncedFilter = debounce(() => {
+        applyFiltersOnly(); // Aggiorna solo la lista, non tutto
+      }, 300);
+
       document.getElementById('searchInput')?.addEventListener('input', (e) => {
         state.searchQuery = e.target.value;
-        applyFilters();
+        debouncedFilter();
       });
 
       document.getElementById('leagueSelect')?.addEventListener('change', (e) => {
@@ -1892,6 +1906,58 @@
       document.getElementById('refreshBtn')?.addEventListener('click', () => {
         if (state.selectedMatch) analyzeMatch(state.selectedMatch);
       });
+    }
+
+    // Aggiorna solo la griglia delle partite senza toccare l'input
+    function applyFiltersOnly() {
+      let result = [...state.matches];
+
+      if (state.searchQuery) {
+        const q = state.searchQuery.toLowerCase();
+        result = result.filter(m =>
+          m.home.name.toLowerCase().includes(q) ||
+          m.away.name.toLowerCase().includes(q) ||
+          m.league.name.toLowerCase().includes(q) ||
+          m.league.country.toLowerCase().includes(q)
+        );
+      }
+
+      if (state.selectedLeague) {
+        result = result.filter(m => m.league.id == state.selectedLeague);
+      }
+
+      const liveStatus = ['1H', '2H', 'HT', 'ET', 'P', 'LIVE', 'BT'];
+      const finishedStatus = ['FT', 'AET', 'PEN'];
+
+      result = result.filter(m => {
+        const isLive = liveStatus.includes(m.status);
+        const isFinished = finishedStatus.includes(m.status);
+        const isUpcoming = m.status === 'NS';
+
+        if (isLive && !state.filters.live) return false;
+        if (isFinished && !state.filters.finished) return false;
+        if (isUpcoming && !state.filters.upcoming) return false;
+        return true;
+      });
+
+      state.filteredMatches = result;
+      
+      // Aggiorna SOLO il container delle partite
+      const container = document.querySelector('.matches-container');
+      if (container) {
+        container.innerHTML = result.length === 0 
+          ? '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-icon">📭</div><div class="empty-text">Nessuna partita trovata</div></div>'
+          : result.map(renderMatchCard).join('');
+        
+        // Riattacca gli eventi ai nuovi elementi
+        document.querySelectorAll('.match-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const id = parseInt(card.dataset.id);
+            const match = state.matches.find(m => m.id === id);
+            if (match) analyzeMatch(match);
+          });
+        });
+      }
     }
 
     // === INIT ===
