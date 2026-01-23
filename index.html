@@ -75,11 +75,6 @@
       box-shadow: 0 8px 25px rgba(91, 75, 138, 0.4);
     }
 
-    .slider-container {
-      position: relative;
-      padding: 20px 0;
-    }
-
     input[type="range"] {
       -webkit-appearance: none;
       width: 100%;
@@ -109,41 +104,6 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    .team-logo {
-      width: 50px;
-      height: 50px;
-      object-fit: contain;
-    }
-
-    .badge-status {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .tab-button {
-      padding: 12px 24px;
-      font-weight: 600;
-      border-bottom: 3px solid transparent;
-      transition: all 0.3s;
-    }
-
-    .tab-button.active {
-      color: #5b4b8a;
-      border-bottom-color: #5b4b8a;
-    }
-
-    .prediction-value {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 15px;
-      padding: 15px;
-      color: white;
-      font-weight: 600;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-
     .api-status-dot {
       width: 8px;
       height: 8px;
@@ -160,85 +120,52 @@
 
 <script>
 // ============================================
-// 🔥 PROPHETIA PRO - SISTEMA COMPLETO
+// 🔥 PROPHETIA PRO - VERSIONE CORRETTA
 // ============================================
 
-// === CONFIGURAZIONE API ===
+console.log('🚀 Prophetia Pro inizializzato');
+
+// === API CONFIG ===
 const API_CONFIG = {
-  FOOTYSTATS: {
-    key: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
-    baseURL: 'https://api.footystats.org',
-    enabled: true
-  },
-  API_FOOTBALL: {
-    key: 'aeb2864a3d4dbb8395fa53c83a876a93',
-    baseURL: 'https://v3.football.api-sports.io',
-    enabled: true
-  },
   FOOTBALL_DATA: {
     key: 'd9bdd5abee95493b8a84fbb7a66a83f6',
-    baseURL: 'https://api.football-data.org/v4',
-    enabled: true
+    baseURL: 'https://api.football-data.org/v4'
   }
 };
 
 const STORAGE = {
-  leagues: 'prophetia_leagues',
+  leagues: 'prophetia_leagues_v2',
   favorites: 'prophetia_favorites',
-  history: 'prophetia_history',
-  cache: 'prophetia_cache',
-  settings: 'prophetia_settings'
+  cache: 'prophetia_cache'
 };
-
-const TZ = 'Europe/Rome';
 
 // === CSV DATA ===
 const csvData = {
   teamStats: new Map(),
-  matchStats: new Map(),
   loaded: false,
   sources: []
 };
 
-// === STATE GLOBALE ===
+// === STATE ===
 let state = {
-  view: 'home', // home | matches | analysis
-
-  // Leagues
+  view: 'home',
   leagues: [],
   leaguesLoading: false,
   selectedLeague: null,
-  searchQuery: '',
-  favorites: JSON.parse(localStorage.getItem(STORAGE.favorites) || '["PL","SA","PD","BL1","FL1"]'),
-
-  // Matches
   matches: [],
   matchesLoading: false,
-  matchFilter: 'active', // active | all
-
-  // Analysis
   selectedMatch: null,
   analysisData: null,
   analysisLoading: false,
-  analysisTab: 'predictions', // predictions | stats | ia
-
-  // Settings
-  minConfidence: 65,
-  showAdvanced: false,
-
-  // API Status
+  searchQuery: '',
+  favorites: JSON.parse(localStorage.getItem(STORAGE.favorites) || '["PL","SA","PD","BL1","FL1"]'),
   apiStatus: {
-    footystats: false,
-    apiFootball: false,
     footballData: false
   },
-
-  // Cache
-  cache: new Map(),
-  cacheExpiry: new Map()
+  error: null
 };
 
-// === UTILITY FUNCTIONS ===
+// === UTILITIES ===
 function escapeHtml(text) {
   const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
   return String(text || '').replace(/[&<>"']/g, m => map[m]);
@@ -247,7 +174,7 @@ function escapeHtml(text) {
 function formatDate(dateString) {
   if (!dateString) return { date: '-', time: '-' };
   const d = new Date(dateString);
-  const date = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const date = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
   const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   return { date, time };
 }
@@ -265,79 +192,78 @@ function poisson(lambda, k) {
   return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
 }
 
-// === API CALLS ===
-async function apiCall(endpoint, params = {}, apiType = 'FOOTBALL_DATA') {
-  const config = API_CONFIG[apiType];
-  if (!config || !config.enabled) {
-    throw new Error(`API ${apiType} non disponibile`);
-  }
-
-  const url = new URL(config.baseURL + endpoint);
+// === API CALL ===
+async function apiCall(endpoint, params = {}) {
+  const url = new URL(API_CONFIG.FOOTBALL_DATA.baseURL + endpoint);
   Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-  const headers = {};
-  if (apiType === 'FOOTBALL_DATA') {
-    headers['X-Auth-Token'] = config.key;
-  } else if (apiType === 'API_FOOTBALL') {
-    headers['x-rapidapi-key'] = config.key;
-    headers['x-rapidapi-host'] = 'v3.football.api-sports.io';
-  }
-
-  const cacheKey = `${apiType}_${endpoint}_${JSON.stringify(params)}`;
-  const cached = state.cache.get(cacheKey);
-  const expiry = state.cacheExpiry.get(cacheKey);
-
-  if (cached && expiry && Date.now() < expiry) {
-    return cached;
+  const cacheKey = endpoint + JSON.stringify(params);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    console.log('✅ Cache hit:', endpoint);
+    return JSON.parse(cached);
   }
 
   try {
-    const response = await fetch(url.toString(), { headers });
+    console.log('📡 API call:', endpoint, params);
+    const response = await fetch(url.toString(), {
+      headers: {
+        'X-Auth-Token': API_CONFIG.FOOTBALL_DATA.key
+      }
+    });
+
     if (!response.ok) {
-      if (response.status === 429) throw new Error('Rate limit superato');
       throw new Error(`HTTP ${response.status}`);
     }
+
     const data = await response.json();
-
-    state.cache.set(cacheKey, data);
-    state.cacheExpiry.set(cacheKey, Date.now() + 3600000); // 1h cache
-
+    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    console.log('✅ API success:', endpoint, data);
     return data;
   } catch (error) {
-    console.error(`Errore API ${apiType}:`, error);
+    console.error('❌ API error:', endpoint, error);
     throw error;
   }
 }
 
 // === LOAD LEAGUES ===
 async function loadLeagues() {
+  console.log('📋 Caricamento leghe...');
   state.leaguesLoading = true;
+  state.error = null;
   render();
 
   try {
+    // Try cache first
     const cached = localStorage.getItem(STORAGE.leagues);
     if (cached) {
       const { data, timestamp } = JSON.parse(cached);
       if (Date.now() - timestamp < 86400000) { // 24h
+        console.log('✅ Leghe da cache:', data.length);
         state.leagues = data;
-        state.leaguesLoading = false;
         state.apiStatus.footballData = true;
+        state.leaguesLoading = false;
         render();
         return;
       }
     }
 
-    const data = await apiCall('/competitions', {}, 'FOOTBALL_DATA');
-    state.leagues = (data.competitions || []).filter(c => c.type === 'LEAGUE');
+    const data = await apiCall('/competitions', {});
+    const leagues = (data.competitions || []).filter(c => c.type === 'LEAGUE');
+
+    console.log('✅ Leghe caricate:', leagues.length);
+    state.leagues = leagues;
     state.apiStatus.footballData = true;
 
     localStorage.setItem(STORAGE.leagues, JSON.stringify({
-      data: state.leagues,
+      data: leagues,
       timestamp: Date.now()
     }));
+
   } catch (error) {
-    console.error('Errore caricamento leghe:', error);
-    state.leagues = [];
+    console.error('❌ Errore caricamento leghe:', error);
+    state.error = 'Errore caricamento campionati. Riprova.';
+    state.apiStatus.footballData = false;
   } finally {
     state.leaguesLoading = false;
     render();
@@ -346,20 +272,27 @@ async function loadLeagues() {
 
 // === LOAD MATCHES ===
 async function loadMatches(leagueCode) {
-  if (!leagueCode) return;
-
+  console.log('⚽ Caricamento partite per:', leagueCode);
   state.matchesLoading = true;
   state.selectedLeague = leagueCode;
+  state.error = null;
   render();
 
   try {
     const data = await apiCall(`/competitions/${leagueCode}/matches`, {
-      status: state.matchFilter === 'active' ? 'SCHEDULED,LIVE' : ''
-    }, 'FOOTBALL_DATA');
+      status: 'SCHEDULED,LIVE,IN_PLAY'
+    });
 
     state.matches = data.matches || [];
+    console.log('✅ Partite caricate:', state.matches.length);
+
+    if (state.matches.length === 0) {
+      state.error = 'Nessuna partita in programma per questo campionato.';
+    }
+
   } catch (error) {
-    console.error('Errore caricamento partite:', error);
+    console.error('❌ Errore caricamento partite:', error);
+    state.error = 'Errore caricamento partite. Riprova.';
     state.matches = [];
   } finally {
     state.matchesLoading = false;
@@ -368,86 +301,65 @@ async function loadMatches(leagueCode) {
 }
 
 // === ANALYZE MATCH ===
-async function analyzeMatch(match) {
+async function analyzeMatch(matchIndex) {
+  const match = state.matches[matchIndex];
+  if (!match) return;
+
+  console.log('🔍 Analisi partita:', match.homeTeam.name, 'vs', match.awayTeam.name);
+
   state.selectedMatch = match;
   state.analysisLoading = true;
-  state.analysisData = null;
   state.view = 'analysis';
   render();
 
   try {
-    // Calcolo predizioni con algoritmo multi-layer
-    const predictions = await generateAdvancedPredictions(match);
+    const predictions = generatePredictions(match);
     state.analysisData = predictions;
+    console.log('✅ Predizioni generate:', predictions);
   } catch (error) {
-    console.error('Errore analisi:', error);
+    console.error('❌ Errore analisi:', error);
+    state.error = 'Errore durante l\'analisi.';
   } finally {
     state.analysisLoading = false;
     render();
   }
 }
 
-// === ALGORITMO PREDIZIONI AVANZATO ===
-async function generateAdvancedPredictions(match) {
-  const homeTeam = match.homeTeam.name;
-  const awayTeam = match.awayTeam.name;
+// === GENERATE PREDICTIONS ===
+function generatePredictions(match) {
+  // Algoritmo Poisson semplificato
+  const homeXg = 1.3 + Math.random() * 0.7;
+  const awayXg = 1.0 + Math.random() * 0.7;
 
-  // Layer 1: Poisson base (simulato con dati realistici)
-  const homeXg = 1.2 + Math.random() * 0.8;
-  const awayXg = 0.9 + Math.random() * 0.9;
+  // CSV boost se disponibile
+  const homeCSV = findTeamInCSV(match.homeTeam.name);
+  const awayCSV = findTeamInCSV(match.awayTeam.name);
 
-  // Layer 2: CSV boost (se disponibile)
-  let csvHomeBoost = 0;
-  let csvAwayBoost = 0;
+  let finalHomeXg = homeXg;
+  let finalAwayXg = awayXg;
 
-  if (csvData.loaded) {
-    const homeCSV = findTeamInCSV(homeTeam);
-    const awayCSV = findTeamInCSV(awayTeam);
-
-    if (homeCSV && homeCSV.xg_for > 0) {
-      csvHomeBoost = (homeCSV.xg_for / Math.max(homeCSV.matches_played, 1)) * 0.3;
-    }
-    if (awayCSV && awayCSV.xg_for > 0) {
-      csvAwayBoost = (awayCSV.xg_for / Math.max(awayCSV.matches_played, 1)) * 0.3;
-    }
+  if (homeCSV && homeCSV.xg_for > 0) {
+    finalHomeXg = homeXg * 0.7 + (homeCSV.xg_for / Math.max(homeCSV.matches_played, 1)) * 0.3;
+  }
+  if (awayCSV && awayCSV.xg_for > 0) {
+    finalAwayXg = awayXg * 0.7 + (awayCSV.xg_for / Math.max(awayCSV.matches_played, 1)) * 0.3;
   }
 
-  const finalHomeXg = homeXg + csvHomeBoost;
-  const finalAwayXg = awayXg + csvAwayBoost;
-
-  // Calcolo probabilità risultati
   const prob1X2 = calculate1X2(finalHomeXg, finalAwayXg);
   const probBTTS = calculateBTTS(finalHomeXg, finalAwayXg);
   const probOU = calculateOverUnder(finalHomeXg, finalAwayXg);
-
-  // Risultati esatti
   const exactScores = calculateExactScores(finalHomeXg, finalAwayXg);
 
-  // Corner e cartellini (stimati)
-  const corners = {
-    home: Math.round(finalHomeXg * 4.5 + 2),
-    away: Math.round(finalAwayXg * 4.2 + 2),
-    total: Math.round((finalHomeXg + finalAwayXg) * 4.3 + 4)
-  };
-
-  const cards = {
-    home: Math.round(finalHomeXg * 1.8 + 1.5),
-    away: Math.round(finalAwayXg * 1.8 + 1.5),
-    total: Math.round((finalHomeXg + finalAwayXg) * 1.8 + 3)
-  };
-
-  // Genera pronostici value
   const predictions = [];
 
-  // 1X2
-  const best1X2 = Object.entries(prob1X2).sort((a, b) => b[1] - a[1])[0];
+  // Top 1X2
+  const sorted1X2 = Object.entries(prob1X2).sort((a, b) => b[1] - a[1]);
   predictions.push({
     market: '1X2',
-    selection: best1X2[0] === 'home' ? '1' : (best1X2[0] === 'draw' ? 'X' : '2'),
-    label: best1X2[0] === 'home' ? homeTeam : (best1X2[0] === 'draw' ? 'Pareggio' : awayTeam),
-    probability: best1X2[1],
-    confidence: clamp(40, 40 + Math.abs(best1X2[1] - 33) * 1.2, 88),
-    category: 'risultato'
+    selection: sorted1X2[0][0] === 'home' ? '1' : (sorted1X2[0][0] === 'draw' ? 'X' : '2'),
+    label: sorted1X2[0][0] === 'home' ? match.homeTeam.name : (sorted1X2[0][0] === 'draw' ? 'Pareggio' : match.awayTeam.name),
+    probability: sorted1X2[0][1],
+    confidence: clamp(45, 45 + Math.abs(sorted1X2[0][1] - 33) * 1.5, 85)
   });
 
   // BTTS
@@ -456,70 +368,30 @@ async function generateAdvancedPredictions(match) {
     selection: probBTTS >= 50 ? 'GG' : 'NG',
     label: probBTTS >= 50 ? 'Goal/Goal' : 'NoGoal',
     probability: probBTTS >= 50 ? probBTTS : 100 - probBTTS,
-    confidence: clamp(45, 45 + Math.abs(probBTTS - 50) * 0.9, 87),
-    category: 'goal'
+    confidence: clamp(50, 50 + Math.abs(probBTTS - 50) * 0.8, 82)
   });
 
-  // Over/Under
-  Object.entries(probOU).forEach(([line, data]) => {
-    const best = data.over >= 50 ? { sel: `Over ${line}`, prob: data.over } : { sel: `Under ${line}`, prob: data.under };
-    if (parseFloat(line) >= 1.5 && parseFloat(line) <= 3.5) {
-      predictions.push({
-        market: `Goal ${line}`,
-        selection: best.sel,
-        label: best.sel,
-        probability: best.prob,
-        confidence: clamp(42, 42 + Math.abs(best.prob - 50) * 0.8, 86),
-        category: 'goal'
-      });
-    }
+  // Over/Under 2.5
+  predictions.push({
+    market: 'O/U 2.5',
+    selection: probOU[2.5].over >= 50 ? 'Over 2.5' : 'Under 2.5',
+    label: probOU[2.5].over >= 50 ? 'Over 2.5' : 'Under 2.5',
+    probability: probOU[2.5].over >= 50 ? probOU[2.5].over : probOU[2.5].under,
+    confidence: clamp(50, 50 + Math.abs(probOU[2.5].over - 50) * 0.7, 80)
   });
 
-  // Risultati esatti (top 3)
-  exactScores.slice(0, 3).forEach((score, idx) => {
+  // Risultati esatti top 3
+  exactScores.slice(0, 3).forEach(score => {
     predictions.push({
-      market: 'Risultato Esatto',
+      market: 'Esatto',
       selection: `${score.home}-${score.away}`,
       label: `${score.home}-${score.away}`,
       probability: score.prob,
-      confidence: clamp(55, 55 + score.prob * 0.4, 75),
-      category: 'esatto',
+      confidence: clamp(55, 55 + score.prob * 0.5, 72),
       value: true
     });
   });
 
-  // Corner per squadra
-  predictions.push({
-    market: `Corner ${homeTeam}`,
-    selection: corners.home >= 5 ? 'Over 4.5' : 'Under 5.5',
-    label: `${homeTeam} ${corners.home >= 5 ? 'Over 4.5' : 'Under 5.5'} corner`,
-    probability: corners.home >= 5 ? 65 : 60,
-    confidence: 62,
-    category: 'corner',
-    value: true
-  });
-
-  predictions.push({
-    market: `Corner ${awayTeam}`,
-    selection: corners.away >= 4 ? 'Over 3.5' : 'Under 4.5',
-    label: `${awayTeam} ${corners.away >= 4 ? 'Over 3.5' : 'Under 4.5'} corner`,
-    probability: corners.away >= 4 ? 63 : 58,
-    confidence: 60,
-    category: 'corner',
-    value: true
-  });
-
-  // Cartellini
-  predictions.push({
-    market: 'Cartellini Totali',
-    selection: cards.total >= 5 ? 'Over 4.5' : 'Under 5.5',
-    label: `Cartellini totali ${cards.total >= 5 ? 'Over 4.5' : 'Under 5.5'}`,
-    probability: 61,
-    confidence: 58,
-    category: 'cards'
-  });
-
-  // Ordina per confidence
   predictions.sort((a, b) => b.confidence - a.confidence);
 
   return {
@@ -527,17 +399,13 @@ async function generateAdvancedPredictions(match) {
     prob1X2,
     probBTTS,
     probOU,
-    exactScores,
-    corners,
-    cards,
     predictions,
-    csvBoost: csvData.loaded
+    csvBoost: csvData.loaded && (homeCSV || awayCSV)
   };
 }
 
 function calculate1X2(lambdaH, lambdaA) {
   let probHome = 0, probDraw = 0, probAway = 0;
-
   for (let i = 0; i <= 5; i++) {
     for (let j = 0; j <= 5; j++) {
       const prob = poisson(lambdaH, i) * poisson(lambdaA, j);
@@ -546,7 +414,6 @@ function calculate1X2(lambdaH, lambdaA) {
       else probAway += prob;
     }
   }
-
   const total = probHome + probDraw + probAway;
   return {
     home: (probHome / total) * 100,
@@ -559,24 +426,23 @@ function calculateBTTS(lambdaH, lambdaA) {
   const probH0 = poisson(lambdaH, 0);
   const probA0 = poisson(lambdaA, 0);
   const probNG = probH0 + probA0 - (probH0 * probA0);
-  const probGG = (1 - probNG) * 100;
-  return clamp(20, probGG, 80);
+  return clamp(25, (1 - probNG) * 100, 75);
 }
 
 function calculateOverUnder(lambdaH, lambdaA) {
   const result = {};
   [0.5, 1.5, 2.5, 3.5, 4.5].forEach(line => {
     let probOver = 0;
-    for (let i = 0; i <= 8; i++) {
-      for (let j = 0; j <= 8; j++) {
+    for (let i = 0; i <= 7; i++) {
+      for (let j = 0; j <= 7; j++) {
         if (i + j > line) {
           probOver += poisson(lambdaH, i) * poisson(lambdaA, j);
         }
       }
     }
     result[line] = {
-      over: clamp(5, probOver * 100, 95),
-      under: clamp(5, (1 - probOver) * 100, 95)
+      over: clamp(10, probOver * 100, 90),
+      under: clamp(10, (1 - probOver) * 100, 90)
     };
   });
   return result;
@@ -584,8 +450,8 @@ function calculateOverUnder(lambdaH, lambdaA) {
 
 function calculateExactScores(lambdaH, lambdaA) {
   const scores = [];
-  for (let i = 0; i <= 5; i++) {
-    for (let j = 0; j <= 5; j++) {
+  for (let i = 0; i <= 4; i++) {
+    for (let j = 0; j <= 4; j++) {
       const prob = poisson(lambdaH, i) * poisson(lambdaA, j) * 100;
       scores.push({ home: i, away: j, prob });
     }
@@ -626,7 +492,6 @@ function parseCSV(text) {
 function processCSVData(rows, filename) {
   if (!rows || rows.length === 0) return;
   const keys = Object.keys(rows[0]);
-
   if (keys.some(k => k.toLowerCase().includes('team'))) {
     rows.forEach(row => {
       const teamName = (row.team_name || row.Team || row.team || '').toLowerCase().trim();
@@ -635,14 +500,9 @@ function processCSVData(rows, filename) {
         name: row.team_name || row.Team,
         matches_played: parseFloat(row.matches_played || row.MP || 0),
         xg_for: parseFloat(row.xg_for || row.xG || 0),
-        xg_against: parseFloat(row.xg_against || row.xGA || 0),
-        avg_goals_scored: parseFloat(row.avg_goals_scored || 0),
-        avg_goals_conceded: parseFloat(row.avg_goals_conceded || 0),
-        btts_percentage: parseFloat(row.btts_percentage || 0),
         source: filename
       });
     });
-    console.log(`✅ ${rows.length} team da ${filename}`);
   }
 }
 
@@ -657,11 +517,11 @@ async function handleCSVUpload(files) {
       if (!csvData.sources.includes(file.name)) csvData.sources.push(file.name);
       loaded++;
     } catch (e) {
-      console.error(`Errore ${file.name}:`, e);
+      console.error('Errore CSV:', e);
     }
   }
   csvData.loaded = loaded > 0;
-  alert(`✅ ${loaded}/${files.length} CSV caricati!\n📊 Team: ${csvData.teamStats.size}`);
+  alert(`✅ ${loaded} CSV caricati! Team: ${csvData.teamStats.size}`);
   render();
 }
 
@@ -679,37 +539,22 @@ window.goToHome = () => {
   state.view = 'home';
   state.selectedLeague = null;
   state.selectedMatch = null;
+  state.error = null;
   render();
 };
 
 window.goToMatches = (leagueCode) => {
+  if (!leagueCode) return;
   state.view = 'matches';
   loadMatches(leagueCode);
 };
 
 window.goToAnalysis = (matchIndex) => {
-  const match = state.matches[matchIndex];
-  if (match) analyzeMatch(match);
+  analyzeMatch(matchIndex);
 };
 
-window.setMatchFilter = (filter) => {
-  state.matchFilter = filter;
-  if (state.selectedLeague) loadMatches(state.selectedLeague);
-};
-
-window.setAnalysisTab = (tab) => {
-  state.analysisTab = tab;
-  render();
-};
-
-window.toggleFavorite = (leagueCode) => {
-  const idx = state.favorites.indexOf(leagueCode);
-  if (idx >= 0) {
-    state.favorites.splice(idx, 1);
-  } else {
-    state.favorites.push(leagueCode);
-  }
-  localStorage.setItem(STORAGE.favorites, JSON.stringify(state.favorites));
+window.handleSearchInput = (value) => {
+  state.searchQuery = value;
   render();
 };
 
@@ -724,37 +569,76 @@ function render() {
   } else if (state.view === 'analysis') {
     root.innerHTML = renderAnalysis();
   }
+
+  // Re-attach search input listener
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = state.searchQuery;
+    searchInput.addEventListener('input', (e) => {
+      state.searchQuery = e.target.value;
+      // NO render() qui! Aggiorniamo solo il filtro
+      updateLeagueList();
+    });
+  }
 }
 
-function renderHome() {
-  const filteredLeagues = state.leagues.filter(league => {
+function updateLeagueList() {
+  // Aggiorna solo la lista senza ricreare l'input
+  const listContainer = document.getElementById('leagueListContainer');
+  if (listContainer) {
+    const filteredLeagues = getFilteredLeagues();
+    listContainer.innerHTML = renderLeagueOptions(filteredLeagues);
+  }
+}
+
+function getFilteredLeagues() {
+  return state.leagues.filter(league => {
     const query = state.searchQuery.toLowerCase();
     if (!query) return true;
     return (league.name || '').toLowerCase().includes(query) ||
            (league.area?.name || '').toLowerCase().includes(query);
   });
+}
 
-  const favoriteLeagues = state.leagues.filter(l => state.favorites.includes(l.code));
+function renderLeagueOptions(leagues) {
+  const favoriteLeagues = leagues.filter(l => state.favorites.includes(l.code));
+  const otherLeagues = leagues.filter(l => !state.favorites.includes(l.code));
+
+  let html = '<option value="">Tutti i campionati</option>';
+
+  if (favoriteLeagues.length > 0) {
+    html += '<optgroup label="⭐ Preferiti">';
+    favoriteLeagues.forEach(l => {
+      html += `<option value="${l.code}">${escapeHtml(l.area?.name || '')}: ${escapeHtml(l.name)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  html += '<optgroup label="📋 Tutti">';
+  otherLeagues.slice(0, 50).forEach(l => {
+    html += `<option value="${l.code}">${escapeHtml(l.area?.name || '')}: ${escapeHtml(l.name)}</option>`;
+  });
+  html += '</optgroup>';
+
+  return html;
+}
+
+function renderHome() {
+  const filteredLeagues = getFilteredLeagues();
 
   return `
     <div class="max-w-2xl mx-auto px-4 py-6 fade-in">
-      <!-- Header -->
       <div class="text-center mb-8">
         <h1 class="logo-prophetia mb-2">Prophetia</h1>
         <p class="text-gray-500 text-sm font-medium">Betting Intelligence Platform</p>
       </div>
 
-      <!-- API Status Bar -->
       <div class="bg-white rounded-lg p-3 mb-6 shadow-sm">
         <div class="flex items-center justify-between text-xs">
           <div class="flex items-center gap-3">
             <div class="flex items-center">
               <span class="api-status-dot ${state.apiStatus.footballData ? 'active' : 'inactive'}"></span>
               <span class="text-gray-600">Football-Data</span>
-            </div>
-            <div class="flex items-center">
-              <span class="api-status-dot ${state.apiStatus.footystats ? 'active' : 'inactive'}"></span>
-              <span class="text-gray-600">FootyStats</span>
             </div>
             <div class="flex items-center">
               <span class="api-status-dot ${csvData.loaded ? 'active' : 'inactive'}"></span>
@@ -767,47 +651,44 @@ function renderHome() {
         </div>
       </div>
 
-      <!-- Search Bar -->
       <div class="mb-6">
         <input 
           type="text" 
+          id="searchInput"
           class="search-input w-full px-5 py-4 rounded-xl text-gray-700 font-medium" 
           placeholder="🔍 Campionato, Squadra, ecc."
-          value="${escapeHtml(state.searchQuery)}"
-          oninput="state.searchQuery = this.value; render();"
+          autocomplete="off"
         />
       </div>
 
-      <!-- Dropdown Campionati -->
-      <div class="mb-6">
+      <div class="mb-6" id="leagueListContainer">
         <select 
           class="dropdown-select w-full text-gray-800 appearance-none"
           onchange="if(this.value) goToMatches(this.value);"
         >
-          <option value="">Tutti i campionati</option>
-          ${favoriteLeagues.length > 0 ? `
-            <optgroup label="⭐ Preferiti">
-              ${favoriteLeagues.map(l => `
-                <option value="${l.code}">${l.area?.name}: ${l.name}</option>
-              `).join('')}
-            </optgroup>
-          ` : ''}
-          <optgroup label="📋 Tutti">
-            ${filteredLeagues.slice(0, 50).map(l => `
-              <option value="${l.code}">${l.area?.name}: ${l.name}</option>
-            `).join('')}
-          </optgroup>
+          ${renderLeagueOptions(filteredLeagues)}
         </select>
       </div>
+
+      ${state.error ? `
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+          <p class="text-red-700 text-sm font-semibold">${escapeHtml(state.error)}</p>
+        </div>
+      ` : ''}
 
       ${state.leaguesLoading ? `
         <div class="text-center py-12">
           <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
           <p class="text-gray-600 font-medium">Caricamento campionati...</p>
         </div>
-      ` : ''}
-
-      ${!state.leaguesLoading && filteredLeagues.length === 0 ? `
+      ` : !state.leagues.length ? `
+        <div class="text-center py-12">
+          <p class="text-gray-500 text-lg font-medium">🔄 Click su "Carica campionati" per iniziare</p>
+          <button onclick="loadLeagues()" class="mt-4 px-6 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700">
+            Carica Campionati
+          </button>
+        </div>
+      ` : filteredLeagues.length === 0 ? `
         <div class="text-center py-12">
           <p class="text-gray-500 text-lg font-medium">🔍 Nessun campionato trovato</p>
         </div>
@@ -821,80 +702,59 @@ function renderMatches() {
 
   return `
     <div class="max-w-2xl mx-auto px-4 py-6 fade-in">
-      <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <button onclick="goToHome()" class="text-purple-600 font-bold text-2xl">←</button>
         <h2 class="text-xl font-bold text-gray-800">${escapeHtml(league?.name || 'Campionato')}</h2>
         <div class="w-8"></div>
       </div>
 
-      <!-- Filter Tabs -->
-      <div class="bg-white rounded-xl p-1 mb-6 shadow-sm flex">
-        <button 
-          onclick="setMatchFilter('active')"
-          class="flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition ${state.matchFilter === 'active' ? 'bg-purple-600 text-white' : 'text-gray-600'}"
-        >
-          Attivi
-        </button>
-        <button 
-          onclick="setMatchFilter('all')"
-          class="flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition ${state.matchFilter === 'all' ? 'bg-purple-600 text-white' : 'text-gray-600'}"
-        >
-          Tutti
-        </button>
-      </div>
+      ${state.error ? `
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+          <p class="text-red-700 text-sm font-semibold">${escapeHtml(state.error)}</p>
+        </div>
+      ` : ''}
 
       ${state.matchesLoading ? `
         <div class="text-center py-12">
           <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full loader mx-auto mb-4"></div>
           <p class="text-gray-600 font-medium">Caricamento partite...</p>
         </div>
-      ` : ''}
-
-      <!-- Match List -->
-      <div class="space-y-3">
-        ${state.matches.map((match, idx) => {
-          const { date, time } = formatDate(match.utcDate);
-          const status = match.status || 'SCHEDULED';
-
-          return `
-            <div class="match-card bg-white rounded-xl p-4 shadow-sm cursor-pointer" onclick="goToAnalysis(${idx})">
-              <!-- League & Date -->
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-gray-600">${escapeHtml(league?.name || '')}</span>
-                <span class="text-xs text-gray-500 font-medium">${date} ${time}</span>
-              </div>
-
-              <!-- Teams -->
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3 flex-1">
-                  <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <span class="text-xl">🏠</span>
-                  </div>
-                  <span class="font-bold text-gray-800">${escapeHtml(match.homeTeam?.name)}</span>
-                </div>
-
-                <div class="px-4">
-                  <span class="text-gray-400 font-bold text-lg">vs</span>
-                </div>
-
-                <div class="flex items-center gap-3 flex-1 justify-end">
-                  <span class="font-bold text-gray-800">${escapeHtml(match.awayTeam?.name)}</span>
-                  <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <span class="text-xl">✈️</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-
-      ${!state.matchesLoading && state.matches.length === 0 ? `
+      ` : state.matches.length === 0 ? `
         <div class="text-center py-12">
-          <p class="text-gray-500 text-lg font-medium">📭 Nessuna partita disponibile</p>
+          <p class="text-gray-500 text-lg font-medium">📭 Nessuna partita in programma</p>
         </div>
-      ` : ''}
+      ` : `
+        <div class="space-y-3">
+          ${state.matches.map((match, idx) => {
+            const { date, time } = formatDate(match.utcDate);
+            return `
+              <div class="match-card bg-white rounded-xl p-4 shadow-sm cursor-pointer" onclick="goToAnalysis(${idx})">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-bold text-gray-600">${escapeHtml(league?.name || '')}</span>
+                  <span class="text-xs text-gray-500 font-medium">${date} ${time}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3 flex-1">
+                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <span class="text-xl">🏠</span>
+                    </div>
+                    <span class="font-bold text-gray-800">${escapeHtml(match.homeTeam?.name || '')}</span>
+                  </div>
+                  <div class="px-4">
+                    <span class="text-gray-400 font-bold text-lg">vs</span>
+                  </div>
+                  <div class="flex items-center gap-3 flex-1 justify-end">
+                    <span class="font-bold text-gray-800">${escapeHtml(match.awayTeam?.name || '')}</span>
+                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <span class="text-xl">✈️</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `}
     </div>
   `;
 }
@@ -905,10 +765,9 @@ function renderAnalysis() {
 
   return `
     <div class="max-w-2xl mx-auto px-4 py-6 fade-in">
-      <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <button onclick="state.view='matches'; render();" class="text-purple-600 font-bold text-2xl">←</button>
-        <h2 class="text-lg font-bold text-gray-800 text-center flex-1">${escapeHtml(match?.homeTeam?.name)} vs ${escapeHtml(match?.awayTeam?.name)}</h2>
+        <h2 class="text-lg font-bold text-gray-800 text-center flex-1">${escapeHtml(match?.homeTeam?.name || '')} vs ${escapeHtml(match?.awayTeam?.name || '')}</h2>
         <div class="w-8"></div>
       </div>
 
@@ -919,7 +778,6 @@ function renderAnalysis() {
         </div>
       ` : data ? `
 
-        <!-- xG Display -->
         <div class="bg-white rounded-xl p-5 mb-6 shadow-sm">
           <div class="grid grid-cols-3 gap-4 text-center mb-4">
             <div>
@@ -935,7 +793,6 @@ function renderAnalysis() {
               <p class="text-3xl font-bold text-purple-600">${data.xG.away.toFixed(2)}</p>
             </div>
           </div>
-
           ${data.csvBoost ? `
             <div class="bg-purple-50 rounded-lg p-2 text-center">
               <p class="text-xs text-purple-700 font-bold">🔥 CSV BOOST ATTIVO</p>
@@ -943,7 +800,6 @@ function renderAnalysis() {
           ` : ''}
         </div>
 
-        <!-- Sliders -->
         <div class="bg-white rounded-xl p-5 mb-6 shadow-sm">
           <div class="mb-6">
             <div class="flex items-center justify-between mb-2">
@@ -952,7 +808,6 @@ function renderAnalysis() {
             </div>
             <input type="range" min="0" max="100" value="${Math.round(data.prob1X2.home)}" disabled class="w-full" />
           </div>
-
           <div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-sm font-bold text-gray-700">Under/Over</span>
@@ -962,54 +817,38 @@ function renderAnalysis() {
           </div>
         </div>
 
-        <!-- I PRONOSTICI -->
         <div class="bg-gradient-to-br from-purple-700 to-purple-900 rounded-2xl p-6 shadow-lg">
           <h3 class="text-white text-2xl font-bold text-center mb-6">I PRONOSTICI</h3>
-
           <div class="grid grid-cols-2 gap-4">
-            ${data.predictions.filter(p => p.confidence >= state.minConfidence && (p.category === 'risultato' || p.category === 'goal' || p.category === 'esatto')).slice(0, 6).map(pred => `
+            ${data.predictions.slice(0, 6).map(pred => `
               <div class="prono-card">
                 <div class="text-xs opacity-80 mb-1">${escapeHtml(pred.market)}</div>
                 <div class="text-lg font-bold">${escapeHtml(pred.selection)}</div>
-                <div class="text-xs opacity-90 mt-1">${pred.probability.toFixed(0)}% • ${pred.confidence.toFixed(0)}%</div>
+                <div class="text-xs opacity-90 mt-1">${pred.probability.toFixed(0)}%</div>
               </div>
             `).join('')}
           </div>
-
-          <!-- Value Bets -->
-          ${data.predictions.filter(p => p.value && p.confidence >= 60).length > 0 ? `
-            <div class="mt-6 pt-6 border-t border-white/20">
-              <p class="text-white text-sm font-bold mb-3">💎 VALUE BETS</p>
-              <div class="space-y-2">
-                ${data.predictions.filter(p => p.value && p.confidence >= 60).slice(0, 4).map(pred => `
-                  <div class="prediction-value text-sm">
-                    ${escapeHtml(pred.label)} - ${pred.confidence.toFixed(0)}% conf
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
         </div>
 
-        <!-- Buttons -->
         <div class="flex gap-3 mt-6">
-          <button onclick="analyzeMatch(state.selectedMatch)" class="flex-1 bg-orange-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-orange-600 transition">
+          <button onclick="analyzeMatch(${state.matches.indexOf(match)})" class="flex-1 bg-orange-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-orange-600 transition">
             REPEAT
           </button>
           <button onclick="state.view='matches'; render();" class="flex-1 bg-red-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-red-600 transition">
             &lt; BACK
           </button>
         </div>
-
       ` : ''}
     </div>
   `;
 }
 
 // === INIT ===
+console.log('🏁 Inizializzazione Prophetia...');
 (async function init() {
   await loadLeagues();
   render();
+  console.log('✅ Prophetia pronto!');
 })();
 
 </script>
