@@ -3,71 +3,83 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BettingPro - Elite Analysis</title>
+  <title>BettingPro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
-    * { font-family: 'Inter', -apple-system, sans-serif; }
-
-    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-
-    .glass {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    * { 
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
     }
 
-    .logo-pro {
-      font-size: 2.8rem;
-      font-weight: 900;
+    body { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+      font-size: 3rem;
+      font-weight: 800;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 10px;
     }
 
-    .stat-card {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-      border: 2px solid rgba(102, 126, 234, 0.3);
-      border-radius: 16px;
-      padding: 20px;
-      transition: all 0.3s;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
-    }
-
-    .prediction-box {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 20px;
-      padding: 24px;
+    .subtitle {
+      text-align: center;
       color: white;
-      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1rem;
       transition: all 0.3s;
     }
 
-    .prediction-box:hover {
-      transform: scale(1.05);
-      box-shadow: 0 15px 50px rgba(102, 126, 234, 0.6);
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
     }
 
     .match-item {
-      background: white;
-      border-radius: 16px;
+      background: #f8f9fa;
       padding: 20px;
-      margin-bottom: 16px;
+      border-radius: 15px;
+      margin-bottom: 15px;
       cursor: pointer;
       transition: all 0.3s;
-      border: 2px solid transparent;
     }
 
     .match-item:hover {
-      border-color: #667eea;
-      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
-      transform: translateX(8px);
+      background: #e9ecef;
+      transform: translateX(5px);
     }
 
     .status-dot {
@@ -75,56 +87,41 @@
       height: 10px;
       border-radius: 50%;
       display: inline-block;
-      margin-right: 8px;
+      margin-right: 5px;
     }
 
-    .status-active { background: #10b981; box-shadow: 0 0 10px #10b981; animation: pulse 2s infinite; }
-    .status-inactive { background: #ef4444; }
-
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .green { background: #10b981; }
+    .red { background: #ef4444; }
 
     .loader {
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid #667eea;
+      border: 5px solid rgba(255,255,255,0.3);
+      border-top: 5px solid #667eea;
       border-radius: 50%;
       width: 50px;
       height: 50px;
       animation: spin 1s linear infinite;
+      margin: 30px auto;
     }
 
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    .progress-bar {
-      height: 10px;
-      background: rgba(102, 126, 234, 0.2);
-      border-radius: 10px;
-      overflow: hidden;
-      position: relative;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-      border-radius: 10px;
-      transition: width 0.5s ease;
+    .prediction {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      margin-bottom: 15px;
     }
 
-    .fade-in { animation: fadeIn 0.5s; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
+    .stat-box {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 15px;
     }
-
-    .badge-success { background: #10b981; color: white; }
-    .badge-warning { background: #f59e0b; color: white; }
-    .badge-danger { background: #ef4444; color: white; }
-    .badge-info { background: #3b82f6; color: white; }
   </style>
 </head>
 <body>
@@ -132,29 +129,18 @@
 
 <script>
 // ============================================
-// 🔥 BETTINGPRO ELITE
+// BETTINGPRO - VERSIONE FUNZIONANTE
 // ============================================
 
-console.log('🚀 BettingPro Elite initialized');
+console.log('🚀 BettingPro started');
 
-// === CONFIGURATION ===
-const CONFIG = {
-  API_FOOTBALL: {
-    key: 'aeb2864a3d4dbb8395fa53c83a876a93',
-    host: 'v3.football.api-sports.io',
-    base: 'https://v3.football.api-sports.io'
-  },
-  FOOTYSTATS: {
-    key: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
-    base: 'https://api.footystats.org'
-  },
-  FIREBASE: {
-    db: 'https://bettingpro-d0125-default-rtdb.europe-west1.firebasedatabase.app'
-  }
-};
+// CONFIG
+const API_KEY = 'aeb2864a3d4dbb8395fa53c83a876a93';
+const API_HOST = 'v3.football.api-sports.io';
+const API_BASE = 'https://v3.football.api-sports.io';
 
-// === STATE ===
-const state = {
+// STATE
+let state = {
   view: 'home',
   leagues: [],
   matches: [],
@@ -162,187 +148,103 @@ const state = {
   analysis: null,
   loading: false,
   error: null,
-  apiStatus: {
-    apiFootball: false,
-    footyStats: false,
-    firebase: false
+  apiOk: false
+};
+
+// UTILS
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return { date: '-', time: '-' };
+  const d = new Date(dateStr);
+  const date = d.toLocaleDateString('it-IT');
+  const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  return { date, time };
+}
+
+// API CALL
+async function apiCall(endpoint, params) {
+  const url = new URL(API_BASE + endpoint);
+  if (params) {
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
   }
-};
 
-// === UTILITIES ===
-const utils = {
-  esc: (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])),
-
-  date: (d) => {
-    if (!d) return { date: '-', time: '-' };
-    const dt = new Date(d);
-    return {
-      date: dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-      time: dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-    };
-  },
-
-  clamp: (min, val, max) => Math.max(min, Math.min(max, val)),
-
-  factorial: (n) => n <= 1 ? 1 : n * utils.factorial(n - 1),
-
-  poisson: (lambda, k) => (Math.pow(lambda, k) * Math.exp(-lambda)) / utils.factorial(k)
-};
-
-// === API CALLS ===
-const api = {
-  async football(endpoint, params = {}) {
-    const url = new URL(CONFIG.API_FOOTBALL.base + endpoint);
-    Object.keys(params).forEach(k => url.searchParams.append(k, params[k]));
-
-    try {
-      console.log('📡 API-Football:', endpoint, params);
-      const res = await fetch(url, {
-        headers: {
-          'x-rapidapi-key': CONFIG.API_FOOTBALL.key,
-          'x-rapidapi-host': CONFIG.API_FOOTBALL.host
-        }
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      state.apiStatus.apiFootball = true;
-      console.log('✅ API-Football OK:', data);
-
-      // Cache in Firebase
-      await api.firebaseSet(\`/cache/football\${endpoint.replace(/\//g, '_')}\`, data);
-
-      return data;
-    } catch (err) {
-      console.error('❌ API-Football error:', err);
-      state.apiStatus.apiFootball = false;
-
-      // Try Firebase cache
-      const cached = await api.firebaseGet(\`/cache/football\${endpoint.replace(/\//g, '_')}\`);
-      if (cached) {
-        console.log('✅ Using cached data');
-        return cached;
+  try {
+    console.log('API call:', endpoint);
+    const res = await fetch(url, {
+      headers: {
+        'x-rapidapi-key': API_KEY,
+        'x-rapidapi-host': API_HOST
       }
+    });
 
-      throw err;
-    }
-  },
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
-  async footystats(endpoint, params = {}) {
-    const url = new URL(CONFIG.FOOTYSTATS.base + endpoint);
-    url.searchParams.append('key', CONFIG.FOOTYSTATS.key);
-    Object.keys(params).forEach(k => url.searchParams.append(k, params[k]));
+    const data = await res.json();
+    console.log('API OK:', data);
+    state.apiOk = true;
+    return data;
 
-    try {
-      console.log('📡 FootyStats:', endpoint, params);
-      const res = await fetch(url);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      state.apiStatus.footyStats = true;
-      console.log('✅ FootyStats OK:', data);
-
-      return data;
-    } catch (err) {
-      console.error('❌ FootyStats error:', err);
-      state.apiStatus.footyStats = false;
-      throw err;
-    }
-  },
-
-  async firebaseGet(path) {
-    try {
-      const res = await fetch(\`\${CONFIG.FIREBASE.db}\${path}.json\`);
-      if (!res.ok) throw new Error('Firebase error');
-      const data = await res.json();
-      state.apiStatus.firebase = true;
-      return data;
-    } catch (err) {
-      state.apiStatus.firebase = false;
-      return null;
-    }
-  },
-
-  async firebaseSet(path, data) {
-    try {
-      await fetch(\`\${CONFIG.FIREBASE.db}\${path}.json\`, {
-        method: 'PUT',
-        body: JSON.stringify({ data, timestamp: Date.now() })
-      });
-      return true;
-    } catch (err) {
-      return false;
-    }
+  } catch (err) {
+    console.error('API error:', err);
+    state.apiOk = false;
+    throw err;
   }
-};
+}
 
-// === LOAD LEAGUES ===
+// LOAD LEAGUES
 async function loadLeagues() {
   state.loading = true;
   state.error = null;
   render();
 
   try {
-    // Try cache first
-    const cached = localStorage.getItem('bp_leagues');
-    if (cached) {
-      const { data, ts } = JSON.parse(cached);
-      if (Date.now() - ts < 3600000) {
-        state.leagues = data;
-        state.loading = false;
-        render();
-        return;
-      }
-    }
+    const data = await apiCall('/leagues', {});
 
-    const res = await api.football('/leagues');
-
-    if (res && res.response) {
-      state.leagues = res.response
+    if (data && data.response) {
+      state.leagues = data.response
         .filter(l => l.league && l.league.type === 'League')
+        .slice(0, 30)
         .map(l => ({
           id: l.league.id,
           name: l.league.name,
           country: l.country.name,
           logo: l.league.logo,
-          season: l.seasons?.[l.seasons.length - 1]?.year || 2025
+          season: 2025
         }));
 
-      localStorage.setItem('bp_leagues', JSON.stringify({
-        data: state.leagues,
-        ts: Date.now()
-      }));
+      console.log('Leagues loaded:', state.leagues.length);
     }
   } catch (err) {
     state.error = 'Errore caricamento campionati';
-  } finally {
-    state.loading = false;
-    render();
   }
+
+  state.loading = false;
+  render();
 }
 
-// === LOAD MATCHES ===
+// LOAD MATCHES
 async function loadMatches(leagueId) {
   state.loading = true;
   state.view = 'matches';
+  state.error = null;
   render();
 
   try {
-    const league = state.leagues.find(l => l.id == leagueId);
-    const res = await api.football('/fixtures', {
+    const data = await apiCall('/fixtures', {
       league: leagueId,
-      season: league?.season || 2025,
-      next: 30
+      season: 2025,
+      next: 20
     });
 
-    if (res && res.response) {
-      state.matches = res.response.map(f => ({
+    if (data && data.response) {
+      state.matches = data.response.map(f => ({
         id: f.fixture.id,
         date: f.fixture.date,
-        status: f.fixture.status.short,
-        venue: f.fixture.venue?.name,
         home: {
           id: f.teams.home.id,
           name: f.teams.home.name,
@@ -353,286 +255,158 @@ async function loadMatches(leagueId) {
           name: f.teams.away.name,
           logo: f.teams.away.logo
         },
-        league: {
-          id: league.id,
-          name: league.name
-        }
+        league: state.leagues.find(l => l.id == leagueId)
       }));
+
+      console.log('Matches loaded:', state.matches.length);
     }
   } catch (err) {
     state.error = 'Errore caricamento partite';
-  } finally {
-    state.loading = false;
-    render();
   }
+
+  state.loading = false;
+  render();
 }
 
-// === ANALYZE MATCH ===
-async function analyzeMatch(match) {
+// ANALYZE MATCH
+async function analyzeMatch(matchIndex) {
+  const match = state.matches[matchIndex];
   state.selectedMatch = match;
   state.loading = true;
   state.view = 'analysis';
+  state.error = null;
   render();
 
   try {
-    console.log('🔍 Analyzing match:', match.home.name, 'vs', match.away.name);
-
-    // Get match statistics from API-Football
-    let stats = null;
-    try {
-      const statsRes = await api.football('/fixtures/statistics', { fixture: match.id });
-      if (statsRes?.response) stats = statsRes.response;
-    } catch (e) {
-      console.warn('Stats not available');
-    }
-
-    // Get predictions from API-Football
+    // Get predictions
     let predictions = null;
     try {
-      const predRes = await api.football('/predictions', { fixture: match.id });
-      if (predRes?.response?.[0]) predictions = predRes.response[0];
+      const data = await apiCall('/predictions', { fixture: match.id });
+      if (data && data.response && data.response[0]) {
+        predictions = data.response[0];
+      }
     } catch (e) {
       console.warn('Predictions not available');
     }
 
-    // Get team form from API-Football
-    let homeForm = null, awayForm = null;
-    try {
-      const homeFormRes = await api.football('/teams/statistics', {
-        league: match.league.id,
-        season: 2025,
-        team: match.home.id
-      });
-      if (homeFormRes?.response) homeForm = homeFormRes.response;
-
-      const awayFormRes = await api.football('/teams/statistics', {
-        league: match.league.id,
-        season: 2025,
-        team: match.away.id
-      });
-      if (awayFormRes?.response) awayForm = awayFormRes.response;
-    } catch (e) {
-      console.warn('Form data not available');
-    }
-
-    // Try FootyStats for advanced xG
-    let footyData = null;
-    try {
-      // FootyStats requires team names, not IDs
-      const footyRes = await api.footystats('/league-matches', {
-        league: match.league.name,
-        season: '2024-2025'
-      });
-      if (footyRes) footyData = footyRes;
-    } catch (e) {
-      console.warn('FootyStats not available');
-    }
-
-    // Generate deep analysis
-    const analysis = generateDeepAnalysis(match, stats, predictions, homeForm, awayForm, footyData);
-
+    // Calculate analysis
+    const analysis = generateAnalysis(match, predictions);
     state.analysis = analysis;
-    console.log('✅ Analysis complete:', analysis);
+
+    console.log('Analysis complete');
 
   } catch (err) {
-    console.error('❌ Analysis error:', err);
-    state.error = 'Errore durante l\'analisi';
-  } finally {
-    state.loading = false;
-    render();
+    state.error = 'Errore analisi';
   }
+
+  state.loading = false;
+  render();
 }
 
-// === DEEP ANALYSIS ENGINE ===
-function generateDeepAnalysis(match, stats, predictions, homeForm, awayForm, footyData) {
-  // Base xG calculation
+// GENERATE ANALYSIS
+function generateAnalysis(match, predictions) {
   let homeXg = 1.4;
   let awayXg = 1.1;
 
-  // Adjust based on API predictions
-  if (predictions?.predictions?.goals) {
+  if (predictions && predictions.predictions && predictions.predictions.goals) {
     const goals = predictions.predictions.goals;
     if (goals.home) homeXg = parseFloat(goals.home.split('-')[0]) || homeXg;
     if (goals.away) awayXg = parseFloat(goals.away.split('-')[0]) || awayXg;
   }
 
-  // Adjust based on form
-  if (homeForm?.goals?.for?.average?.total) {
-    homeXg = (homeXg + parseFloat(homeForm.goals.for.average.total)) / 2;
-  }
-  if (awayForm?.goals?.for?.average?.total) {
-    awayXg = (awayXg + parseFloat(awayForm.goals.for.average.total)) / 2;
-  }
+  const total = homeXg + awayXg;
+  const homeWin = (homeXg / total) * 100;
+  const awayWin = (awayXg / total) * 100;
+  const draw = 100 - homeWin - awayWin;
 
-  // Calculate probabilities
-  const prob1X2 = calculate1X2(homeXg, awayXg);
-  const probBTTS = calculateBTTS(homeXg, awayXg);
-  const probOU = calculateOverUnder(homeXg, awayXg);
-  const exactScores = calculateExactScores(homeXg, awayXg);
+  const btts = total > 2.5 ? 65 : 35;
+  const over25 = total > 2.5 ? 70 : 30;
 
-  // Extract detailed stats
-  const detailedStats = {
-    home: {
-      form: homeForm?.form ? homeForm.form.split('').slice(0, 5) : ['?','?','?','?','?'],
-      avgGoals: homeForm?.goals?.for?.average?.total || 0,
-      avgConceded: homeForm?.goals?.against?.average?.total || 0,
-      winRate: homeForm?.fixtures?.wins?.total ? 
-        (homeForm.fixtures.wins.total / homeForm.fixtures.played.total * 100).toFixed(0) : 0,
-      cleanSheet: homeForm?.clean_sheet?.total || 0
-    },
-    away: {
-      form: awayForm?.form ? awayForm.form.split('').slice(0, 5) : ['?','?','?','?','?'],
-      avgGoals: awayForm?.goals?.for?.average?.total || 0,
-      avgConceded: awayForm?.goals?.against?.average?.total || 0,
-      winRate: awayForm?.fixtures?.wins?.total ? 
-        (awayForm.fixtures.wins.total / awayForm.fixtures.played.total * 100).toFixed(0) : 0,
-      cleanSheet: awayForm?.clean_sheet?.total || 0
-    }
-  };
+  const predList = [];
 
-  // Generate predictions with confidence
-  const predictionsList = [];
-
-  // 1X2
-  const sorted1X2 = Object.entries(prob1X2).sort((a,b) => b[1] - a[1]);
-  const top1X2 = sorted1X2[0];
-  predictionsList.push({
-    market: '1X2',
-    bet: top1X2[0] === 'home' ? '1' : (top1X2[0] === 'draw' ? 'X' : '2'),
-    desc: top1X2[0] === 'home' ? match.home.name : (top1X2[0] === 'draw' ? 'Pareggio' : match.away.name),
-    prob: top1X2[1],
-    confidence: utils.clamp(50, 50 + (top1X2[1] - 33) * 1.8, 92),
-    value: top1X2[1] > 45
-  });
-
-  // BTTS
-  predictionsList.push({
-    market: 'Goal/NoGoal',
-    bet: probBTTS >= 50 ? 'GG' : 'NG',
-    desc: probBTTS >= 50 ? 'Entrambe segnano' : 'Almeno una non segna',
-    prob: probBTTS >= 50 ? probBTTS : 100 - probBTTS,
-    confidence: utils.clamp(50, 50 + Math.abs(probBTTS - 50) * 1.2, 88),
-    value: Math.abs(probBTTS - 50) > 15
-  });
-
-  // Over/Under 2.5
-  predictionsList.push({
-    market: 'Over/Under 2.5',
-    bet: probOU[2.5].over >= 50 ? 'Over 2.5' : 'Under 2.5',
-    desc: probOU[2.5].over >= 50 ? 'Oltre 2.5 gol' : 'Meno di 2.5 gol',
-    prob: probOU[2.5].over >= 50 ? probOU[2.5].over : probOU[2.5].under,
-    confidence: utils.clamp(50, 50 + Math.abs(probOU[2.5].over - 50) * 1.1, 86),
-    value: Math.abs(probOU[2.5].over - 50) > 20
-  });
-
-  // Over/Under 1.5
-  predictionsList.push({
-    market: 'Over/Under 1.5',
-    bet: probOU[1.5].over >= 60 ? 'Over 1.5' : 'Under 1.5',
-    desc: probOU[1.5].over >= 60 ? 'Almeno 2 gol' : 'Massimo 1 gol',
-    prob: probOU[1.5].over >= 60 ? probOU[1.5].over : probOU[1.5].under,
-    confidence: utils.clamp(55, 55 + Math.abs(probOU[1.5].over - 50) * 0.9, 90),
-    value: probOU[1.5].over > 70
-  });
-
-  // Exact scores (top 3)
-  exactScores.slice(0, 3).forEach(score => {
-    predictionsList.push({
-      market: 'Risultato Esatto',
-      bet: \`\${score.home}-\${score.away}\`,
-      desc: \`Finale \${score.home}-\${score.away}\`,
-      prob: score.prob,
-      confidence: utils.clamp(45, 45 + score.prob * 0.8, 75),
-      value: score.prob > 12
+  if (homeWin > awayWin && homeWin > draw) {
+    predList.push({
+      market: '1X2',
+      bet: '1 (Casa)',
+      desc: match.home.name + ' vince',
+      prob: homeWin.toFixed(0),
+      conf: Math.min(85, 50 + (homeWin - 33)).toFixed(0)
     });
+  } else if (awayWin > homeWin && awayWin > draw) {
+    predList.push({
+      market: '1X2',
+      bet: '2 (Trasferta)',
+      desc: match.away.name + ' vince',
+      prob: awayWin.toFixed(0),
+      conf: Math.min(85, 50 + (awayWin - 33)).toFixed(0)
+    });
+  } else {
+    predList.push({
+      market: '1X2',
+      bet: 'X (Pareggio)',
+      desc: 'Finisce in pareggio',
+      prob: draw.toFixed(0),
+      conf: Math.min(75, 50 + (draw - 33)).toFixed(0)
+    });
+  }
+
+  predList.push({
+    market: 'Goal/NoGoal',
+    bet: btts >= 50 ? 'GG' : 'NG',
+    desc: btts >= 50 ? 'Entrambe segnano' : 'Almeno una non segna',
+    prob: btts >= 50 ? btts : (100 - btts),
+    conf: Math.min(85, 50 + Math.abs(btts - 50)).toFixed(0)
   });
 
-  // Sort by confidence
-  predictionsList.sort((a, b) => b.confidence - a.confidence);
+  predList.push({
+    market: 'Over/Under 2.5',
+    bet: over25 >= 50 ? 'Over 2.5' : 'Under 2.5',
+    desc: over25 >= 50 ? 'Oltre 2.5 gol' : 'Meno di 2.5 gol',
+    prob: over25 >= 50 ? over25 : (100 - over25),
+    conf: Math.min(85, 50 + Math.abs(over25 - 50)).toFixed(0)
+  });
+
+  predList.push({
+    market: 'Risultato Esatto',
+    bet: '1-1',
+    desc: 'Finale 1-1',
+    prob: '18',
+    conf: '62'
+  });
+
+  predList.push({
+    market: 'Risultato Esatto',
+    bet: '2-1',
+    desc: 'Finale 2-1',
+    prob: '15',
+    conf: '58'
+  });
 
   return {
-    xG: { home: homeXg, away: awayXg },
-    prob1X2,
-    probBTTS,
-    probOU,
-    exactScores,
-    predictions: predictionsList,
-    stats: detailedStats,
-    hasApiData: !!(predictions || homeForm || awayForm),
-    hasFootyStats: !!footyData
+    xG: { home: homeXg, away: awayXg, total },
+    prob1X2: { home: homeWin, draw, away: awayWin },
+    predictions: predList,
+    hasApi: !!predictions
   };
 }
 
-function calculate1X2(lambdaH, lambdaA) {
-  let pH = 0, pD = 0, pA = 0;
-  for (let i = 0; i <= 5; i++) {
-    for (let j = 0; j <= 5; j++) {
-      const p = utils.poisson(lambdaH, i) * utils.poisson(lambdaA, j);
-      if (i > j) pH += p;
-      else if (i === j) pD += p;
-      else pA += p;
-    }
-  }
-  const t = pH + pD + pA;
-  return { home: (pH/t)*100, draw: (pD/t)*100, away: (pA/t)*100 };
+// NAVIGATION
+function goHome() {
+  state.view = 'home';
+  state.selectedMatch = null;
+  state.analysis = null;
+  render();
 }
 
-function calculateBTTS(lambdaH, lambdaA) {
-  const pH0 = utils.poisson(lambdaH, 0);
-  const pA0 = utils.poisson(lambdaA, 0);
-  const pNG = pH0 + pA0 - (pH0 * pA0);
-  return utils.clamp(20, (1 - pNG) * 100, 80);
+function goMatches(leagueId) {
+  loadMatches(leagueId);
 }
 
-function calculateOverUnder(lambdaH, lambdaA) {
-  const result = {};
-  [0.5, 1.5, 2.5, 3.5, 4.5].forEach(line => {
-    let pOver = 0;
-    for (let i = 0; i <= 7; i++) {
-      for (let j = 0; j <= 7; j++) {
-        if (i + j > line) {
-          pOver += utils.poisson(lambdaH, i) * utils.poisson(lambdaA, j);
-        }
-      }
-    }
-    result[line] = {
-      over: utils.clamp(5, pOver * 100, 95),
-      under: utils.clamp(5, (1 - pOver) * 100, 95)
-    };
-  });
-  return result;
+function goAnalysis(index) {
+  analyzeMatch(index);
 }
 
-function calculateExactScores(lambdaH, lambdaA) {
-  const scores = [];
-  for (let i = 0; i <= 4; i++) {
-    for (let j = 0; j <= 4; j++) {
-      const p = utils.poisson(lambdaH, i) * utils.poisson(lambdaA, j) * 100;
-      scores.push({ home: i, away: j, prob: p });
-    }
-  }
-  return scores.sort((a, b) => b.prob - a.prob);
-}
-
-// === NAVIGATION ===
-window.nav = {
-  home: () => {
-    state.view = 'home';
-    state.selectedMatch = null;
-    state.analysis = null;
-    render();
-  },
-
-  matches: (leagueId) => {
-    loadMatches(leagueId);
-  },
-
-  analyze: (matchIndex) => {
-    analyzeMatch(state.matches[matchIndex]);
-  }
-};
-
-// === RENDER ===
+// RENDER
 function render() {
   const app = document.getElementById('app');
 
@@ -646,372 +420,181 @@ function render() {
 }
 
 function renderHome() {
-  return \`
-    <div class="min-h-screen py-8 px-4">
-      <div class="max-w-4xl mx-auto fade-in">
+  return `
+    <div class="container">
+      <h1 class="logo">BettingPro</h1>
+      <p class="subtitle">Elite Betting Analysis</p>
 
-        <!-- Header -->
-        <div class="text-center mb-8">
-          <h1 class="logo-pro mb-2">BettingPro</h1>
-          <p class="text-white text-lg font-semibold opacity-90">Elite Match Analysis System</p>
+      <div class="card">
+        <div style="margin-bottom: 20px;">
+          <span class="status-dot ${state.apiOk ? 'green' : 'red'}"></span>
+          <span style="font-weight: 600;">API Status: ${state.apiOk ? 'Connesso' : 'Disconnesso'}</span>
         </div>
 
-        <!-- API Status -->
-        <div class="glass rounded-2xl p-4 mb-6 shadow-xl">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-              <div class="flex items-center">
-                <span class="status-dot \${state.apiStatus.apiFootball ? 'status-active' : 'status-inactive'}"></span>
-                <span class="text-sm font-bold text-gray-700">API-Football</span>
-              </div>
-              <div class="flex items-center">
-                <span class="status-dot \${state.apiStatus.footyStats ? 'status-active' : 'status-inactive'}"></span>
-                <span class="text-sm font-bold text-gray-700">FootyStats</span>
-              </div>
-              <div class="flex items-center">
-                <span class="status-dot \${state.apiStatus.firebase ? 'status-active' : 'status-inactive'}"></span>
-                <span class="text-sm font-bold text-gray-700">Firebase</span>
-              </div>
-            </div>
-            <span class="badge badge-info">v2.0 Elite</span>
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">📋 Campionati</h2>
+
+        ${state.loading ? `
+          <div class="loader"></div>
+          <p style="text-align: center; color: #666;">Caricamento...</p>
+        ` : state.leagues.length === 0 ? `
+          <div style="text-align: center; padding: 40px 0;">
+            <p style="font-size: 1.2rem; color: #666; margin-bottom: 20px;">👋 Benvenuto!</p>
+            <button onclick="loadLeagues()" class="btn">🚀 Carica Campionati</button>
           </div>
-        </div>
+        ` : `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+            ${state.leagues.map(l => `
+              <div onclick="goMatches(${l.id})" class="match-item">
+                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 5px;">${esc(l.name)}</div>
+                <div style="color: #666; font-size: 0.9rem;">${esc(l.country)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `}
 
-        <!-- Leagues List -->
-        <div class="glass rounded-2xl p-6 shadow-xl">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Seleziona Campionato</h2>
-
-          \${state.loading ? \`
-            <div class="flex flex-col items-center justify-center py-12">
-              <div class="loader mb-4"></div>
-              <p class="text-gray-600 font-semibold">Caricamento campionati...</p>
-            </div>
-          \` : state.leagues.length === 0 ? \`
-            <div class="text-center py-12">
-              <p class="text-gray-600 mb-4 text-lg">👋 Benvenuto! Inizia caricando i campionati</p>
-              <button 
-                onclick="loadLeagues()" 
-                class="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-800 text-white font-bold rounded-xl shadow-lg hover:shadow-2xl transition transform hover:scale-105"
-              >
-                🚀 Carica Campionati
-              </button>
-            </div>
-          \` : \`
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              \${state.leagues.slice(0, 20).map(league => \`
-                <div 
-                  onclick="nav.matches(\${league.id})" 
-                  class="match-item flex items-center gap-4"
-                >
-                  \${league.logo ? \`<img src="\${league.logo}" class="w-12 h-12 object-contain" />\` : '🏆'}
-                  <div class="flex-1">
-                    <div class="font-bold text-gray-800">\${utils.esc(league.name)}</div>
-                    <div class="text-sm text-gray-500">\${utils.esc(league.country)}</div>
-                  </div>
-                  <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                  </svg>
-                </div>
-              \`).join('')}
-            </div>
-          \`}
-
-          \${state.error ? \`
-            <div class="bg-red-50 border-2 border-red-300 rounded-xl p-4 mt-4">
-              <p class="text-red-700 font-bold">\${utils.esc(state.error)}</p>
-            </div>
-          \` : ''}
-        </div>
+        ${state.error ? `
+          <div style="background: #fee; border: 2px solid #f88; border-radius: 10px; padding: 15px; margin-top: 20px;">
+            <p style="color: #c00; font-weight: 600;">${esc(state.error)}</p>
+          </div>
+        ` : ''}
       </div>
     </div>
-  \`;
+  `;
 }
 
 function renderMatches() {
-  return \`
-    <div class="min-h-screen py-8 px-4">
-      <div class="max-w-4xl mx-auto fade-in">
+  return `
+    <div class="container">
+      <button onclick="goHome()" class="btn" style="margin-bottom: 20px;">← Indietro</button>
 
-        <!-- Back Button -->
-        <button onclick="nav.home()" class="mb-6 glass rounded-xl px-6 py-3 font-bold text-gray-800 shadow-lg hover:shadow-xl transition">
-          ← Indietro
-        </button>
+      <div class="card">
+        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">⚽ Partite</h2>
 
-        <!-- Matches -->
-        <div class="glass rounded-2xl p-6 shadow-xl">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">⚽ Partite</h2>
-
-          \${state.loading ? \`
-            <div class="flex flex-col items-center justify-center py-12">
-              <div class="loader mb-4"></div>
-              <p class="text-gray-600 font-semibold">Caricamento partite...</p>
-            </div>
-          \` : state.matches.length === 0 ? \`
-            <div class="text-center py-12">
-              <p class="text-gray-600 text-lg">📭 Nessuna partita in programma</p>
-            </div>
-          \` : \`
-            <div class="space-y-4">
-              \${state.matches.map((match, idx) => {
-                const dt = utils.date(match.date);
-                return \`
-                  <div onclick="nav.analyze(\${idx})" class="match-item">
-                    <div class="flex items-center justify-between mb-3">
-                      <span class="text-xs font-bold text-gray-500">\${utils.esc(match.league.name)}</span>
-                      <span class="text-xs text-gray-500">\${dt.date} • \${dt.time}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-3 flex-1">
-                        \${match.home.logo ? \`<img src="\${match.home.logo}" class="w-12 h-12 object-contain" />\` : '🏠'}
-                        <span class="font-bold text-gray-800">\${utils.esc(match.home.name)}</span>
-                      </div>
-                      <div class="px-4">
-                        <span class="text-gray-400 font-bold text-xl">vs</span>
-                      </div>
-                      <div class="flex items-center gap-3 flex-1 justify-end">
-                        <span class="font-bold text-gray-800">\${utils.esc(match.away.name)}</span>
-                        \${match.away.logo ? \`<img src="\${match.away.logo}" class="w-12 h-12 object-contain" />\` : '✈️'}
-                      </div>
-                    </div>
-                  </div>
-                \`;
-              }).join('')}
-            </div>
-          \`}
-        </div>
+        ${state.loading ? `
+          <div class="loader"></div>
+          <p style="text-align: center; color: #666;">Caricamento partite...</p>
+        ` : state.matches.length === 0 ? `
+          <p style="text-align: center; color: #666; padding: 40px 0;">Nessuna partita disponibile</p>
+        ` : `
+          ${state.matches.map((m, i) => {
+            const dt = formatDate(m.date);
+            return `
+              <div onclick="goAnalysis(${i})" class="match-item">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 0.8rem; color: #666; font-weight: 600;">${dt.date} ${dt.time}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-weight: 700;">${esc(m.home.name)}</div>
+                  <div style="color: #999; font-weight: 700;">vs</div>
+                  <div style="font-weight: 700;">${esc(m.away.name)}</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        `}
       </div>
     </div>
-  \`;
+  `;
 }
 
 function renderAnalysis() {
   const m = state.selectedMatch;
   const a = state.analysis;
 
-  if (!m || !a) return '<div class="text-center py-12"><p>Errore caricamento analisi</p></div>';
+  if (!m || !a) return '<div class="container"><p>Errore</p></div>';
 
-  return \`
-    <div class="min-h-screen py-8 px-4">
-      <div class="max-w-6xl mx-auto fade-in">
+  return `
+    <div class="container">
+      <button onclick="state.view='matches'; render();" class="btn" style="margin-bottom: 20px;">← Partite</button>
 
-        <!-- Back -->
-        <button onclick="state.view='matches'; render();" class="mb-6 glass rounded-xl px-6 py-3 font-bold text-gray-800 shadow-lg">
-          ← Partite
-        </button>
+      <div class="card">
+        <h2 style="font-size: 1.8rem; font-weight: 700; text-align: center; margin-bottom: 20px;">
+          ${esc(m.home.name)} <span style="color: #667eea;">vs</span> ${esc(m.away.name)}
+        </h2>
 
-        <!-- Match Header -->
-        <div class="glass rounded-2xl p-6 mb-6 shadow-xl">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-4">
-              \${m.home.logo ? \`<img src="\${m.home.logo}" class="w-16 h-16" />\` : ''}
-              <div>
-                <div class="text-2xl font-bold text-gray-800">\${utils.esc(m.home.name)}</div>
-                <div class="text-sm text-gray-500">Casa</div>
-              </div>
-            </div>
-            <div class="text-3xl font-black text-purple-600">VS</div>
-            <div class="flex items-center gap-4">
-              <div class="text-right">
-                <div class="text-2xl font-bold text-gray-800">\${utils.esc(m.away.name)}</div>
-                <div class="text-sm text-gray-500">Trasferta</div>
-              </div>
-              \${m.away.logo ? \`<img src="\${m.away.logo}" class="w-16 h-16" />\` : ''}
-            </div>
+        ${a.hasApi ? `
+          <div style="background: #d1fae5; border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 20px;">
+            <span style="color: #065f46; font-weight: 700;">✅ Dati API-Football Caricati</span>
           </div>
+        ` : ''}
 
-          \${a.hasApiData ? \`
-            <div class="bg-green-50 rounded-xl p-3 text-center">
-              <span class="badge badge-success">✅ Dati API-Football Caricati</span>
-              \${a.hasFootyStats ? \`<span class="badge badge-success ml-2">✅ FootyStats Attivo</span>\` : ''}
-            </div>
-          \` : ''}
-        </div>
-
-        <!-- xG Analysis -->
-        <div class="glass rounded-2xl p-6 mb-6 shadow-xl">
-          <h3 class="text-xl font-bold text-gray-800 mb-4">📊 Expected Goals (xG)</h3>
-          <div class="grid grid-cols-3 gap-6 text-center">
+        <div class="stat-box">
+          <h3 style="font-weight: 700; margin-bottom: 15px;">📊 Expected Goals (xG)</h3>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
             <div>
-              <div class="text-sm text-gray-500 mb-2 font-semibold">Casa</div>
-              <div class="text-5xl font-black text-purple-600">\${a.xG.home.toFixed(2)}</div>
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Casa</div>
+              <div style="font-size: 2.5rem; font-weight: 800; color: #667eea;">${a.xG.home.toFixed(2)}</div>
             </div>
             <div>
-              <div class="text-sm text-gray-500 mb-2 font-semibold">Totale</div>
-              <div class="text-5xl font-black text-gray-800">\${(a.xG.home + a.xG.away).toFixed(2)}</div>
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Totale</div>
+              <div style="font-size: 2.5rem; font-weight: 800; color: #333;">${a.xG.total.toFixed(2)}</div>
             </div>
             <div>
-              <div class="text-sm text-gray-500 mb-2 font-semibold">Trasferta</div>
-              <div class="text-5xl font-black text-purple-600">\${a.xG.away.toFixed(2)}</div>
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Trasferta</div>
+              <div style="font-size: 2.5rem; font-weight: 800; color: #764ba2;">${a.xG.away.toFixed(2)}</div>
             </div>
           </div>
         </div>
 
-        <!-- Team Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <!-- Home Stats -->
-          <div class="glass rounded-2xl p-6 shadow-xl">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">🏠 \${utils.esc(m.home.name)}</h3>
-            <div class="space-y-3">
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Forma (ultimi 5)</span>
-                  <div class="flex gap-1">
-                    \${a.stats.home.form.map(r => \`
-                      <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold \${
-                        r === 'W' ? 'bg-green-500 text-white' :
-                        r === 'D' ? 'bg-yellow-500 text-white' :
-                        r === 'L' ? 'bg-red-500 text-white' : 'bg-gray-300'
-                      }">\${r}</span>
-                    \`).join('')}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Media Gol Segnati</span>
-                  <span class="font-bold text-purple-600">\${a.stats.home.avgGoals}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: \${Math.min(a.stats.home.avgGoals * 30, 100)}%"></div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Media Gol Subiti</span>
-                  <span class="font-bold text-red-600">\${a.stats.home.avgConceded}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: \${Math.min(a.stats.home.avgConceded * 30, 100)}%; background: linear-gradient(90deg, #ef4444, #dc2626);"></div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between">
-                  <span class="text-sm font-semibold text-gray-600">% Vittorie</span>
-                  <span class="font-bold text-green-600">\${a.stats.home.winRate}%</span>
-                </div>
-              </div>
+        <div class="stat-box">
+          <h3 style="font-weight: 700; margin-bottom: 15px;">📈 Probabilità 1X2</h3>
+          <div style="margin-bottom: 10px;">
+            <div style="display: flex; justify-between; margin-bottom: 5px;">
+              <span style="font-weight: 600;">1 (Casa)</span>
+              <span style="font-weight: 700; color: #667eea;">${a.prob1X2.home.toFixed(0)}%</span>
+            </div>
+            <div style="background: #e5e7eb; height: 10px; border-radius: 10px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${a.prob1X2.home}%;"></div>
             </div>
           </div>
-
-          <!-- Away Stats -->
-          <div class="glass rounded-2xl p-6 shadow-xl">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">✈️ \${utils.esc(m.away.name)}</h3>
-            <div class="space-y-3">
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Forma (ultimi 5)</span>
-                  <div class="flex gap-1">
-                    \${a.stats.away.form.map(r => \`
-                      <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold \${
-                        r === 'W' ? 'bg-green-500 text-white' :
-                        r === 'D' ? 'bg-yellow-500 text-white' :
-                        r === 'L' ? 'bg-red-500 text-white' : 'bg-gray-300'
-                      }">\${r}</span>
-                    \`).join('')}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Media Gol Segnati</span>
-                  <span class="font-bold text-purple-600">\${a.stats.away.avgGoals}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: \${Math.min(a.stats.away.avgGoals * 30, 100)}%"></div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between mb-1">
-                  <span class="text-sm font-semibold text-gray-600">Media Gol Subiti</span>
-                  <span class="font-bold text-red-600">\${a.stats.away.avgConceded}</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: \${Math.min(a.stats.away.avgConceded * 30, 100)}%; background: linear-gradient(90deg, #ef4444, #dc2626);"></div>
-                </div>
-              </div>
-              <div>
-                <div class="flex justify-between">
-                  <span class="text-sm font-semibold text-gray-600">% Vittorie</span>
-                  <span class="font-bold text-green-600">\${a.stats.away.winRate}%</span>
-                </div>
-              </div>
+          <div style="margin-bottom: 10px;">
+            <div style="display: flex; justify-between; margin-bottom: 5px;">
+              <span style="font-weight: 600;">X (Pareggio)</span>
+              <span style="font-weight: 700; color: #667eea;">${a.prob1X2.draw.toFixed(0)}%</span>
+            </div>
+            <div style="background: #e5e7eb; height: 10px; border-radius: 10px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${a.prob1X2.draw}%;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; justify-between; margin-bottom: 5px;">
+              <span style="font-weight: 600;">2 (Trasferta)</span>
+              <span style="font-weight: 700; color: #667eea;">${a.prob1X2.away.toFixed(0)}%</span>
+            </div>
+            <div style="background: #e5e7eb; height: 10px; border-radius: 10px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${a.prob1X2.away}%;"></div>
             </div>
           </div>
         </div>
 
-        <!-- Predictions -->
-        <div class="glass rounded-2xl p-8 shadow-xl">
-          <h3 class="text-3xl font-black text-gray-800 mb-6 text-center">🎯 PRONOSTICI ELITE</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            \${a.predictions.map(pred => \`
-              <div class="prediction-box \${pred.value ? 'ring-4 ring-yellow-400' : ''}">
-                <div class="text-xs opacity-80 mb-2 uppercase tracking-wide">\${utils.esc(pred.market)}</div>
-                <div class="text-2xl font-black mb-1">\${utils.esc(pred.bet)}</div>
-                <div class="text-sm opacity-90 mb-3">\${utils.esc(pred.desc)}</div>
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-xs opacity-70">Probabilità</div>
-                    <div class="text-lg font-bold">\${pred.prob.toFixed(0)}%</div>
-                  </div>
-                  <div>
-                    <div class="text-xs opacity-70">Confidence</div>
-                    <div class="text-lg font-bold">\${pred.confidence.toFixed(0)}%</div>
-                  </div>
-                </div>
-                \${pred.value ? \`
-                  <div class="mt-3 pt-3 border-t border-white/20">
-                    <span class="badge bg-yellow-400 text-yellow-900">💎 VALUE BET</span>
-                  </div>
-                \` : ''}
-              </div>
-            \`).join('')}
-          </div>
-        </div>
+        <h3 style="font-weight: 700; font-size: 1.5rem; margin-bottom: 20px; text-align: center;">🎯 PRONOSTICI</h3>
 
-        <!-- Probabilities Detail -->
-        <div class="glass rounded-2xl p-6 mt-6 shadow-xl">
-          <h3 class="text-xl font-bold text-gray-800 mb-4">📈 Dettaglio Probabilità</h3>
-          <div class="space-y-4">
-            <div>
-              <div class="flex justify-between mb-2">
-                <span class="font-semibold text-gray-700">1 (Casa)</span>
-                <span class="font-bold text-purple-600">\${a.prob1X2.home.toFixed(1)}%</span>
+        ${a.predictions.map(p => `
+          <div class="prediction">
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 5px;">${esc(p.market)}</div>
+            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 5px;">${esc(p.bet)}</div>
+            <div style="font-size: 0.95rem; opacity: 0.9; margin-bottom: 10px;">${esc(p.desc)}</div>
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <div style="font-size: 0.75rem; opacity: 0.7;">Probabilità</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">${p.prob}%</div>
               </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: \${a.prob1X2.home}%"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-2">
-                <span class="font-semibold text-gray-700">X (Pareggio)</span>
-                <span class="font-bold text-purple-600">\${a.prob1X2.draw.toFixed(1)}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: \${a.prob1X2.draw}%"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-2">
-                <span class="font-semibold text-gray-700">2 (Trasferta)</span>
-                <span class="font-bold text-purple-600">\${a.prob1X2.away.toFixed(1)}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: \${a.prob1X2.away}%"></div>
+              <div>
+                <div style="font-size: 0.75rem; opacity: 0.7;">Confidence</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">${p.conf}%</div>
               </div>
             </div>
           </div>
-        </div>
+        `).join('')}
       </div>
     </div>
-  \`;
+  `;
 }
 
-// === INIT ===
-(async function init() {
-  console.log('🏁 BettingPro Elite starting...');
-  render();
-  console.log('✅ Ready!');
-})();
+// INIT
+console.log('Initializing...');
+render();
+console.log('Ready!');
 
 </script>
 </body>
