@@ -1178,44 +1178,58 @@
 
     // === DATA LOADING ===
     async function loadMatches() {
-      state.loading.matches = true;
-      state.error = null;
-      render();
+  state.loading.matches = true;
+  state.error = null;
+  render();
 
-      try {
-        const fromDate = new Date();
-        fromDate.setHours(0, 0, 0, 0);
+  try {
+    // Prendi le prossime X partite (più affidabile di from/to), poi filtra a 7 giorni in JS
+    const data = await callAPIFootball('/fixtures', { next: 500, timezone: 'Europe/Rome' });
 
-        const toDate = new Date(fromDate);
-        toDate.setDate(toDate.getDate() + 6);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const toSec = nowSec + 7 * 24 * 60 * 60;
 
-        const from = fromDate.toISOString().split('T')[0];
-        const to = toDate.toISOString().split('T')[0];
+    if (data?.response) {
+      const mapped = data.response.map(f => ({
+        id: f.fixture.id,
+        date: f.fixture.date,
+        timestamp: f.fixture.timestamp,
+        status: f.fixture.status.short,
+        elapsed: f.fixture.status.elapsed,
+        league: { id: f.league.id, name: f.league.name, country: f.league.country, logo: f.league.logo, season: f.league.season },
+        home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
+        away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+        goals: f.goals
+      }));
 
-        const data = await callAPIFootball('/fixtures', {
-          from,
-          to,
-          timezone: 'Europe/Rome'
-        });
+      // Tieni solo match nei prossimi 7 giorni (e includi eventuali LIVE)
+      const liveStatus = ['1H','2H','HT','ET','P','LIVE','BT'];
+      state.matches = mapped.filter(m =>
+        liveStatus.includes(m.status) || (m.timestamp >= nowSec && m.timestamp <= toSec)
+      );
 
-        if (data?.response) {
-          state.matches = data.response.map(f => ({
-            id: f.fixture.id,
-            date: f.fixture.date,
-            timestamp: f.fixture.timestamp,
-            status: f.fixture.status.short,
-            elapsed: f.fixture.status.elapsed,
-            league: {
-              id: f.league.id,
-              name: f.league.name,
-              country: f.league.country,
-              logo: f.league.logo,
-              season: f.league.season
-            },
-            home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
-            away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
-            goals: f.goals
-          })).sort((a, b) => a.timestamp - b.timestamp);
+      const leagueMap = new Map();
+      state.matches.forEach(m => leagueMap.set(m.league.id, m.league));
+      state.leagues = Array.from(leagueMap.values()).sort((a,b) =>
+        normalizeStr(`${a.country} ${a.name}`).localeCompare(normalizeStr(`${b.country} ${b.name}`), 'it')
+      );
+
+      state.filteredMatches = sortMatchesAlpha([...state.matches]);
+    } else {
+      state.matches = [];
+      state.filteredMatches = [];
+    }
+
+    await loadFootyStatsData();
+  } catch (err) {
+    console.error(err);
+    state.error = 'Errore di connessione. Riprova tra qualche secondo.';
+  } finally {
+    state.loading.matches = false;
+    render();
+  }
+}
+
 
           // Extract leagues
           const leagueMap = new Map();
