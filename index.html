@@ -1183,13 +1183,18 @@
       render();
 
       try {
+        const today = new Date();
+        const from = today.toISOString().split('T')[0];
+        const toDate = new Date(today);
+        toDate.setDate(toDate.getDate() + 30);
+        const to = toDate.toISOString().split('T')[0];
+        
         const data = await callAPIFootball('/fixtures', {
-          next: 500,
+          from: from,
+          to: to,
           timezone: 'Europe/Rome'
         });
 
-        const nowSec = Math.floor(Date.now() / 1000);
-        const toSec = nowSec + (7 * 24 * 60 * 60);
         const liveStatus = ['1H','2H','HT','ET','P','LIVE','BT'];
 
         if (data?.response) {
@@ -1209,7 +1214,8 @@
             home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
             away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
             goals: f.goals
-          })).filter(m => liveStatus.includes(m.status) || (m.timestamp >= nowSec && m.timestamp <= toSec));
+          }}));
+).filter(m => liveStatus.includes(m.status) || (m.timestamp >= nowSec && m.timestamp <= toSec));
 
           // Extract leagues
           const leagueMap = new Map();
