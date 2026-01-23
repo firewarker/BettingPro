@@ -518,6 +518,7 @@
 
   <script type="module">
     console.log('BettingPro v3.0 - Starting...');
+
     // CONFIG
     const CONFIG = {
       APIFOOTBALL: {
@@ -526,7 +527,7 @@
         proxyURL: 'https://corsproxy.io/?'
       },
       FOOTYSTATS: {
-        key: 'aeb2864a3d4dbb8395fa53c83a876a93',
+        key: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
         baseURL: 'https://api.footystats.org',
         proxyURL: 'https://corsproxy.io/?'
       },
@@ -593,7 +594,7 @@
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9 ]/g, ' ')
-        .replace(/\s+/g, ' ')
+        .replace(/\\s+/g, ' ')
         .trim();
 
     function sortMatchesAlpha(matches) {
@@ -729,37 +730,28 @@
       render();
 
       try {
-        // MODIFICATO: uso from/to con 30 giorni invece di next
-        const today = new Date();
-        const from = today.toISOString().split('T')[0];
-        const toDate = new Date(today);
-        toDate.setDate(toDate.getDate() + 30);
-        const to = toDate.toISOString().split('T')[0];
-
-        
-        // MODIFIED: Robust loading strategy
+        // Logica "Smart Load"
         const today = new Date().toISOString().split('T')[0];
         let data;
 
         try {
-            console.log("Attempting to load matches for date:", today);
+            console.log("Tentativo caricamento partite per data:", today);
             data = await callAPIFootball('/fixtures', {
                 date: today,
                 timezone: 'Europe/Rome'
             });
         } catch (e) {
-            console.warn("Date load failed, trying fallback...");
+            console.warn("Caricamento per data fallito, provo fallback...");
         }
 
-        // Fallback: if no data or empty response, load next 30 matches
+        // Fallback: se non ci sono partite oggi, carica le prossime 30
         if (!data?.response || data.response.length === 0) {
-            console.log("No matches found for today, loading upcoming fixtures...");
+            console.log("Nessuna partita trovata per oggi, carico le prossime 30...");
             data = await callAPIFootball('/fixtures', {
                 next: 30,
                 timezone: 'Europe/Rome'
             });
         }
-    
 
         if (data?.response) {
           state.matches = data.response.map(f => ({
@@ -788,7 +780,7 @@
           );
 
           state.filteredMatches = sortMatchesAlpha([...state.matches]);
-          console.log(`✅ ${state.matches.length} matches loaded`);
+          console.log(`✅ ${state.matches.length} partite caricate`);
         } else {
           state.matches = [];
           state.filteredMatches = [];
@@ -817,7 +809,7 @@
           todayMatches.data.forEach(m => {
             if (m.home_name && m.away_name) {
               const key1 = `${m.home_name.toLowerCase()}${m.away_name.toLowerCase()}`;
-              const key2 = `${m.home_name.toLowerCase().replace(/\s/g, '')}${m.away_name.toLowerCase().replace(/\s/g, '')}`;
+              const key2 = `${m.home_name.toLowerCase().replace(/\\s/g, '')}${m.away_name.toLowerCase().replace(/\\s/g, '')}`;
               state.footyStatsTeams.set(key1, m);
               state.footyStatsTeams.set(key2, m);
 
@@ -916,7 +908,7 @@
         let fsData = null;
         const fsKeys = [
           `${match.home.name.toLowerCase()}${match.away.name.toLowerCase()}`,
-          `${match.home.name.toLowerCase().replace(/\s/g, '')}${match.away.name.toLowerCase().replace(/\s/g, '')}`,
+          `${match.home.name.toLowerCase().replace(/\\s/g, '')}${match.away.name.toLowerCase().replace(/\\s/g, '')}`,
           `${match.home.name.split(' ')[0].toLowerCase()}${match.away.name.split(' ')[0].toLowerCase()}`
         ];
 
@@ -1236,6 +1228,7 @@
       }
       return scores.sort((a, b) => b.p - a.p);
     }
+
     // RENDER
     function render() {
       document.getElementById('app').innerHTML = `
@@ -1334,14 +1327,14 @@
           <div class="match-card-body">
             <div class="match-teams">
               <div class="match-team">
-                ${m.home.logo ? `<img src="${m.home.logo}" class="team-logo" onerror="this.outerHTML='<div class=\'team-logo-fallback\'>${getInitials(m.home.name)}</div>'">` : `<div class="team-logo-fallback">${getInitials(m.home.name)}</div>`}
+                ${m.home.logo ? `<img src="${m.home.logo}" class="team-logo" onerror="this.outerHTML='<div class=\\'team-logo-fallback\\'>${getInitials(m.home.name)}</div>'">` : `<div class="team-logo-fallback">${getInitials(m.home.name)}</div>`}
                 <span class="team-name">${esc(m.home.name)}</span>
               </div>
               <div class="match-center">
                 ${(isLive || isFinished) && m.goals ? `<span class="match-score">${m.goals.home} - ${m.goals.away}</span>` : `<span class="match-vs">VS</span>`}
               </div>
               <div class="match-team">
-                ${m.away.logo ? `<img src="${m.away.logo}" class="team-logo" onerror="this.outerHTML='<div class=\'team-logo-fallback\'>${getInitials(m.away.name)}</div>'">` : `<div class="team-logo-fallback">${getInitials(m.away.name)}</div>`}
+                ${m.away.logo ? `<img src="${m.away.logo}" class="team-logo" onerror="this.outerHTML='<div class=\\'team-logo-fallback\\'>${getInitials(m.away.name)}</div>'">` : `<div class="team-logo-fallback">${getInitials(m.away.name)}</div>`}
                 <span class="team-name">${esc(m.away.name)}</span>
               </div>
             </div>
