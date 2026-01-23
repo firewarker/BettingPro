@@ -979,10 +979,10 @@
         baseURL: 'https://v3.football.api-sports.io',
         proxyURL: 'https://corsproxy.io/?'
       },
-      // FootyStats usa un URL diverso per l'API
+      // FootyStats API - URL corretto
       FOOTYSTATS: {
         key: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
-        baseURL: 'https://api.football-data-api.com',
+        baseURL: 'https://api.footystats.org',
         proxyURL: 'https://corsproxy.io/?'
       },
       FIREBASE: {
@@ -1197,19 +1197,26 @@
         }
         
         // Prova todays-matches
-        const today = new Date().toISOString().split('T')[0];
         const todayMatches = await callFootyStats('/todays-matches', {});
         if (todayMatches?.data) {
           todayMatches.data.forEach(m => {
             if (m.home_name && m.away_name) {
-              const key = `${m.home_name.toLowerCase()}_${m.away_name.toLowerCase()}`;
-              state.footyStatsTeams.set(key, m);
+              // Multiple key variations for better matching
+              const key1 = `${m.home_name.toLowerCase()}_${m.away_name.toLowerCase()}`;
+              const key2 = `${m.home_name.toLowerCase().replace(/\s+/g, '')}_${m.away_name.toLowerCase().replace(/\s+/g, '')}`;
+              state.footyStatsTeams.set(key1, m);
+              state.footyStatsTeams.set(key2, m);
+              
+              // Also store by match ID if available
+              if (m.id) {
+                state.footyStatsTeams.set(`id_${m.id}`, m);
+              }
             }
           });
           console.log('✅ FootyStats today matches:', state.footyStatsTeams.size);
         }
       } catch (e) {
-        console.warn('FootyStats not available');
+        console.warn('FootyStats error:', e.message);
       }
     }
 
@@ -1281,9 +1288,20 @@
           apiPred = predRes?.response?.[0];
         } catch (e) {}
 
-        // FootyStats data
-        const fsKey = `${match.home.name.toLowerCase()}_${match.away.name.toLowerCase()}`;
-        const fsData = state.footyStatsTeams.get(fsKey);
+        // FootyStats data - try multiple key variations
+        let fsData = null;
+        const fsKeys = [
+          `${match.home.name.toLowerCase()}_${match.away.name.toLowerCase()}`,
+          `${match.home.name.toLowerCase().replace(/\s+/g, '')}_${match.away.name.toLowerCase().replace(/\s+/g, '')}`,
+          `${match.home.name.split(' ')[0].toLowerCase()}_${match.away.name.split(' ')[0].toLowerCase()}`
+        ];
+        for (const key of fsKeys) {
+          if (state.footyStatsTeams.has(key)) {
+            fsData = state.footyStatsTeams.get(key);
+            console.log('✅ FootyStats match found:', key);
+            break;
+          }
+        }
 
         state.analysisData = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsData);
       } catch (err) {
@@ -1315,12 +1333,35 @@
         if (apiPred.predictions.goals.away) awayXG = parseFloat(apiPred.predictions.goals.away) || awayXG;
       }
 
-      // FootyStats enhancement
+      // FootyStats enhancement - use all available data
       if (fsData) {
-        if (fsData.home_ppg) homeXG = homeXG * 0.6 + fsData.home_ppg * 0.4;
-        if (fsData.away_ppg) awayXG = awayXG * 0.6 + fsData.away_ppg * 0.4;
-        if (fsData.avg_corners_home) homeCorners = fsData.avg_corners_home;
-        if (fsData.avg_corners_away) awayCorners = fsData.avg_corners_away;
+        console.log('📊 FootyStats data:', fsData);
+        
+        // Goals data
+        if (fsData.home_ppg) homeXG = homeXG * 0.5 + fsData.home_ppg * 0.5;
+        if (fsData.away_ppg) awayXG = awayXG * 0.5 + fsData.away_ppg * 0.5;
+        
+        // xG data if available
+        if (fsData.home_xg) homeXG = fsData.home_xg;
+        if (fsData.away_xg) awayXG = fsData.away_xg;
+        
+        // Corners data
+        if (fsData.corners_home_avg || fsData.avg_corners_home) homeCorners = fsData.corners_home_avg || fsData.avg_corners_home;
+        if (fsData.corners_away_avg || fsData.avg_corners_away) awayCorners = fsData.corners_away_avg || fsData.avg_corners_away;
+        if (fsData.home_corners) homeCorners = fsData.home_corners;
+        if (fsData.away_corners) awayCorners = fsData.away_corners;
+        
+        // Cards data
+        if (fsData.cards_home_avg || fsData.home_cards) homeCards = fsData.cards_home_avg || fsData.home_cards;
+        if (fsData.cards_away_avg || fsData.away_cards) awayCards = fsData.cards_away_avg || fsData.away_cards;
+        
+        // BTTS and Over 2.5 percentages
+        if (fsData.btts_percentage) {
+          // Will use this later
+        }
+        if (fsData.over25_percentage) {
+          // Will use this later
+        }
       }
 
       // Home advantage
