@@ -784,19 +784,32 @@
         awayXG *= adj.awayMultiplier;
       }
       
-      // Home advantage
-      homeXG *= 1.08;
-      awayXG *= 0.95;
+      // Home advantage (casa gioca meglio, trasferta peggio)
+      homeXG *= 1.10;  // +10% vantaggio casa
+      awayXG *= 0.93;  // -7% svantaggio trasferta
       
-      homeXG = clamp(0.3, homeXG, 3.5);
-      awayXG = clamp(0.2, awayXG, 3.0);
+      // Clamp ai valori realistici
+      homeXG = clamp(0.25, homeXG, 3.8);
+      awayXG = clamp(0.15, awayXG, 3.2);
       
       const totXG = homeXG + awayXG;
       
       // Probabilities
       const p1X2 = calc1X2(homeXG, awayXG);
       const pOU = calcOU(homeXG, awayXG);
-      const pBTTS = calcBTTS(homeXG, awayXG);
+      
+      // BTTS avanzato: usa Poisson + dati storici clean sheet
+      let pBTTS = calcBTTS(homeXG, awayXG);
+      
+      // Aggiusta BTTS con dati clean sheet e failed to score
+      const homeWillScore = 100 - homeData.failedToScorePct; // % che la casa segna
+      const awayWillScore = 100 - awayData.failedToScorePct; // % che l'ospite segna
+      const historicalBTTS = (homeWillScore * awayWillScore) / 100;
+      
+      // Media ponderata: 60% Poisson, 40% storico
+      pBTTS = (pBTTS * 0.60) + (historicalBTTS * 0.40);
+      pBTTS = clamp(15, pBTTS, 85);
+      
       const exactScores = calcExactScores(homeXG, awayXG);
       
       // Corners & Cards
@@ -826,9 +839,18 @@
     }
 
     function extractTeamData(stats, side) {
-      if (!stats) return { goalsFor: 1.3, goalsAgainst: 1.2, form: 'DDDDD', corners: 5.0, cards: 1.8 };
+      if (!stats) return { 
+        goalsFor: 1.3, goalsAgainst: 1.2, form: 'DDDDD', corners: 5.0, cards: 1.8,
+        cleanSheetPct: 25, failedToScorePct: 25, played: 10, wins: 4, draws: 3, losses: 3
+      };
       
       const goals = stats.goals || {};
+      const fixtures = stats.fixtures || {};
+      const played = (side === 'home' ? fixtures.played?.home : fixtures.played?.away) || fixtures.played?.total || 10;
+      const wins = (side === 'home' ? fixtures.wins?.home : fixtures.wins?.away) || fixtures.wins?.total || 4;
+      const draws = (side === 'home' ? fixtures.draws?.home : fixtures.draws?.away) || fixtures.draws?.total || 3;
+      const losses = (side === 'home' ? fixtures.loses?.home : fixtures.loses?.away) || fixtures.loses?.total || 3;
+      
       const forAvg = side === 'home' 
         ? (goals.for?.average?.home || goals.for?.average?.total || 1.3)
         : (goals.for?.average?.away || goals.for?.average?.total || 1.1);
@@ -836,62 +858,130 @@
         ? (goals.against?.average?.home || goals.against?.average?.total || 1.2)
         : (goals.against?.average?.away || goals.against?.average?.total || 1.3);
       
+      // Clean sheet e failed to score percentuali
+      const cleanSheetPct = stats.clean_sheet ? 
+        ((side === 'home' ? stats.clean_sheet.home : stats.clean_sheet.away) || stats.clean_sheet.total || 0) / played * 100 : 25;
+      const failedToScorePct = stats.failed_to_score ?
+        ((side === 'home' ? stats.failed_to_score.home : stats.failed_to_score.away) || stats.failed_to_score.total || 0) / played * 100 : 25;
+      
       return {
         goalsFor: parseFloat(forAvg) || 1.3,
         goalsAgainst: parseFloat(againstAvg) || 1.2,
         form: stats.form || 'DDDDD',
         corners: 5.0,
-        cards: parseFloat(stats.cards?.yellow?.total) / (stats.fixtures?.played?.total || 1) || 1.8
+        cards: parseFloat(stats.cards?.yellow?.total) / (played || 1) || 1.8,
+        cleanSheetPct: cleanSheetPct || 25,
+        failedToScorePct: failedToScorePct || 25,
+        played, wins, draws, losses,
+        winRate: played > 0 ? (wins / played) * 100 : 40
       };
     }
 
     function calculateXG(teamData, oppData, side, apiPred, fsMatch) {
-      let xg = (teamData.goalsFor * 0.6) + (oppData.goalsAgainst * 0.4);
+      // Base: attacco squadra vs difesa avversaria (ponderato)
+      const attackStrength = teamData.goalsFor / 1.25; // Normalizzato su media campionato ~1.25
+      const defenseWeakness = oppData.goalsAgainst / 1.25;
       
-      // Form
-      const form = calculateFormMultiplier(teamData.form);
-      xg *= form;
+      let xg = 1.25 * attackStrength * defenseWeakness; // Expected goals base
       
-      // API Pred
+      // Fattore forma recente (peso 20%)
+      const formMultiplier = calculateFormMultiplier(teamData.form);
+      xg = xg * 0.80 + xg * formMultiplier * 0.20;
+      
+      // Fattore win rate (squadre che vincono spesso segnano di più)
+      if (teamData.winRate > 60) xg *= 1.08;
+      else if (teamData.winRate < 30) xg *= 0.90;
+      
+      // Fattore clean sheet avversario (se l'avversario fa molti clean sheet, segnerai meno)
+      if (oppData.cleanSheetPct > 40) xg *= 0.88;
+      else if (oppData.cleanSheetPct < 20) xg *= 1.10;
+      
+      // Fattore failed to score (se la squadra spesso non segna)
+      if (teamData.failedToScorePct > 35) xg *= 0.85;
+      else if (teamData.failedToScorePct < 15) xg *= 1.08;
+      
+      // API Predictions (peso 35% se disponibili - sono dati molto accurati)
       if (apiPred?.predictions?.goals) {
         const apiGoal = side === 'home' ? parseFloat(apiPred.predictions.goals.home) : parseFloat(apiPred.predictions.goals.away);
-        if (apiGoal > 0) xg = (xg * 0.6) + (apiGoal * 0.4);
+        if (apiGoal > 0) xg = (xg * 0.65) + (apiGoal * 0.35);
       }
       
-      // FootyStats
+      // FootyStats xG reali (peso 40% se disponibili - sono i più accurati)
       if (fsMatch) {
         const fsXg = side === 'home' ? fsMatch.home_xg : fsMatch.away_xg;
         const fsPpg = side === 'home' ? fsMatch.home_ppg : fsMatch.away_ppg;
-        if (fsXg > 0) xg = (xg * 0.5) + (fsXg * 0.5);
-        else if (fsPpg > 0) xg = (xg * 0.7) + (fsPpg * 0.3);
+        const fsAvgGoals = side === 'home' ? fsMatch.avg_goals_home : fsMatch.avg_goals_away;
+        
+        if (fsXg && fsXg > 0) {
+          xg = (xg * 0.60) + (fsXg * 0.40);
+        } else if (fsAvgGoals && fsAvgGoals > 0) {
+          xg = (xg * 0.65) + (fsAvgGoals * 0.35);
+        } else if (fsPpg && fsPpg > 0) {
+          xg = (xg * 0.75) + (fsPpg * 0.6 * 0.25); // PPG convertito in gol attesi
+        }
       }
       
       return xg;
     }
 
     function calculateFormMultiplier(form) {
-      if (!form) return 1.0;
+      if (!form || form.length === 0) return 1.0;
+      
       const recent = form.slice(0, 5).split('');
       let score = 0;
+      let totalWeight = 0;
+      
       recent.forEach((r, i) => {
-        const w = 1 - (i * 0.15);
-        if (r === 'W') score += 1.0 * w;
-        else if (r === 'D') score += 0.4 * w;
+        // Peso decrescente: partita più recente conta di più
+        const weight = Math.pow(0.8, i); // 1, 0.8, 0.64, 0.51, 0.41
+        totalWeight += weight;
+        
+        if (r === 'W') score += 1.0 * weight;      // Vittoria = 1.0
+        else if (r === 'D') score += 0.35 * weight; // Pareggio = 0.35
+        else if (r === 'L') score += 0.0 * weight;  // Sconfitta = 0
       });
-      return 0.85 + ((score / Math.min(recent.length, 5)) * 0.30);
+      
+      const avgScore = totalWeight > 0 ? score / totalWeight : 0.5;
+      
+      // Converti in moltiplicatore: range 0.80 - 1.20
+      // Score 0 (tutte sconfitte) -> 0.80
+      // Score 0.5 (medio) -> 1.00
+      // Score 1 (tutte vittorie) -> 1.20
+      return 0.80 + (avgScore * 0.40);
     }
 
     function analyzeH2H(h2h, homeId) {
-      let hg = 0, ag = 0;
-      h2h.forEach(m => {
-        if (m.teams?.home?.id === homeId) { hg += m.goals?.home || 0; ag += m.goals?.away || 0; }
-        else { hg += m.goals?.away || 0; ag += m.goals?.home || 0; }
+      if (!h2h || h2h.length === 0) return { homeMultiplier: 1.0, awayMultiplier: 1.0 };
+      
+      let hg = 0, ag = 0, totalWeight = 0;
+      
+      h2h.forEach((m, index) => {
+        // Peso decrescente per partite più vecchie
+        const weight = Math.pow(0.85, index); // Partite recenti contano di più
+        totalWeight += weight;
+        
+        const homeGoals = m.goals?.home || 0;
+        const awayGoals = m.goals?.away || 0;
+        
+        if (m.teams?.home?.id === homeId) {
+          hg += homeGoals * weight;
+          ag += awayGoals * weight;
+        } else {
+          hg += awayGoals * weight;
+          ag += homeGoals * weight;
+        }
       });
-      const avg = (hg + ag) / (h2h.length * 2);
-      return {
-        homeMultiplier: avg > 0 ? clamp(0.9, (hg / h2h.length) / avg, 1.1) : 1.0,
-        awayMultiplier: avg > 0 ? clamp(0.9, (ag / h2h.length) / avg, 1.1) : 1.0
-      };
+      
+      // Normalizza per il peso totale
+      const avgHome = totalWeight > 0 ? hg / totalWeight : 1.2;
+      const avgAway = totalWeight > 0 ? ag / totalWeight : 1.0;
+      const avgTotal = (avgHome + avgAway) / 2;
+      
+      // Calcola moltiplicatori con range più ampio per H2H significativi
+      const homeMultiplier = avgTotal > 0.1 ? clamp(0.85, avgHome / avgTotal, 1.15) : 1.0;
+      const awayMultiplier = avgTotal > 0.1 ? clamp(0.85, avgAway / avgTotal, 1.15) : 1.0;
+      
+      return { homeMultiplier, awayMultiplier };
     }
 
     function summarizeH2H(h2h, homeId) {
@@ -910,17 +1000,43 @@
     }
 
     function calcCorners(homeData, awayData, fsMatch) {
-      let h = 5.0, a = 4.5;
+      // Base: medie italiane tipiche per corner
+      let h = 5.2, a = 4.3;
+      
+      // FootyStats ha dati più precisi sui corner
       if (fsMatch) {
-        if (fsMatch.home_corners) h = fsMatch.home_corners;
-        if (fsMatch.away_corners) a = fsMatch.away_corners;
+        if (fsMatch.home_corners && fsMatch.home_corners > 0) h = fsMatch.home_corners;
+        else if (fsMatch.team_a_corners_avg && fsMatch.team_a_corners_avg > 0) h = fsMatch.team_a_corners_avg;
+        
+        if (fsMatch.away_corners && fsMatch.away_corners > 0) a = fsMatch.away_corners;
+        else if (fsMatch.team_b_corners_avg && fsMatch.team_b_corners_avg > 0) a = fsMatch.team_b_corners_avg;
+        
+        // Se disponibile media totale della partita
+        if (fsMatch.corners_avg && fsMatch.corners_avg > 0) {
+          const fsTotal = fsMatch.corners_avg;
+          const ratio = h / (h + a);
+          h = fsTotal * ratio;
+          a = fsTotal * (1 - ratio);
+        }
       }
+      
       const total = h + a;
       const probs = {};
+      
+      // Calcolo probabilità con distribuzione normale approssimata
       [8.5, 9.5, 10.5, 11.5].forEach(line => {
         const diff = total - line;
-        probs[line] = { over: clamp(15, 50 + diff * 11, 85), under: clamp(15, 50 - diff * 11, 85) };
+        // Deviazione standard tipica per corner: ~2.5
+        const stdDev = 2.5;
+        const zScore = diff / stdDev;
+        // Approssimazione della CDF normale
+        const overProb = 50 + (zScore * 30); // Semplificazione lineare
+        probs[line] = { 
+          over: clamp(12, overProb, 88), 
+          under: clamp(12, 100 - overProb, 88) 
+        };
       });
+      
       return { home: h, away: a, total, probs };
     }
 
@@ -971,11 +1087,34 @@
 
     function calcExactScores(lH, lA) {
       const scores = [];
+      
+      // Dixon-Coles correction factor per risultati a basso punteggio
+      // Questo corregge la tendenza del Poisson a sottostimare 0-0, 1-0, 0-1, 1-1
+      const rho = 0.13; // Fattore di correlazione (valori tipici: 0.10-0.15)
+      
       for (let i = 0; i <= 5; i++) {
         for (let j = 0; j <= 5; j++) {
-          scores.push({ h: i, a: j, p: poisson(lH, i) * poisson(lA, j) * 100 });
+          let p = poisson(lH, i) * poisson(lA, j);
+          
+          // Applica Dixon-Coles correction per risultati bassi
+          if (i === 0 && j === 0) {
+            p *= (1 + lH * lA * rho); // 0-0 leggermente più probabile
+          } else if (i === 0 && j === 1) {
+            p *= (1 + lH * rho); // 0-1 
+          } else if (i === 1 && j === 0) {
+            p *= (1 + lA * rho); // 1-0
+          } else if (i === 1 && j === 1) {
+            p *= (1 - rho); // 1-1 leggermente meno probabile (già frequente)
+          }
+          
+          scores.push({ h: i, a: j, p: p * 100 });
         }
       }
+      
+      // Normalizza le probabilità
+      const total = scores.reduce((sum, s) => sum + s.p, 0);
+      scores.forEach(s => s.p = (s.p / total) * 100);
+      
       return scores.sort((a, b) => b.p - a.p);
     }
 
