@@ -349,6 +349,280 @@
     .prediction-prob.mid { background: rgba(251,191,36,0.2); color: var(--accent-yellow); }
     .prediction-prob.low { background: rgba(239,68,68,0.2); color: var(--accent-red); }
     
+    /* HOME SECTIONS - Picks del giorno */
+    .home-sections { display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px; }
+    .picks-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .picks-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .picks-section.raddoppi::before { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+    .picks-section.gg::before { background: linear-gradient(90deg, var(--accent-yellow), var(--accent-green)); }
+    .picks-section.over::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
+    .picks-section.pareggi::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
+    .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
+    .picks-title-icon { font-size: 1.3rem; }
+    .picks-count { 
+      padding: 4px 12px; 
+      background: var(--bg-input); 
+      border-radius: 12px; 
+      font-size: 0.75rem; 
+      color: var(--text-gray); 
+    }
+    .picks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .pick-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--bg-card-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pick-card:hover { border-color: var(--accent-cyan); transform: translateX(4px); }
+    .pick-card.selected { border-color: var(--accent-green); background: rgba(16,185,129,0.1); }
+    .pick-info { flex: 1; min-width: 0; }
+    .pick-match { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .pick-league { font-size: 0.65rem; color: var(--text-dark); }
+    .pick-bet { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .pick-value { font-weight: 700; color: var(--accent-cyan); }
+    .pick-prob { 
+      font-family: 'JetBrains Mono', monospace; 
+      font-size: 0.75rem; 
+      padding: 2px 8px; 
+      border-radius: 6px;
+      background: rgba(16,185,129,0.2); 
+      color: var(--accent-green); 
+    }
+    
+    /* RADDOPPI COMBINATI */
+    .raddoppi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .raddoppio-card {
+      background: linear-gradient(145deg, var(--bg-card-light), var(--bg-input));
+      border: 2px solid var(--accent-green);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .raddoppio-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(16,185,129,0.2); }
+    .raddoppio-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .raddoppio-badge {
+      background: var(--accent-green);
+      color: var(--bg-dark);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .raddoppio-odds {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+    .raddoppio-bets { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .raddoppio-bet {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+    }
+    .raddoppio-match { font-size: 0.8rem; color: var(--text-gray); }
+    .raddoppio-pick { 
+      font-weight: 700; 
+      color: var(--accent-cyan);
+      padding: 2px 8px;
+      background: rgba(34,211,238,0.15);
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .raddoppio-footer { text-align: center; }
+    .raddoppio-prob {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+    
+    /* MONEY MANAGEMENT */
+    .money-section {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
+      border: 2px solid var(--accent-purple);
+      border-radius: 20px;
+      padding: 24px;
+    }
+    .money-header { text-align: center; margin-bottom: 20px; }
+    .money-title { 
+      font-size: 1.2rem; font-weight: 800; 
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .money-subtitle { font-size: 0.8rem; color: var(--text-dark); }
+    .money-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .money-input-group { display: flex; flex-direction: column; gap: 6px; }
+    .money-label { font-size: 0.75rem; color: var(--text-gray); text-transform: uppercase; letter-spacing: 0.5px; }
+    .money-input {
+      padding: 14px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-white);
+      font-size: 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+    .money-input:focus { outline: none; border-color: var(--accent-cyan); }
+    .money-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+    .money-stat {
+      background: var(--bg-input);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .money-stat-label { font-size: 0.65rem; color: var(--text-dark); text-transform: uppercase; margin-bottom: 6px; }
+    .money-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; }
+    .money-stat-value.green { color: var(--accent-green); }
+    .money-stat-value.cyan { color: var(--accent-cyan); }
+    .money-stat-value.yellow { color: var(--accent-yellow); }
+    .money-stat-value.purple { color: var(--accent-purple); }
+    .money-strategy { 
+      margin-top: 16px; 
+      padding: 16px; 
+      background: var(--bg-card-light); 
+      border-radius: 12px; 
+      display: flex; 
+      flex-wrap: wrap; 
+      gap: 12px; 
+      justify-content: center;
+    }
+    .strategy-btn {
+      padding: 10px 20px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-gray);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .strategy-btn:hover { border-color: var(--accent-cyan); color: var(--text-white); }
+    .strategy-btn.active { background: var(--accent-purple); border-color: var(--accent-purple); color: white; }
+    
+    /* SISTEMA OBIETTIVO */
+    .money-grid-4 { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
+      gap: 12px; 
+      margin-bottom: 20px; 
+    }
+    .progress-section { margin-bottom: 20px; }
+    .progress-bar-container {
+      position: relative;
+      height: 32px;
+      background: var(--bg-input);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+      border-radius: 16px;
+      transition: width 0.5s;
+    }
+    .progress-bar-text {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-white);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .stake-section {
+      background: linear-gradient(145deg, rgba(34,211,238,0.1), rgba(59,130,246,0.1));
+      border: 2px solid var(--accent-cyan);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .stake-section.warning { border-color: var(--accent-yellow); }
+    .stake-section.reached { border-color: var(--accent-green); background: rgba(16,185,129,0.15); }
+    .stake-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+    .stake-label { color: var(--text-gray); font-weight: 600; }
+    .stake-remaining { color: var(--accent-cyan); }
+    .stake-reached {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent-green);
+      padding: 20px;
+    }
+    .stake-value { margin-bottom: 12px; }
+    .stake-amount {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 20px rgba(34,211,238,0.5);
+    }
+    .stake-info { font-size: 0.85rem; color: var(--text-gray); margin-top: 8px; }
+    .stake-warning { 
+      font-size: 0.8rem; 
+      color: var(--accent-yellow); 
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: rgba(251,191,36,0.1);
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .stake-preview {
+      font-size: 0.9rem;
+      color: var(--text-gray);
+      margin-bottom: 16px;
+    }
+    .stake-preview strong { color: var(--accent-green); }
+    .stake-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .stake-btn {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .stake-btn.win { background: var(--accent-green); color: white; }
+    .stake-btn.win:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(16,185,129,0.4); }
+    .stake-btn.loss { background: var(--accent-red); color: white; }
+    .stake-btn.loss:hover { transform: scale(1.05); box-shadow: 0 4px 16px rgba(239,68,68,0.4); }
+    .stake-btn.reset { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-gray); }
+    .stake-btn.reset:hover { border-color: var(--accent-cyan); color: var(--text-white); }
+    
     /* SCHEDINA FLOATING */
     .slip-floating {
       position: fixed;
@@ -519,7 +793,18 @@
       api: { football: 'offline', footystats: 'offline' },
       fsData: new Map(),
       slip: [], // Schedina
-      slipModal: false
+      slipModal: false,
+      // Picks del giorno
+      dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [] },
+      // Money Management - Sistema Obiettivo
+      money: {
+        bankroll: parseFloat(localStorage.getItem('bp_bankroll')) || 100,
+        target: parseFloat(localStorage.getItem('bp_target')) || 500,
+        totalBets: parseInt(localStorage.getItem('bp_totalbets')) || 10,
+        currentBet: parseInt(localStorage.getItem('bp_currentbet')) || 1,
+        currentOdds: parseFloat(localStorage.getItem('bp_odds')) || 1.80,
+        history: JSON.parse(localStorage.getItem('bp_history') || '[]')
+      }
     };
 
     // === UTILITIES ===
@@ -547,6 +832,354 @@
     // Poisson
     const factorial = n => { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; };
     const poisson = (l, k) => l <= 0 ? (k === 0 ? 1 : 0) : (Math.pow(l, k) * Math.exp(-l)) / factorial(k);
+
+    // === DAILY PICKS - Analisi rapida di tutte le partite ===
+    
+    // Campionati TOP con dati affidabili (IDs API-Football)
+    const TOP_LEAGUES = [
+      // Italia
+      135, 136, // Serie A, Serie B
+      // Inghilterra
+      39, 40, 41, // Premier, Championship, League One
+      // Spagna
+      140, 141, // La Liga, Segunda
+      // Germania
+      78, 79, // Bundesliga, 2. Bundesliga
+      // Francia
+      61, 62, // Ligue 1, Ligue 2
+      // Altri top
+      88,  // Eredivisie (Olanda)
+      94,  // Primeira Liga (Portogallo)
+      144, // Jupiler Pro (Belgio)
+      203, // Super Lig (Turchia)
+      // Coppe europee
+      2, 3, 848, // Champions, Europa League, Conference
+    ];
+    
+    function calculateDailyPicks() {
+      if (state.matches.length === 0) return;
+      
+      const picks = { raddoppi: [], gg: [], over25: [], pareggi: [] };
+      const safeBets = []; // Per costruire i raddoppi
+      
+      state.matches.forEach(match => {
+        // Skip partite già iniziate o finite
+        if (['1H','2H','HT','ET','P','LIVE','FT','AET','PEN'].includes(match.status)) return;
+        
+        // Per i RADDOPPI: solo campionati top
+        const isTopLeague = TOP_LEAGUES.includes(match.league.id);
+        
+        // Calcolo rapido basato su FootyStats se disponibile
+        let fsMatch = null;
+        const fsKeys = [
+          `${match.home.name.toLowerCase()}_${match.away.name.toLowerCase()}`,
+          match.home.name.toLowerCase().replace(/\s+/g, '') + '_' + match.away.name.toLowerCase().replace(/\s+/g, '')
+        ];
+        for (const k of fsKeys) {
+          if (state.fsData.has(k)) { fsMatch = state.fsData.get(k); break; }
+        }
+        
+        // Stima xG base
+        let homeXG = 1.35, awayXG = 1.10;
+        
+        if (fsMatch) {
+          if (fsMatch.home_xg) homeXG = fsMatch.home_xg;
+          else if (fsMatch.home_ppg) homeXG = fsMatch.home_ppg * 0.8;
+          else if (fsMatch.avg_goals_home) homeXG = fsMatch.avg_goals_home;
+          
+          if (fsMatch.away_xg) awayXG = fsMatch.away_xg;
+          else if (fsMatch.away_ppg) awayXG = fsMatch.away_ppg * 0.7;
+          else if (fsMatch.avg_goals_away) awayXG = fsMatch.avg_goals_away;
+        }
+        
+        // Home advantage
+        homeXG *= 1.10;
+        awayXG *= 0.93;
+        
+        homeXG = clamp(0.3, homeXG, 3.5);
+        awayXG = clamp(0.2, awayXG, 3.0);
+        
+        const totXG = homeXG + awayXG;
+        
+        // Calcola probabilità
+        const p1X2 = quickCalc1X2(homeXG, awayXG);
+        const pOver15 = quickCalcOver(homeXG, awayXG, 1.5);
+        const pOver25 = quickCalcOver(homeXG, awayXG, 2.5);
+        const pBTTS = quickCalcBTTS(homeXG, awayXG);
+        
+        const matchInfo = {
+          match,
+          matchName: `${match.home.name} vs ${match.away.name}`,
+          shortName: `${match.home.name.substring(0,12)} - ${match.away.name.substring(0,12)}`,
+          league: `${match.league.country} - ${match.league.name}`,
+          time: formatTime(match.date)
+        };
+        
+        // === PRONOSTICI SICURI PER RADDOPPI (solo campionati TOP e prob >= 75%) ===
+        if (isTopLeague) {
+          const p1X = p1X2.home + p1X2.draw;
+          const pX2 = p1X2.draw + p1X2.away;
+          
+          // 1X (casa o pareggio)
+          if (p1X >= 78) {
+            safeBets.push({ ...matchInfo, bet: '1X', prob: p1X, odds: (100 / p1X).toFixed(2) });
+          }
+          // X2 (pareggio o trasferta)
+          if (pX2 >= 78) {
+            safeBets.push({ ...matchInfo, bet: 'X2', prob: pX2, odds: (100 / pX2).toFixed(2) });
+          }
+          // Over 1.5
+          if (pOver15 >= 80) {
+            safeBets.push({ ...matchInfo, bet: 'Over 1.5', prob: pOver15, odds: (100 / pOver15).toFixed(2) });
+          }
+          // 1 secco molto probabile
+          if (p1X2.home >= 73) {
+            safeBets.push({ ...matchInfo, bet: '1', prob: p1X2.home, odds: (100 / p1X2.home).toFixed(2) });
+          }
+          // 2 secco molto probabile
+          if (p1X2.away >= 70) {
+            safeBets.push({ ...matchInfo, bet: '2', prob: p1X2.away, odds: (100 / p1X2.away).toFixed(2) });
+          }
+        }
+        
+        // GG del giorno (prob >= 55%) - tutti i campionati
+        if (pBTTS >= 55) {
+          picks.gg.push({ ...matchInfo, bet: 'GG', prob: pBTTS });
+        }
+        
+        // OVER 2.5 del giorno (prob >= 55%) - tutti i campionati
+        if (pOver25 >= 55) {
+          picks.over25.push({ ...matchInfo, bet: 'Over 2.5', prob: pOver25 });
+        }
+        
+        // PAREGGI del giorno (prob >= 28% - i pareggi hanno sempre prob basse)
+        if (p1X2.draw >= 28 && p1X2.home < 50 && p1X2.away < 50) {
+          picks.pareggi.push({ ...matchInfo, bet: 'X', prob: p1X2.draw });
+        }
+      });
+      
+      // === COSTRUISCI RADDOPPI (combinazioni che fanno quota ~2.00) ===
+      picks.raddoppi = buildRaddoppi(safeBets);
+      
+      // Ordina per probabilità decrescente e limita a 6 per categoria
+      picks.gg = picks.gg.sort((a, b) => b.prob - a.prob).slice(0, 6);
+      picks.over25 = picks.over25.sort((a, b) => b.prob - a.prob).slice(0, 6);
+      picks.pareggi = picks.pareggi.sort((a, b) => b.prob - a.prob).slice(0, 6);
+      
+      state.dailyPicks = picks;
+      console.log('🎯 Daily picks:', Object.keys(picks).map(k => `${k}: ${picks[k].length}`).join(', '));
+    }
+    
+    // Costruisce combinazioni per raddoppi (quota target ~2.00)
+    function buildRaddoppi(safeBets) {
+      if (safeBets.length < 2) return [];
+      
+      const raddoppi = [];
+      const targetOdds = 2.0;
+      const tolerance = 0.25; // quota tra 1.75 e 2.25
+      
+      // Ordina per probabilità decrescente
+      safeBets.sort((a, b) => b.prob - a.prob);
+      
+      // Prova combinazioni di 2, 3, 4 partite
+      for (let size = 2; size <= Math.min(4, safeBets.length); size++) {
+        const combos = getCombinations(safeBets, size);
+        
+        for (const combo of combos) {
+          // Verifica che non ci siano partite duplicate
+          const matchIds = combo.map(c => c.match.id);
+          if (new Set(matchIds).size !== matchIds.length) continue;
+          
+          // Calcola quota totale e probabilità combinata
+          const totalOdds = combo.reduce((acc, c) => acc * parseFloat(c.odds), 1);
+          const totalProb = combo.reduce((acc, c) => acc * (c.prob / 100), 1) * 100;
+          
+          // Se la quota è vicina a 2.00
+          if (totalOdds >= targetOdds - tolerance && totalOdds <= targetOdds + tolerance) {
+            raddoppi.push({
+              bets: combo,
+              totalOdds: totalOdds.toFixed(2),
+              totalProb: totalProb.toFixed(1),
+              size: combo.length
+            });
+          }
+        }
+      }
+      
+      // Ordina per probabilità combinata e prendi i migliori 6
+      return raddoppi
+        .sort((a, b) => parseFloat(b.totalProb) - parseFloat(a.totalProb))
+        .slice(0, 6);
+    }
+    
+    // Genera combinazioni di k elementi da un array
+    function getCombinations(arr, k) {
+      if (k === 1) return arr.map(x => [x]);
+      if (k === arr.length) return [arr];
+      if (k > arr.length) return [];
+      
+      const result = [];
+      const n = arr.length;
+      
+      // Limita per performance
+      const maxCombos = 500;
+      let count = 0;
+      
+      function combine(start, combo) {
+        if (count >= maxCombos) return;
+        if (combo.length === k) {
+          result.push([...combo]);
+          count++;
+          return;
+        }
+        for (let i = start; i < n && count < maxCombos; i++) {
+          combo.push(arr[i]);
+          combine(i + 1, combo);
+          combo.pop();
+        }
+      }
+      
+      combine(0, []);
+      return result;
+    }
+    
+    // Calcoli rapidi per picks (senza Dixon-Coles per velocità)
+    function quickCalc1X2(lH, lA) {
+      let pH = 0, pD = 0, pA = 0;
+      for (let i = 0; i <= 5; i++) {
+        for (let j = 0; j <= 5; j++) {
+          const p = poisson(lH, i) * poisson(lA, j);
+          if (i > j) pH += p; else if (i === j) pD += p; else pA += p;
+        }
+      }
+      const t = pH + pD + pA;
+      return { home: (pH/t)*100, draw: (pD/t)*100, away: (pA/t)*100 };
+    }
+    
+    function quickCalcOver(lH, lA, line) {
+      let pUnder = 0;
+      for (let i = 0; i <= 5; i++) {
+        for (let j = 0; j <= 5; j++) {
+          if (i + j <= Math.floor(line)) pUnder += poisson(lH, i) * poisson(lA, j);
+        }
+      }
+      return clamp(10, (1 - pUnder) * 100, 90);
+    }
+    
+    function quickCalcBTTS(lH, lA) {
+      return clamp(15, (1 - poisson(lH, 0)) * (1 - poisson(lA, 0)) * 100, 85);
+    }
+    
+    // === MONEY MANAGEMENT ===
+    // === MONEY MANAGEMENT - SISTEMA OBIETTIVO ===
+    
+    function saveMoney() {
+      localStorage.setItem('bp_bankroll', state.money.bankroll);
+      localStorage.setItem('bp_target', state.money.target);
+      localStorage.setItem('bp_totalbets', state.money.totalBets);
+      localStorage.setItem('bp_currentbet', state.money.currentBet);
+      localStorage.setItem('bp_odds', state.money.currentOdds);
+      localStorage.setItem('bp_history', JSON.stringify(state.money.history.slice(-30)));
+    }
+    
+    // Calcola quanto puntare per raggiungere l'obiettivo
+    function calculateStake() {
+      const { bankroll, target, totalBets, currentBet, currentOdds } = state.money;
+      const remainingBets = totalBets - currentBet + 1;
+      
+      if (remainingBets <= 0 || bankroll <= 0 || currentOdds <= 1) {
+        return { stake: 0, error: 'Parametri non validi' };
+      }
+      
+      if (bankroll >= target) {
+        return { stake: 0, reached: true };
+      }
+      
+      // Calcola il moltiplicatore necessario per giocata
+      const totalMultiplier = target / bankroll;
+      const perBetMultiplier = Math.pow(totalMultiplier, 1 / remainingBets);
+      
+      // Calcola la puntata necessaria
+      // Se vinco: bankroll + stake × (odds - 1) = bankroll × perBetMultiplier
+      const stake = bankroll * (perBetMultiplier - 1) / (currentOdds - 1);
+      
+      // Limiti di sicurezza
+      if (stake > bankroll * 0.95) {
+        return { stake: Math.round(bankroll * 0.95 * 100) / 100, warning: '⚠️ Rischio MOLTO alto!' };
+      }
+      
+      if (stake < 0.5) {
+        return { stake: 0.5, warning: 'Puntata minima €0.50' };
+      }
+      
+      return {
+        stake: Math.round(stake * 100) / 100,
+        perBetMultiplier: perBetMultiplier.toFixed(3),
+        potentialWin: Math.round(stake * (currentOdds - 1) * 100) / 100,
+        newBankroll: Math.round((bankroll + stake * (currentOdds - 1)) * 100) / 100
+      };
+    }
+    
+    function recordBetResult(won) {
+      const calc = calculateStake();
+      const stake = calc.stake || 0;
+      
+      state.money.history.push({
+        bet: state.money.currentBet,
+        date: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
+        odds: state.money.currentOdds,
+        stake: stake,
+        won: won,
+        bankrollBefore: state.money.bankroll
+      });
+      
+      if (won) {
+        state.money.bankroll += stake * (state.money.currentOdds - 1);
+      } else {
+        state.money.bankroll -= stake;
+      }
+      
+      state.money.bankroll = Math.max(0, Math.round(state.money.bankroll * 100) / 100);
+      state.money.currentBet++;
+      
+      saveMoney();
+      render();
+    }
+    
+    function resetMoney() {
+      state.money.currentBet = 1;
+      state.money.history = [];
+      saveMoney();
+      render();
+    }
+    
+    function getMoneyStats() {
+      const { bankroll, target, totalBets, currentBet, currentOdds, history } = state.money;
+      const calc = calculateStake();
+      const wins = history.filter(h => h.won).length;
+      const losses = history.filter(h => !h.won).length;
+      const progress = Math.min(100, (bankroll / target) * 100);
+      
+      return {
+        bankroll,
+        target,
+        totalBets,
+        currentBet,
+        currentOdds,
+        remainingBets: Math.max(0, totalBets - currentBet + 1),
+        progress,
+        stake: calc.stake || 0,
+        warning: calc.warning,
+        error: calc.error,
+        reached: calc.reached,
+        potentialWin: calc.potentialWin || 0,
+        newBankroll: calc.newBankroll || bankroll,
+        perBetMultiplier: calc.perBetMultiplier || '-',
+        wins,
+        losses,
+        winRate: (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(0) : '-'
+      };
+    }
 
     // === FIREBASE SCHEDINA ===
     async function loadSlipFromFirebase() {
@@ -716,6 +1349,9 @@
           }
         });
       }
+      
+      // Calcola i picks del giorno
+      calculateDailyPicks();
       
       state.loading = false;
       render();
@@ -1258,6 +1894,9 @@
     }
 
     function renderLeagues() {
+      const picks = state.dailyPicks;
+      const money = getMoneyStats();
+      
       return `
         <div class="date-tabs">
           ${[-1, 0, 1, 2].map(d => `
@@ -1267,6 +1906,198 @@
           `).join('')}
         </div>
         
+        <!-- MONEY MANAGEMENT - SISTEMA OBIETTIVO -->
+        <div class="money-section">
+          <div class="money-header">
+            <div class="money-title">🎯 Sistema Obiettivo</div>
+            <div class="money-subtitle">Raggiungi il tuo target in N giocate</div>
+          </div>
+          
+          <!-- INPUTS -->
+          <div class="money-grid-4">
+            <div class="money-input-group">
+              <label class="money-label">💰 Cassa Attuale</label>
+              <input type="number" class="money-input" id="bankrollInput" value="${money.bankroll.toFixed(2)}" min="1" step="10">
+            </div>
+            <div class="money-input-group">
+              <label class="money-label">🏆 Obiettivo</label>
+              <input type="number" class="money-input" id="targetInput" value="${money.target}" min="10" step="50">
+            </div>
+            <div class="money-input-group">
+              <label class="money-label">🎲 N° Giocate</label>
+              <input type="number" class="money-input" id="totalBetsInput" value="${money.totalBets}" min="1" max="50" step="1">
+            </div>
+            <div class="money-input-group">
+              <label class="money-label">📊 Quota</label>
+              <input type="number" class="money-input" id="oddsInput" value="${money.currentOdds}" min="1.01" step="0.05">
+            </div>
+          </div>
+          
+          <!-- PROGRESS BAR -->
+          <div class="progress-section">
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" style="width: ${money.progress}%"></div>
+              <div class="progress-bar-text">€${money.bankroll.toFixed(0)} / €${money.target} (${money.progress.toFixed(1)}%)</div>
+            </div>
+          </div>
+          
+          <!-- CALCOLO PUNTATA -->
+          <div class="stake-section ${money.reached ? 'reached' : ''} ${money.warning ? 'warning' : ''}">
+            <div class="stake-header">
+              <span class="stake-label">Giocata ${money.currentBet} di ${money.totalBets}</span>
+              <span class="stake-remaining">${money.remainingBets} rimaste</span>
+            </div>
+            ${money.reached ? `
+              <div class="stake-reached">🏆 OBIETTIVO RAGGIUNTO!</div>
+            ` : `
+              <div class="stake-value">
+                <div class="stake-amount">€${money.stake.toFixed(2)}</div>
+                <div class="stake-info">@ ${money.currentOdds} → Vincita €${money.potentialWin.toFixed(2)}</div>
+                ${money.warning ? `<div class="stake-warning">${money.warning}</div>` : ''}
+              </div>
+              <div class="stake-preview">
+                Se vinci: <strong>€${money.newBankroll.toFixed(2)}</strong>
+              </div>
+            `}
+            <div class="stake-buttons">
+              <button class="stake-btn win" id="betWin">✅ VINTO</button>
+              <button class="stake-btn loss" id="betLoss">❌ PERSO</button>
+              <button class="stake-btn reset" id="betReset">🔄 Reset</button>
+            </div>
+          </div>
+          
+          <!-- STATS -->
+          <div class="money-stats">
+            <div class="money-stat">
+              <div class="money-stat-label">Cassa</div>
+              <div class="money-stat-value green">€${money.bankroll.toFixed(0)}</div>
+            </div>
+            <div class="money-stat">
+              <div class="money-stat-label">Vinte</div>
+              <div class="money-stat-value cyan">${money.wins}</div>
+            </div>
+            <div class="money-stat">
+              <div class="money-stat-label">Perse</div>
+              <div class="money-stat-value yellow">${money.losses}</div>
+            </div>
+            <div class="money-stat">
+              <div class="money-stat-label">Win Rate</div>
+              <div class="money-stat-value purple">${money.winRate}%</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- HOME SECTIONS - PICKS DEL GIORNO -->
+        <div class="home-sections">
+          
+          <!-- RADDOPPI DEL GIORNO (COMBINAZIONI) -->
+          ${picks.raddoppi.length > 0 ? `
+          <div class="picks-section raddoppi">
+            <div class="picks-header">
+              <div class="picks-title"><span class="picks-title-icon">💰</span> Raddoppi del Giorno</div>
+              <span class="picks-count">${picks.raddoppi.length} combo</span>
+            </div>
+            <div class="raddoppi-grid">
+              ${picks.raddoppi.map((r, idx) => `
+                <div class="raddoppio-card" data-raddoppio="${idx}">
+                  <div class="raddoppio-header">
+                    <span class="raddoppio-badge">🎯 ${r.size} partite</span>
+                    <span class="raddoppio-odds">@${r.totalOdds}</span>
+                  </div>
+                  <div class="raddoppio-bets">
+                    ${r.bets.map(b => `
+                      <div class="raddoppio-bet">
+                        <span class="raddoppio-match">${esc(b.shortName)}</span>
+                        <span class="raddoppio-pick">${b.bet}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div class="raddoppio-footer">
+                    <span class="raddoppio-prob">${r.totalProb}% prob</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- GG DEL GIORNO -->
+          ${picks.gg.length > 0 ? `
+          <div class="picks-section gg">
+            <div class="picks-header">
+              <div class="picks-title"><span class="picks-title-icon">⚽</span> GG del Giorno</div>
+              <span class="picks-count">${picks.gg.length} picks</span>
+            </div>
+            <div class="picks-grid">
+              ${picks.gg.map(p => `
+                <div class="pick-card ${isInSlip(p.match.id, 'pick_GG') ? 'selected' : ''}" 
+                     data-matchid="${p.match.id}" data-market="pick_GG" data-value="GG" data-prob="${p.prob.toFixed(0)}">
+                  <div class="pick-info">
+                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
+                    <div class="pick-league">${p.time} • ${esc(p.league)}</div>
+                  </div>
+                  <div class="pick-bet">
+                    <span class="pick-value">GG</span>
+                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- OVER 2.5 DEL GIORNO -->
+          ${picks.over25.length > 0 ? `
+          <div class="picks-section over">
+            <div class="picks-header">
+              <div class="picks-title"><span class="picks-title-icon">🔥</span> Over 2.5 del Giorno</div>
+              <span class="picks-count">${picks.over25.length} picks</span>
+            </div>
+            <div class="picks-grid">
+              ${picks.over25.map(p => `
+                <div class="pick-card ${isInSlip(p.match.id, 'pick_O25') ? 'selected' : ''}" 
+                     data-matchid="${p.match.id}" data-market="pick_O25" data-value="Over 2.5" data-prob="${p.prob.toFixed(0)}">
+                  <div class="pick-info">
+                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
+                    <div class="pick-league">${p.time} • ${esc(p.league)}</div>
+                  </div>
+                  <div class="pick-bet">
+                    <span class="pick-value">O 2.5</span>
+                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- X DEL GIORNO -->
+          ${picks.pareggi.length > 0 ? `
+          <div class="picks-section pareggi">
+            <div class="picks-header">
+              <div class="picks-title"><span class="picks-title-icon">🎲</span> X del Giorno</div>
+              <span class="picks-count">${picks.pareggi.length} picks</span>
+            </div>
+            <div class="picks-grid">
+              ${picks.pareggi.map(p => `
+                <div class="pick-card ${isInSlip(p.match.id, 'pick_X') ? 'selected' : ''}" 
+                     data-matchid="${p.match.id}" data-market="pick_X" data-value="X" data-prob="${p.prob.toFixed(0)}">
+                  <div class="pick-info">
+                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
+                    <div class="pick-league">${p.time} • ${esc(p.league)}</div>
+                  </div>
+                  <div class="pick-bet">
+                    <span class="pick-value">X</span>
+                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+        </div>
+        
+        <!-- SELEZIONA CAMPIONATO -->
         <div class="panel">
           <div class="panel-title">📋 Seleziona Campionato (${state.matches.length} partite)</div>
           ${state.leagues.length === 0 ? `<div class="empty"><div class="empty-icon">📭</div>Nessuna partita</div>` : `
@@ -1530,13 +2361,67 @@
         });
       });
       
-      // Predictions click to add
+      // PICK CARDS nella home - aggiungi alla schedina
+      document.querySelectorAll('.pick-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const matchId = parseInt(el.dataset.matchid);
+          const match = state.matches.find(m => m.id === matchId);
+          if (match) {
+            addToSlip(match, el.dataset.market, el.dataset.value, parseFloat(el.dataset.prob));
+          }
+        });
+      });
+      
+      // RADDOPPI COMBINATI - aggiungi tutte le scommesse alla schedina
+      document.querySelectorAll('.raddoppio-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const idx = parseInt(el.dataset.raddoppio);
+          const raddoppio = state.dailyPicks.raddoppi[idx];
+          if (raddoppio) {
+            raddoppio.bets.forEach(b => {
+              addToSlip(b.match, 'radd_' + b.bet, b.bet, b.prob);
+            });
+          }
+        });
+      });
+      
+      // Predictions click to add (nella pagina analisi)
       document.querySelectorAll('.prediction-card, .combo-card').forEach(el => {
         el.addEventListener('click', () => {
           const m = state.selectedMatch;
-          addToSlip(m, el.dataset.market, el.dataset.value, parseFloat(el.dataset.prob));
+          if (m) addToSlip(m, el.dataset.market, el.dataset.value, parseFloat(el.dataset.prob));
         });
       });
+      
+      // MONEY MANAGEMENT
+      document.getElementById('bankrollInput')?.addEventListener('change', e => {
+        state.money.bankroll = parseFloat(e.target.value) || 100;
+        saveMoney();
+        render();
+      });
+      
+      document.getElementById('targetInput')?.addEventListener('change', e => {
+        state.money.target = parseFloat(e.target.value) || 500;
+        saveMoney();
+        render();
+      });
+      
+      document.getElementById('totalBetsInput')?.addEventListener('change', e => {
+        state.money.totalBets = parseInt(e.target.value) || 10;
+        saveMoney();
+        render();
+      });
+      
+      document.getElementById('oddsInput')?.addEventListener('change', e => {
+        state.money.currentOdds = parseFloat(e.target.value) || 1.80;
+        saveMoney();
+        render();
+      });
+      
+      // BET RESULT BUTTONS
+      document.getElementById('betWin')?.addEventListener('click', () => recordBetResult(true));
+      document.getElementById('betLoss')?.addEventListener('click', () => recordBetResult(false));
+      document.getElementById('betReset')?.addEventListener('click', resetMoney);
       
       // Slip actions
       document.getElementById('openSlip')?.addEventListener('click', () => { state.slipModal = true; render(); });
