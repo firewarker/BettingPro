@@ -413,14 +413,7 @@
       state.loading = true;
       render();
       
-      // Data italiana corretta (non UTC!)
-      const now = new Date();
-      const italianDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Rome' }));
-      const today = italianDate.getFullYear() + '-' + 
-                    String(italianDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(italianDate.getDate()).padStart(2, '0');
-      
-      console.log('📅 Loading matches for:', today);
+      const today = new Date().toISOString().split('T')[0];
       const data = await callAPI('football', '/fixtures', { date: today, timezone: 'Europe/Rome' });
       
       if (data?.response) {
