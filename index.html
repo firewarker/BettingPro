@@ -332,12 +332,12 @@
       API_FOOTBALL: {
         key: 'aeb2864a3d4dbb8395fa53c83a876a93',
         baseURL: 'https://v3.football.api-sports.io',
-        proxy: 'https://api.allorigins.win/raw?url='
+        proxy: ''
       },
       FOOTYSTATS: {
         key: 'bec59b6f83404b0bd79c40076be71f6f3abec62afdacf5eeba296f2357993f3e',
         baseURL: 'https://api.footystats.org',
-        proxy: 'https://api.allorigins.win/raw?url='
+        proxy: 'https://corsproxy.io/?'
       },
       FIREBASE: {
         url: 'https://bettingpro-d0125-default-rtdb.europe-west1.firebasedatabase.app'
@@ -385,7 +385,9 @@
           'x-rapidapi-host': 'v3.football.api-sports.io'
         } : {};
         
-        const res = await fetch(cfg.proxy + encodeURIComponent(url.toString()), { headers });
+        // Usa proxy solo se configurato
+        const fetchUrl = cfg.proxy ? cfg.proxy + encodeURIComponent(url.toString()) : url.toString();
+        const res = await fetch(fetchUrl, { headers });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
         const data = await res.json();
