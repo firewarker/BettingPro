@@ -369,6 +369,7 @@
     .picks-section.gg::before { background: linear-gradient(90deg, var(--accent-yellow), var(--accent-green)); }
     .picks-section.over::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
     .picks-section.pareggi::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
+    .picks-section.over1t::before { background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow)); }
     .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
     .picks-title-icon { font-size: 1.3rem; }
@@ -795,7 +796,7 @@
       slip: [], // Schedina
       slipModal: false,
       // Picks del giorno
-      dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [] },
+      dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [] },
       // Money Management - Sistema Obiettivo
       money: {
         bankroll: parseFloat(localStorage.getItem('bp_bankroll')) || 100,
@@ -859,7 +860,7 @@
     function calculateDailyPicks() {
       if (state.matches.length === 0) return;
       
-      const picks = { raddoppi: [], gg: [], over25: [], pareggi: [] };
+      const picks = { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [] };
       const safeBets = []; // Per costruire i raddoppi
       
       state.matches.forEach(match => {
@@ -947,14 +948,28 @@
           picks.gg.push({ ...matchInfo, bet: 'GG', prob: pBTTS });
         }
         
-        // OVER 2.5 del giorno (prob >= 55%) - tutti i campionati
-        if (pOver25 >= 55) {
-          picks.over25.push({ ...matchInfo, bet: 'Over 2.5', prob: pOver25 });
+        // OVER 2.5 del giorno - SOLO con xG alto (evita falsi positivi)
+        if (pOver25 >= 55 && totXG >= 3.0) {
+          picks.over25.push({ ...matchInfo, bet: 'Over 2.5', prob: pOver25, xgTotal: totXG.toFixed(2) });
         }
         
         // PAREGGI del giorno (prob >= 28% - i pareggi hanno sempre prob basse)
         if (p1X2.draw >= 28 && p1X2.home < 50 && p1X2.away < 50) {
           picks.pareggi.push({ ...matchInfo, bet: 'X', prob: p1X2.draw });
+        }
+        
+        // OVER 1° TEMPO - Per partite con xG MOLTO alto
+        // Circa 45% dei gol avviene nel primo tempo
+        const pOver05_1T = quickCalcOver(homeXG * 0.45, awayXG * 0.45, 0.5);
+        const pOver15_1T = quickCalcOver(homeXG * 0.45, awayXG * 0.45, 1.5);
+        
+        // Over 0.5 1T (almeno 1 gol nel primo tempo) - xG >= 3.0
+        if (pOver05_1T >= 75 && totXG >= 3.0) {
+          picks.over1T.push({ ...matchInfo, bet: 'Over 0.5 1T', prob: pOver05_1T, xgTotal: totXG.toFixed(2) });
+        }
+        // Over 1.5 1T (almeno 2 gol nel primo tempo) - xG >= 3.8
+        if (pOver15_1T >= 55 && totXG >= 3.8) {
+          picks.over1T.push({ ...matchInfo, bet: 'Over 1.5 1T', prob: pOver15_1T, xgTotal: totXG.toFixed(2) });
         }
       });
       
@@ -965,6 +980,7 @@
       picks.gg = picks.gg.sort((a, b) => b.prob - a.prob).slice(0, 6);
       picks.over25 = picks.over25.sort((a, b) => b.prob - a.prob).slice(0, 6);
       picks.pareggi = picks.pareggi.sort((a, b) => b.prob - a.prob).slice(0, 6);
+      picks.over1T = picks.over1T.sort((a, b) => b.prob - a.prob).slice(0, 6);
       
       state.dailyPicks = picks;
       console.log('🎯 Daily picks:', Object.keys(picks).map(k => `${k}: ${picks[k].length}`).join(', '));
@@ -1775,6 +1791,10 @@
       const preds = [];
       const totXG = homeXG + awayXG;
       
+      // xG Primo Tempo (circa 45% dei gol nel 1T)
+      const homeXG_1T = homeXG * 0.45;
+      const awayXG_1T = awayXG * 0.45;
+      
       // 1X2
       const max1X2 = Math.max(p1X2.home, p1X2.draw, p1X2.away);
       let esito = p1X2.home === max1X2 ? '1' : (p1X2.away === max1X2 ? '2' : 'X');
@@ -1788,6 +1808,18 @@
       
       // Over/Under 1.5
       preds.push({ market: 'O/U 1.5', value: pOU[1.5].over >= 50 ? 'Over 1.5' : 'Under 1.5', prob: Math.max(pOU[1.5].over, pOU[1.5].under) });
+      
+      // === OVER PRIMO TEMPO ===
+      const pOver05_1T = calcOver1T(homeXG_1T, awayXG_1T, 0.5);
+      const pOver15_1T = calcOver1T(homeXG_1T, awayXG_1T, 1.5);
+      
+      // Over 0.5 1T
+      preds.push({ market: 'O/U 0.5 1T', value: pOver05_1T >= 50 ? 'Over 0.5 1T' : 'Under 0.5 1T', prob: Math.max(pOver05_1T, 100 - pOver05_1T) });
+      
+      // Over 1.5 1T (solo se xG è alto)
+      if (totXG >= 2.5) {
+        preds.push({ market: 'O/U 1.5 1T', value: pOver15_1T >= 50 ? 'Over 1.5 1T' : 'Under 1.5 1T', prob: Math.max(pOver15_1T, 100 - pOver15_1T) });
+      }
       
       // Multigol
       const mg13 = calcMultigol(homeXG, awayXG, 1, 3);
@@ -1815,6 +1847,19 @@
       preds.push({ market: 'Ris. Esatto', value: `${exactScores[0].h}-${exactScores[0].a}`, prob: exactScores[0].p });
       
       return preds.sort((a, b) => b.prob - a.prob);
+    }
+    
+    // Calcola Over Primo Tempo
+    function calcOver1T(homeXG_1T, awayXG_1T, line) {
+      let pUnder = 0;
+      for (let i = 0; i <= 4; i++) {
+        for (let j = 0; j <= 4; j++) {
+          if (i + j <= Math.floor(line)) {
+            pUnder += poisson(homeXG_1T, i) * poisson(awayXG_1T, j);
+          }
+        }
+      }
+      return clamp(10, (1 - pUnder) * 100, 90);
     }
 
     function buildCombos(p1X2, pOU, pBTTS) {
@@ -2059,7 +2104,7 @@
                      data-matchid="${p.match.id}" data-market="pick_O25" data-value="Over 2.5" data-prob="${p.prob.toFixed(0)}">
                   <div class="pick-info">
                     <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
-                    <div class="pick-league">${p.time} • ${esc(p.league)}</div>
+                    <div class="pick-league">${p.time} • xG: ${p.xgTotal}</div>
                   </div>
                   <div class="pick-bet">
                     <span class="pick-value">O 2.5</span>
@@ -2088,6 +2133,31 @@
                   </div>
                   <div class="pick-bet">
                     <span class="pick-value">X</span>
+                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          <!-- OVER 1° TEMPO DEL GIORNO -->
+          ${picks.over1T.length > 0 ? `
+          <div class="picks-section over1t">
+            <div class="picks-header">
+              <div class="picks-title"><span class="picks-title-icon">⏱️</span> Over 1° Tempo</div>
+              <span class="picks-count">${picks.over1T.length} picks</span>
+            </div>
+            <div class="picks-grid">
+              ${picks.over1T.map(p => `
+                <div class="pick-card ${isInSlip(p.match.id, 'pick_'+p.bet.replace(/\s+/g,'')) ? 'selected' : ''}" 
+                     data-matchid="${p.match.id}" data-market="pick_${p.bet.replace(/\s+/g,'')}" data-value="${p.bet}" data-prob="${p.prob.toFixed(0)}">
+                  <div class="pick-info">
+                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
+                    <div class="pick-league">${p.time} • xG: ${p.xgTotal}</div>
+                  </div>
+                  <div class="pick-bet">
+                    <span class="pick-value">${p.bet}</span>
                     <span class="pick-prob">${p.prob.toFixed(0)}%</span>
                   </div>
                 </div>
