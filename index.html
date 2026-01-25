@@ -370,6 +370,123 @@
     .picks-section.over::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
     .picks-section.pareggi::before { background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); }
     .picks-section.over1t::before { background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow)); }
+    
+    /* AI CONSIGLIO */
+    .ai-advice {
+      background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(34,211,238,0.15));
+      border: 2px solid var(--accent-purple);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ai-advice::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan), var(--accent-green));
+    }
+    .ai-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .ai-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    .ai-title-group { flex: 1; }
+    .ai-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .ai-subtitle { font-size: 0.75rem; color: var(--text-dark); }
+    .ai-confidence {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .ai-confidence.high { background: rgba(16,185,129,0.2); color: var(--accent-green); }
+    .ai-confidence.medium { background: rgba(251,191,36,0.2); color: var(--accent-yellow); }
+    .ai-confidence.low { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+    .ai-pick {
+      background: var(--bg-input);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .ai-pick-label { font-size: 0.7rem; color: var(--text-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .ai-pick-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-bottom: 4px;
+    }
+    .ai-pick-prob {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      color: var(--accent-green);
+    }
+    .ai-reasoning {
+      background: var(--bg-card-light);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .ai-reasoning-title {
+      font-size: 0.75rem;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ai-reasoning-list { display: flex; flex-direction: column; gap: 8px; }
+    .ai-reason {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-gray);
+    }
+    .ai-reason-icon { font-size: 1rem; }
+    .ai-reason.positive { color: var(--accent-green); }
+    .ai-reason.negative { color: var(--accent-red); }
+    .ai-reason.neutral { color: var(--accent-yellow); }
+    .ai-alternatives {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .ai-alt-title { font-size: 0.7rem; color: var(--text-dark); margin-bottom: 10px; }
+    .ai-alt-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ai-alt-chip {
+      padding: 8px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-gray);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ai-alt-chip:hover { border-color: var(--accent-cyan); color: var(--text-white); }
+    .ai-alt-chip span { color: var(--accent-green); margin-left: 6px; }
     .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
     .picks-title-icon { font-size: 1.3rem; }
@@ -1883,6 +2000,133 @@
       
       return combos.sort((a, b) => b.prob - a.prob);
     }
+    
+    // === AI ADVICE - Genera il consiglio intelligente ===
+    function generateAIAdvice(match, analysis) {
+      const { xG, p1X2, pOU, pBTTS, exactScores } = analysis;
+      const homeXG = xG.home;
+      const awayXG = xG.away;
+      const totXG = xG.total;
+      
+      const advice = {
+        pick: '',
+        prob: 0,
+        confidence: 'medium',
+        reasons: [],
+        alternatives: []
+      };
+      
+      // Analisi della partita
+      const homeStrong = homeXG > 1.8;
+      const awayWeak = awayXG < 0.8;
+      const awayStrong = awayXG > 1.5;
+      const homeWeak = homeXG < 1.0;
+      const highScoring = totXG >= 3.0;
+      const veryHighScoring = totXG >= 3.8;
+      const lowScoring = totXG < 2.2;
+      const balanced = Math.abs(homeXG - awayXG) < 0.5;
+      const ggLikely = pBTTS >= 55 && homeXG > 0.9 && awayXG > 0.9;
+      
+      // === LOGICA DI SELEZIONE ===
+      
+      // CASO 1: Casa dominante (xG casa alto, ospite basso)
+      if (homeStrong && awayWeak && p1X2.home >= 65) {
+        advice.pick = '1 (Vittoria Casa)';
+        advice.prob = p1X2.home;
+        advice.confidence = p1X2.home >= 75 ? 'high' : 'medium';
+        advice.reasons.push({ text: `xG Casa ${homeXG.toFixed(2)} molto superiore`, type: 'positive' });
+        advice.reasons.push({ text: `xG Ospite solo ${awayXG.toFixed(2)}`, type: 'positive' });
+        advice.reasons.push({ text: `Probabilità ${p1X2.home.toFixed(0)}% favorevole`, type: 'positive' });
+        
+        if (highScoring) {
+          advice.alternatives.push({ pick: '1 + Over 1.5', prob: ((p1X2.home * pOU[1.5].over) / 100).toFixed(0) });
+        }
+        advice.alternatives.push({ pick: '1X', prob: (p1X2.home + p1X2.draw).toFixed(0) });
+      }
+      // CASO 2: Trasferta dominante
+      else if (awayStrong && homeWeak && p1X2.away >= 60) {
+        advice.pick = '2 (Vittoria Ospite)';
+        advice.prob = p1X2.away;
+        advice.confidence = p1X2.away >= 70 ? 'high' : 'medium';
+        advice.reasons.push({ text: `xG Ospite ${awayXG.toFixed(2)} superiore`, type: 'positive' });
+        advice.reasons.push({ text: `xG Casa debole ${homeXG.toFixed(2)}`, type: 'positive' });
+        
+        advice.alternatives.push({ pick: 'X2', prob: (p1X2.away + p1X2.draw).toFixed(0) });
+      }
+      // CASO 3: Partita da GOL (xG totale alto)
+      else if (veryHighScoring && pOU[2.5].over >= 70) {
+        advice.pick = 'Over 2.5';
+        advice.prob = pOU[2.5].over;
+        advice.confidence = pOU[2.5].over >= 80 ? 'high' : 'medium';
+        advice.reasons.push({ text: `xG Totale ${totXG.toFixed(2)} molto alto`, type: 'positive' });
+        advice.reasons.push({ text: `Entrambe le squadre segnano regolarmente`, type: 'positive' });
+        
+        advice.alternatives.push({ pick: 'Over 1.5 1T', prob: '60+' });
+        advice.alternatives.push({ pick: 'Over 3.5', prob: pOU[3.5].over.toFixed(0) });
+        if (ggLikely) advice.alternatives.push({ pick: 'GG', prob: pBTTS.toFixed(0) });
+      }
+      // CASO 4: GG probabile (entrambe segnano)
+      else if (ggLikely && pBTTS >= 60) {
+        advice.pick = 'GG (Entrambe Segnano)';
+        advice.prob = pBTTS;
+        advice.confidence = pBTTS >= 70 ? 'high' : 'medium';
+        advice.reasons.push({ text: `xG Casa ${homeXG.toFixed(2)} - segnerà`, type: 'positive' });
+        advice.reasons.push({ text: `xG Ospite ${awayXG.toFixed(2)} - segnerà`, type: 'positive' });
+        
+        if (highScoring) advice.alternatives.push({ pick: 'GG + Over 2.5', prob: ((pBTTS * pOU[2.5].over) / 100).toFixed(0) });
+        advice.alternatives.push({ pick: 'Over 2.5', prob: pOU[2.5].over.toFixed(0) });
+      }
+      // CASO 5: Over 1.5 sicuro
+      else if (pOU[1.5].over >= 80) {
+        advice.pick = 'Over 1.5';
+        advice.prob = pOU[1.5].over;
+        advice.confidence = 'high';
+        advice.reasons.push({ text: `Probabilità ${pOU[1.5].over.toFixed(0)}% molto alta`, type: 'positive' });
+        advice.reasons.push({ text: `xG Totale ${totXG.toFixed(2)} supporta gol`, type: 'positive' });
+        
+        advice.alternatives.push({ pick: '1X + Over 1.5', prob: (((p1X2.home + p1X2.draw) * pOU[1.5].over) / 100).toFixed(0) });
+      }
+      // CASO 6: 1X sicuro (casa non perde)
+      else if ((p1X2.home + p1X2.draw) >= 80) {
+        advice.pick = '1X (Casa o Pareggio)';
+        advice.prob = p1X2.home + p1X2.draw;
+        advice.confidence = 'high';
+        advice.reasons.push({ text: `Casa forte con xG ${homeXG.toFixed(2)}`, type: 'positive' });
+        advice.reasons.push({ text: `Vittoria ospite improbabile (${p1X2.away.toFixed(0)}%)`, type: 'positive' });
+        
+        advice.alternatives.push({ pick: '1', prob: p1X2.home.toFixed(0) });
+        if (highScoring) advice.alternatives.push({ pick: '1X + Over 1.5', prob: (((p1X2.home + p1X2.draw) * pOU[1.5].over) / 100).toFixed(0) });
+      }
+      // CASO 7: Partita equilibrata
+      else if (balanced && p1X2.draw >= 28) {
+        advice.pick = 'Under 3.5';
+        advice.prob = pOU[3.5].under;
+        advice.confidence = lowScoring ? 'medium' : 'low';
+        advice.reasons.push({ text: `Partita equilibrata (xG simili)`, type: 'neutral' });
+        advice.reasons.push({ text: `Possibile pareggio (${p1X2.draw.toFixed(0)}%)`, type: 'neutral' });
+        
+        advice.alternatives.push({ pick: 'X', prob: p1X2.draw.toFixed(0) });
+        advice.alternatives.push({ pick: 'Under 2.5', prob: pOU[2.5].under.toFixed(0) });
+      }
+      // CASO 8: Default - Over 1.5 (quasi sempre valido)
+      else {
+        advice.pick = 'Over 1.5';
+        advice.prob = pOU[1.5].over;
+        advice.confidence = pOU[1.5].over >= 70 ? 'medium' : 'low';
+        advice.reasons.push({ text: `Pronostico più sicuro per questa partita`, type: 'neutral' });
+        advice.reasons.push({ text: `xG Totale ${totXG.toFixed(2)}`, type: 'neutral' });
+        
+        if (p1X2.home >= 55) advice.alternatives.push({ pick: '1X', prob: (p1X2.home + p1X2.draw).toFixed(0) });
+      }
+      
+      // Aggiungi warning se i dati non sono affidabili
+      if (analysis.quality === 'base') {
+        advice.reasons.push({ text: 'Dati statistici limitati', type: 'negative' });
+        if (advice.confidence === 'high') advice.confidence = 'medium';
+      }
+      
+      return advice;
+    }
 
     function getProbClass(prob) {
       if (prob >= 65) return 'high';
@@ -2210,6 +2454,9 @@
       const d = state.analysis;
       if (!d) return `<div class="back-btn" id="backToMatches">← Partite</div><div class="empty">Errore analisi</div>`;
       
+      // Genera consiglio AI
+      const ai = generateAIAdvice(m, d);
+      
       return `
         <div class="back-btn" id="backToMatches">← Partite</div>
         
@@ -2230,6 +2477,47 @@
               <div class="hero-team-name">${esc(m.away.name)}</div>
             </div>
           </div>
+        </div>
+        
+        <!-- AI CONSIGLIO -->
+        <div class="ai-advice">
+          <div class="ai-header">
+            <div class="ai-icon">🤖</div>
+            <div class="ai-title-group">
+              <div class="ai-title">Consiglio AI</div>
+              <div class="ai-subtitle">Analisi basata su xG, statistiche e probabilità</div>
+            </div>
+            <div class="ai-confidence ${ai.confidence}">${ai.confidence === 'high' ? '🎯 Alta' : ai.confidence === 'medium' ? '✓ Media' : '⚠️ Bassa'}</div>
+          </div>
+          
+          <div class="ai-pick">
+            <div class="ai-pick-label">Pronostico Consigliato</div>
+            <div class="ai-pick-value">${ai.pick}</div>
+            <div class="ai-pick-prob">${ai.prob.toFixed(0)}% probabilità</div>
+          </div>
+          
+          <div class="ai-reasoning">
+            <div class="ai-reasoning-title">💡 Perché questo pronostico</div>
+            <div class="ai-reasoning-list">
+              ${ai.reasons.map(r => `
+                <div class="ai-reason ${r.type}">
+                  <span class="ai-reason-icon">${r.type === 'positive' ? '✅' : r.type === 'negative' ? '⚠️' : '📊'}</span>
+                  <span>${r.text}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          ${ai.alternatives.length > 0 ? `
+            <div class="ai-alternatives">
+              <div class="ai-alt-title">Alternative valide:</div>
+              <div class="ai-alt-grid">
+                ${ai.alternatives.map(a => `
+                  <div class="ai-alt-chip">${a.pick}<span>${a.prob}%</span></div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
         </div>
         
         <div class="combo-panel">
