@@ -1118,6 +1118,7 @@
       liveAlerts: [],
       liveLoading: false,
       liveInterval: null,
+      liveBackgroundInterval: null,
       countdownInterval: null,
       liveCountdown: 60
     };
@@ -2339,7 +2340,7 @@
       
       try {
         // Usa la stessa API già configurata
-        const data = await callApiFootball('/fixtures', { live: 'all' });
+        const data = await callAPIFootball('/fixtures', { live: 'all' });
         
         if (data && data.response) {
           state.liveMatches = data.response.map(f => ({
@@ -2618,6 +2619,59 @@
       state.liveAlerts = alerts;
     }
     
+    // === LIVE BACKGROUND MONITORING ===
+    function startLiveBackgroundMonitoring() {
+      // Carica subito i dati LIVE
+      loadLiveMatchesBackground();
+      
+      // Poi ogni 90 secondi in background
+      state.liveBackgroundInterval = setInterval(() => {
+        loadLiveMatchesBackground();
+      }, 90000); // 90 secondi in background
+    }
+    
+    async function loadLiveMatchesBackground() {
+      try {
+        const data = await callAPIFootball('/fixtures', { live: 'all' });
+        
+        if (data && data.response) {
+          state.liveMatches = data.response.map(f => ({
+            id: f.fixture.id,
+            status: f.fixture.status.short,
+            elapsed: f.fixture.status.elapsed || 0,
+            league: {
+              id: f.league.id,
+              name: f.league.name,
+              country: f.league.country,
+              logo: f.league.logo
+            },
+            home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
+            away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+            goals: { home: f.goals.home || 0, away: f.goals.away || 0 },
+            stats: f.statistics || []
+          }));
+          
+          // Calcola gli alert
+          calculateLiveAlerts();
+          
+          // Aggiorna solo il badge senza re-renderizzare tutto
+          updateLiveBadge();
+        }
+      } catch (e) {
+        console.warn('Live background load error:', e);
+      }
+    }
+    
+    function updateLiveBadge() {
+      const badge = document.querySelector('#liveTab');
+      if (badge) {
+        const alertCount = state.liveAlerts.length;
+        const dot = '<span class="live-dot"></span>';
+        const countBadge = alertCount > 0 ? `<span class="live-badge-count">${alertCount}</span>` : '';
+        badge.innerHTML = `${dot} LIVE ${countBadge}`;
+      }
+    }
+    
     function startLiveAutoRefresh() {
       if (state.liveInterval) return;
       
@@ -2634,7 +2688,7 @@
         }
       }, 1000);
       
-      // Refresh dati ogni 60 secondi
+      // Refresh dati ogni 60 secondi quando nella sezione LIVE
       state.liveInterval = setInterval(() => {
         if (state.liveMode) {
           loadLiveMatches();
@@ -3430,6 +3484,10 @@
       await loadSlipFromFirebase();
       render();
       await loadMatches(0);
+      
+      // Avvia monitoraggio LIVE in background
+      startLiveBackgroundMonitoring();
+      console.log('📡 LIVE background monitoring started');
     }
 
     init();
