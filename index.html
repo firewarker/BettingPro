@@ -486,6 +486,195 @@
       transition: all 0.2s;
     }
     .ai-alt-chip:hover { border-color: var(--accent-cyan); color: var(--text-white); }
+    
+    /* LIVE BETTING */
+    .live-tab { 
+      background: linear-gradient(135deg, var(--accent-red), #ff6b6b) !important; 
+      animation: livePulse 2s infinite;
+    }
+    .live-tab.active { box-shadow: 0 0 20px rgba(239,68,68,0.5); }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    .live-badge-count {
+      background: white;
+      color: var(--accent-red);
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+    .live-section {
+      background: linear-gradient(145deg, rgba(239,68,68,0.08), rgba(251,191,36,0.08));
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .live-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .live-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--accent-red);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      background: var(--accent-red);
+      border-radius: 50%;
+      animation: livePulse 1s infinite;
+    }
+    .live-refresh-btn {
+      padding: 8px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-gray);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .live-refresh-btn:hover { border-color: var(--accent-cyan); color: var(--text-white); }
+    .live-alerts-grid { display: flex; flex-direction: column; gap: 16px; }
+    .live-alert-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    .live-alert-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .live-alert-card.high { border-color: var(--accent-red); border-width: 2px; }
+    .live-alert-card.medium { border-color: var(--accent-yellow); }
+    .live-alert-card.low { border-color: var(--accent-cyan); }
+    .live-alert-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .live-alert-card.high .live-alert-header { background: rgba(239,68,68,0.15); }
+    .live-alert-card.medium .live-alert-header { background: rgba(251,191,36,0.15); }
+    .live-alert-card.low .live-alert-header { background: rgba(34,211,238,0.15); }
+    .live-alert-level {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .live-alert-card.high .live-alert-level { color: var(--accent-red); }
+    .live-alert-card.medium .live-alert-level { color: var(--accent-yellow); }
+    .live-alert-card.low .live-alert-level { color: var(--accent-cyan); }
+    .live-alert-time {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--accent-red);
+    }
+    .live-alert-body { padding: 16px; }
+    .live-alert-match {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .live-alert-teams { font-weight: 600; color: var(--text-white); }
+    .live-alert-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      background: var(--bg-input);
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    .live-alert-stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 10px;
+      background: var(--bg-input);
+      border-radius: 10px;
+    }
+    .live-stat {
+      font-size: 0.8rem;
+      color: var(--text-gray);
+    }
+    .live-stat strong { color: var(--text-white); }
+    .live-alert-pick {
+      background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(34,211,238,0.15));
+      border: 1px solid var(--accent-green);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .live-pick-label { font-size: 0.7rem; color: var(--text-dark); margin-bottom: 6px; }
+    .live-pick-value {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--accent-green);
+    }
+    .live-pick-details {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+    }
+    .live-pick-prob { color: var(--accent-cyan); }
+    .live-pick-reason {
+      font-size: 0.8rem;
+      color: var(--text-gray);
+      margin-top: 10px;
+      font-style: italic;
+    }
+    .live-empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dark);
+    }
+    .live-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .live-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .live-filter-btn {
+      padding: 6px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-gray);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .live-filter-btn:hover { border-color: var(--accent-cyan); }
+    .live-filter-btn.active { background: var(--accent-cyan); color: var(--bg-dark); border-color: var(--accent-cyan); }
+    .live-auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-dark);
+    }
+    .live-countdown {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+    }
     .ai-alt-chip span { color: var(--accent-green); margin-left: 6px; }
     .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
@@ -922,7 +1111,13 @@
         currentBet: parseInt(localStorage.getItem('bp_currentbet')) || 1,
         currentOdds: parseFloat(localStorage.getItem('bp_odds')) || 1.80,
         history: JSON.parse(localStorage.getItem('bp_history') || '[]')
-      }
+      },
+      // LIVE Betting
+      liveMode: false,
+      liveMatches: [],
+      liveAlerts: [],
+      liveLoading: false,
+      liveInterval: null
     };
 
     // === UTILITIES ===
@@ -2134,6 +2329,240 @@
       return 'low';
     }
 
+    // === LIVE BETTING SYSTEM ===
+    
+    async function loadLiveMatches() {
+      state.liveLoading = true;
+      render();
+      
+      try {
+        // Usa la stessa API già configurata
+        const data = await callApiFootball('/fixtures', { live: 'all' });
+        
+        if (data && data.response) {
+          state.liveMatches = data.response.map(f => ({
+            id: f.fixture.id,
+            status: f.fixture.status.short,
+            elapsed: f.fixture.status.elapsed || 0,
+            league: {
+              id: f.league.id,
+              name: f.league.name,
+              country: f.league.country,
+              logo: f.league.logo
+            },
+            home: { id: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
+            away: { id: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+            goals: { home: f.goals.home || 0, away: f.goals.away || 0 },
+            stats: f.statistics || []
+          }));
+          
+          // Calcola gli alert
+          calculateLiveAlerts();
+        }
+      } catch (e) {
+        console.error('Live load error:', e);
+      }
+      
+      state.liveLoading = false;
+      render();
+    }
+    
+    function calculateLiveAlerts() {
+      const alerts = [];
+      
+      state.liveMatches.forEach(match => {
+        const elapsed = match.elapsed;
+        const homeGoals = match.goals.home;
+        const awayGoals = match.goals.away;
+        const totalGoals = homeGoals + awayGoals;
+        
+        // Estrai statistiche se disponibili
+        let stats = { shots: 0, shotsOn: 0, corners: 0, possession: 50 };
+        if (match.stats && match.stats.length >= 2) {
+          const homeStats = match.stats[0]?.statistics || [];
+          const awayStats = match.stats[1]?.statistics || [];
+          
+          const getStat = (arr, type) => {
+            const s = arr.find(s => s.type === type);
+            return s ? (parseInt(s.value) || 0) : 0;
+          };
+          
+          stats = {
+            shotsHome: getStat(homeStats, 'Total Shots'),
+            shotsAway: getStat(awayStats, 'Total Shots'),
+            shotsOnHome: getStat(homeStats, 'Shots on Goal'),
+            shotsOnAway: getStat(awayStats, 'Shots on Goal'),
+            cornersHome: getStat(homeStats, 'Corner Kicks'),
+            cornersAway: getStat(awayStats, 'Corner Kicks'),
+            possessionHome: getStat(homeStats, 'Ball Possession'),
+            possessionAway: getStat(awayStats, 'Ball Possession')
+          };
+          stats.shots = stats.shotsHome + stats.shotsAway;
+          stats.shotsOn = stats.shotsOnHome + stats.shotsOnAway;
+          stats.corners = stats.cornersHome + stats.cornersAway;
+        }
+        
+        // === LOGICA ALERT ===
+        
+        // ALERT 1: 0-0 con tanti tiri (Over 0.5)
+        if (totalGoals === 0 && elapsed >= 50 && elapsed <= 80) {
+          const pressure = stats.shotsOn * 2 + stats.corners * 0.5;
+          let prob = 50 + (elapsed - 45) * 0.5 + pressure * 2;
+          prob = Math.min(95, prob);
+          
+          if (prob >= 65 && stats.shotsOn >= 4) {
+            const quotaStimata = (100 / prob).toFixed(2);
+            alerts.push({
+              match,
+              type: 'over05',
+              level: prob >= 75 ? 'high' : 'medium',
+              pick: 'Over 0.5',
+              prob: prob.toFixed(0),
+              quota: quotaStimata,
+              reason: `${stats.shotsOn} tiri in porta, ${stats.corners} corner - il gol arriverà!`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 2: 0-0 o 1-0 tardi (Over 1.5)
+        if (totalGoals <= 1 && elapsed >= 60 && elapsed <= 80) {
+          const pressure = stats.shotsOn * 1.5 + stats.corners * 0.3;
+          let prob = 40 + pressure * 1.5;
+          
+          if (totalGoals === 0) prob += 15; // Se 0-0 più probabile che escano 2 gol
+          if (elapsed >= 70) prob += 10;
+          prob = Math.min(85, prob);
+          
+          if (prob >= 60 && stats.shots >= 15) {
+            const quotaStimata = (100 / prob).toFixed(2);
+            alerts.push({
+              match,
+              type: 'over15',
+              level: prob >= 70 ? 'high' : 'medium',
+              pick: 'Over 1.5',
+              prob: prob.toFixed(0),
+              quota: quotaStimata,
+              reason: `${stats.shots} tiri totali, partita sbloccata in arrivo`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 3: 1-1 partita aperta (Over 2.5)
+        if (homeGoals === 1 && awayGoals === 1 && elapsed >= 55 && elapsed <= 80) {
+          let prob = 55 + (stats.shotsOn * 1.5);
+          if (elapsed >= 65) prob += 8;
+          prob = Math.min(80, prob);
+          
+          if (prob >= 58) {
+            const quotaStimata = (100 / prob).toFixed(2);
+            alerts.push({
+              match,
+              type: 'over25',
+              level: prob >= 68 ? 'high' : 'medium',
+              pick: 'Over 2.5',
+              prob: prob.toFixed(0),
+              quota: quotaStimata,
+              reason: `Partita aperta, entrambe hanno già segnato`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 4: Squadra domina ma non segna
+        if (totalGoals === 0 && elapsed >= 40 && elapsed <= 75) {
+          const homeDominating = stats.shotsOnHome >= 5 && stats.possessionHome >= 60;
+          const awayDominating = stats.shotsOnAway >= 5 && stats.possessionAway >= 60;
+          
+          if (homeDominating) {
+            let prob = 60 + stats.shotsOnHome * 3;
+            prob = Math.min(85, prob);
+            alerts.push({
+              match,
+              type: 'homeScores',
+              level: prob >= 75 ? 'high' : 'medium',
+              pick: `${match.home.name} Segna`,
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `Dominio totale: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
+              stats
+            });
+          } else if (awayDominating) {
+            let prob = 55 + stats.shotsOnAway * 3;
+            prob = Math.min(80, prob);
+            alerts.push({
+              match,
+              type: 'awayScores',
+              level: prob >= 70 ? 'high' : 'medium',
+              pick: `${match.away.name} Segna`,
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 5: Intervallo con tanti tiri (Gol 2° Tempo)
+        if (match.status === 'HT' && totalGoals <= 1) {
+          let prob = 55 + stats.shotsOn * 2;
+          prob = Math.min(85, prob);
+          
+          if (prob >= 65 && stats.shotsOn >= 5) {
+            alerts.push({
+              match,
+              type: 'goal2T',
+              level: prob >= 75 ? 'high' : 'medium',
+              pick: 'Gol 2° Tempo',
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `${stats.shotsOn} tiri in porta nel 1° tempo, statisticamente il gol arriva`,
+              stats
+            });
+          }
+        }
+      });
+      
+      // Ordina per livello e probabilità
+      alerts.sort((a, b) => {
+        const levelOrder = { high: 0, medium: 1, low: 2 };
+        if (levelOrder[a.level] !== levelOrder[b.level]) {
+          return levelOrder[a.level] - levelOrder[b.level];
+        }
+        return parseFloat(b.prob) - parseFloat(a.prob);
+      });
+      
+      state.liveAlerts = alerts;
+    }
+    
+    function startLiveAutoRefresh() {
+      if (state.liveInterval) return;
+      state.liveInterval = setInterval(() => {
+        if (state.liveMode) {
+          loadLiveMatches();
+        }
+      }, 60000); // Refresh ogni 60 secondi
+    }
+    
+    function stopLiveAutoRefresh() {
+      if (state.liveInterval) {
+        clearInterval(state.liveInterval);
+        state.liveInterval = null;
+      }
+    }
+    
+    function toggleLiveMode() {
+      state.liveMode = !state.liveMode;
+      if (state.liveMode) {
+        loadLiveMatches();
+        startLiveAutoRefresh();
+      } else {
+        stopLiveAutoRefresh();
+      }
+      render();
+    }
+    
     // === RENDER ===
     function render() {
       document.getElementById('app').innerHTML = `
@@ -2188,13 +2617,17 @@
       
       return `
         <div class="date-tabs">
+          <div class="date-tab live-tab ${state.liveMode ? 'active' : ''}" id="liveTab">
+            <span class="live-dot"></span> LIVE ${state.liveAlerts.length > 0 ? `<span class="live-badge-count">${state.liveAlerts.length}</span>` : ''}
+          </div>
           ${[-1, 0, 1, 2].map(d => `
-            <div class="date-tab ${state.selectedDate === d ? 'active' : ''}" data-date="${d}">
+            <div class="date-tab ${!state.liveMode && state.selectedDate === d ? 'active' : ''}" data-date="${d}">
               ${getDateLabel(d)} ${d !== 0 ? `(${formatDate(getDateString(d))})` : ''}
             </div>
           `).join('')}
         </div>
         
+        ${state.liveMode ? renderLiveSection() : `
         <!-- MONEY MANAGEMENT - SISTEMA OBIETTIVO -->
         <div class="money-section">
           <div class="money-header">
@@ -2420,6 +2853,85 @@
               ${state.leagues.map(l => `<option value="${l.id}">${esc(l.country)} - ${esc(l.name)} (${l.matchCount})</option>`).join('')}
             </select>
           `}
+        </div>
+      `}
+      `;
+    }
+    
+    function renderLiveSection() {
+      if (state.liveLoading) {
+        return `
+          <div class="live-section">
+            <div class="live-header">
+              <div class="live-title"><span class="live-dot"></span> LIVE Alerts</div>
+            </div>
+            <div class="loading"><div class="spinner"></div><div class="loading-text">Caricamento partite live...</div></div>
+          </div>
+        `;
+      }
+      
+      const alerts = state.liveAlerts;
+      
+      return `
+        <div class="live-section">
+          <div class="live-header">
+            <div class="live-title"><span class="live-dot"></span> LIVE Alerts</div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="live-auto-refresh">🔄 Auto-refresh <span class="live-countdown">60s</span></div>
+              <button class="live-refresh-btn" id="refreshLive">⟳ Aggiorna</button>
+            </div>
+          </div>
+          
+          ${alerts.length === 0 ? `
+            <div class="live-empty">
+              <div class="live-empty-icon">📡</div>
+              <div>Nessun alert al momento</div>
+              <div style="font-size: 0.8rem; margin-top: 8px; color: var(--text-dark);">
+                ${state.liveMatches.length} partite live monitorate
+              </div>
+            </div>
+          ` : `
+            <div class="live-alerts-grid">
+              ${alerts.map(alert => `
+                <div class="live-alert-card ${alert.level}">
+                  <div class="live-alert-header">
+                    <div class="live-alert-level">${alert.level === 'high' ? '🚨 ALERT ALTO' : alert.level === 'medium' ? '⚠️ ALERT MEDIO' : '🔵 INFO'}</div>
+                    <div class="live-alert-time"><span class="live-dot"></span> ${alert.match.elapsed}'</div>
+                  </div>
+                  <div class="live-alert-body">
+                    <div class="live-alert-match">
+                      <div class="live-alert-teams">${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}</div>
+                      <div class="live-alert-score">${alert.match.goals.home} - ${alert.match.goals.away}</div>
+                    </div>
+                    <div class="live-alert-stats">
+                      <div class="live-stat">🎯 Tiri in porta: <strong>${alert.stats.shotsOnHome || 0}-${alert.stats.shotsOnAway || 0}</strong></div>
+                      <div class="live-stat">⚽ Tiri totali: <strong>${alert.stats.shotsHome || 0}-${alert.stats.shotsAway || 0}</strong></div>
+                      <div class="live-stat">🚩 Corner: <strong>${alert.stats.cornersHome || 0}-${alert.stats.cornersAway || 0}</strong></div>
+                      <div class="live-stat">📊 Possesso: <strong>${alert.stats.possessionHome || 50}%-${alert.stats.possessionAway || 50}%</strong></div>
+                    </div>
+                    <div class="live-alert-pick">
+                      <div class="live-pick-label">CONSIGLIO LIVE</div>
+                      <div class="live-pick-value">${alert.pick}</div>
+                      <div class="live-pick-details">
+                        <span class="live-pick-prob">📈 ${alert.prob}% prob</span>
+                        <span style="color: var(--accent-yellow);">💰 ~@${alert.quota}</span>
+                      </div>
+                      <div class="live-pick-reason">💡 ${alert.reason}</div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+          
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <div style="font-size: 0.8rem; color: var(--text-dark); margin-bottom: 8px;">📊 Statistiche Monitorate</div>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-gray);">
+              <span>🔴 Partite LIVE: <strong style="color: var(--text-white);">${state.liveMatches.length}</strong></span>
+              <span>🚨 Alert Alti: <strong style="color: var(--accent-red);">${alerts.filter(a => a.level === 'high').length}</strong></span>
+              <span>⚠️ Alert Medi: <strong style="color: var(--accent-yellow);">${alerts.filter(a => a.level === 'medium').length}</strong></span>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -2682,9 +3194,19 @@
     }
 
     function attachEvents() {
+      // LIVE Tab
+      document.getElementById('liveTab')?.addEventListener('click', toggleLiveMode);
+      document.getElementById('refreshLive')?.addEventListener('click', loadLiveMatches);
+      
       // Date tabs
-      document.querySelectorAll('.date-tab').forEach(tab => {
-        tab.addEventListener('click', () => loadMatches(parseInt(tab.dataset.date)));
+      document.querySelectorAll('.date-tab[data-date]').forEach(tab => {
+        tab.addEventListener('click', () => {
+          if (state.liveMode) {
+            state.liveMode = false;
+            stopLiveAutoRefresh();
+          }
+          loadMatches(parseInt(tab.dataset.date));
+        });
       });
       
       // League select
