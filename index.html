@@ -2522,6 +2522,86 @@
             });
           }
         }
+        
+        // === ALERT PRIMO TEMPO ===
+        
+        // ALERT 6: Over 0.5 Primo Tempo (0-0 tra 25' e 45')
+        if (totalGoals === 0 && elapsed >= 25 && elapsed <= 45 && match.status === '1H') {
+          const pressure = stats.shotsOn * 2.5 + stats.corners * 0.5;
+          let prob = 40 + (elapsed - 20) * 0.8 + pressure * 2;
+          prob = Math.min(90, prob);
+          
+          if (prob >= 65 && stats.shotsOn >= 4) {
+            alerts.push({
+              match,
+              type: 'over05_1T',
+              level: prob >= 75 ? 'high' : 'medium',
+              pick: 'Over 0.5 1°T',
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `${stats.shotsOn} tiri in porta in ${elapsed}' - gol in arrivo nel 1° tempo!`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 7: Squadra Segna nel 1° Tempo (dominio evidente 20'-40')
+        if (totalGoals === 0 && elapsed >= 20 && elapsed <= 40 && match.status === '1H') {
+          const homeDominating = stats.shotsOnHome >= 4 && stats.possessionHome >= 60;
+          const awayDominating = stats.shotsOnAway >= 4 && stats.possessionAway >= 60;
+          
+          if (homeDominating) {
+            let prob = 55 + stats.shotsOnHome * 4;
+            prob = Math.min(85, prob);
+            if (prob >= 65) {
+              alerts.push({
+                match,
+                type: 'homeScores1T',
+                level: prob >= 75 ? 'high' : 'medium',
+                pick: `${match.home.name.substring(0,12)} Segna 1°T`,
+                prob: prob.toFixed(0),
+                quota: (100 / prob).toFixed(2),
+                reason: `Dominio casa: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
+                stats
+              });
+            }
+          } else if (awayDominating) {
+            let prob = 50 + stats.shotsOnAway * 4;
+            prob = Math.min(80, prob);
+            if (prob >= 65) {
+              alerts.push({
+                match,
+                type: 'awayScores1T',
+                level: prob >= 75 ? 'high' : 'medium',
+                pick: `${match.away.name.substring(0,12)} Segna 1°T`,
+                prob: prob.toFixed(0),
+                quota: (100 / prob).toFixed(2),
+                reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`,
+                stats
+              });
+            }
+          }
+        }
+        
+        // ALERT 8: Over 1.5 Primo Tempo (1-0 o 0-1 tra 30' e 45', partita aperta)
+        if (totalGoals === 1 && elapsed >= 30 && elapsed <= 45 && match.status === '1H') {
+          let prob = 45 + stats.shotsOn * 2;
+          if (stats.shotsOn >= 6) prob += 10;
+          prob = Math.min(80, prob);
+          
+          if (prob >= 60 && stats.shotsOn >= 5) {
+            alerts.push({
+              match,
+              type: 'over15_1T',
+              level: prob >= 70 ? 'high' : 'medium',
+              pick: 'Over 1.5 1°T',
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `Già 1 gol + ${stats.shotsOn} tiri in porta - altro gol probabile!`,
+              stats
+            });
+          }
+        }
       });
       
       // Ordina per livello e probabilità
