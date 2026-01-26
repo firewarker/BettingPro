@@ -1117,7 +1117,9 @@
       liveMatches: [],
       liveAlerts: [],
       liveLoading: false,
-      liveInterval: null
+      liveInterval: null,
+      countdownInterval: null,
+      liveCountdown: 60
     };
 
     // === UTILITIES ===
@@ -2618,17 +2620,37 @@
     
     function startLiveAutoRefresh() {
       if (state.liveInterval) return;
+      
+      // Countdown visivo
+      state.liveCountdown = 60;
+      state.countdownInterval = setInterval(() => {
+        state.liveCountdown--;
+        const countdownEl = document.querySelector('.live-countdown');
+        if (countdownEl) {
+          countdownEl.textContent = state.liveCountdown + 's';
+        }
+        if (state.liveCountdown <= 0) {
+          state.liveCountdown = 60;
+        }
+      }, 1000);
+      
+      // Refresh dati ogni 60 secondi
       state.liveInterval = setInterval(() => {
         if (state.liveMode) {
           loadLiveMatches();
+          state.liveCountdown = 60;
         }
-      }, 60000); // Refresh ogni 60 secondi
+      }, 60000);
     }
     
     function stopLiveAutoRefresh() {
       if (state.liveInterval) {
         clearInterval(state.liveInterval);
         state.liveInterval = null;
+      }
+      if (state.countdownInterval) {
+        clearInterval(state.countdownInterval);
+        state.countdownInterval = null;
       }
     }
     
@@ -2957,7 +2979,7 @@
           <div class="live-header">
             <div class="live-title"><span class="live-dot"></span> LIVE Alerts</div>
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div class="live-auto-refresh">🔄 Auto-refresh <span class="live-countdown">60s</span></div>
+              <div class="live-auto-refresh">🔄 Auto-refresh <span class="live-countdown">${state.liveCountdown}s</span></div>
               <button class="live-refresh-btn" id="refreshLive">⟳ Aggiorna</button>
             </div>
           </div>
