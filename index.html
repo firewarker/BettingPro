@@ -82,6 +82,61 @@
       cursor: pointer;
     }
     .slip-badge:hover { transform: scale(1.05); }
+    .stats-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+      border-radius: 20px;
+      font-size: 0.8rem; font-weight: 700;
+      cursor: pointer;
+    }
+    .stats-badge:hover { transform: scale(1.05); }
+    .stats-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000; padding: 20px;
+    }
+    .stats-modal-content {
+      background: var(--bg-card);
+      border-radius: 20px;
+      width: 100%; max-width: 600px;
+      max-height: 90vh; overflow-y: auto;
+      border: 1px solid var(--border);
+    }
+    .stats-modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px; border-bottom: 1px solid var(--border);
+    }
+    .stats-modal-title { font-size: 1.2rem; font-weight: 800; color: var(--accent-purple); }
+    .stats-modal-close { background: none; border: none; color: var(--text-gray); font-size: 1.5rem; cursor: pointer; }
+    .stats-modal-body { padding: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stats-grid-item { background: var(--bg-input); padding: 16px; border-radius: 12px; text-align: center; }
+    .stats-grid-value { font-size: 1.5rem; font-weight: 800; }
+    .stats-grid-value.green { color: var(--accent-green); }
+    .stats-grid-value.red { color: var(--accent-red); }
+    .stats-grid-value.yellow { color: var(--accent-yellow); }
+    .stats-grid-value.purple { color: var(--accent-purple); }
+    .stats-grid-label { font-size: 0.7rem; color: var(--text-gray); margin-top: 4px; }
+    .stats-winrate-box { background: var(--bg-input); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 20px; }
+    .stats-winrate-big { font-size: 3rem; font-weight: 800; }
+    .stats-winrate-big.good { color: var(--accent-green); }
+    .stats-winrate-big.medium { color: var(--accent-yellow); }
+    .stats-winrate-big.bad { color: var(--accent-red); }
+    .stats-winrate-label { font-size: 0.9rem; color: var(--text-gray); }
+    .stats-by-pick { margin-top: 20px; }
+    .stats-pick-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--text-white); }
+    .stats-pick-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 8px; }
+    .stats-pick-name { font-size: 0.85rem; color: var(--text-gray); }
+    .stats-pick-rate { font-size: 0.85rem; font-weight: 700; }
+    .stats-pick-rate.good { color: var(--accent-green); }
+    .stats-pick-rate.medium { color: var(--accent-yellow); }
+    .stats-pick-rate.bad { color: var(--accent-red); }
+    .stats-buttons { display: flex; gap: 10px; margin-top: 20px; }
+    .stats-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .stats-btn-check { background: var(--accent-cyan); color: var(--bg-dark); }
+    .stats-btn-reset { background: var(--accent-red); color: white; }
     .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .date-tabs {
       display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
@@ -1054,6 +1109,156 @@
       .combo-grid { grid-template-columns: repeat(2, 1fr); }
       .slip-floating { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
     }
+    
+    /* TRACKING & STATS */
+    .track-btn {
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      width: 100%;
+      font-size: 0.95rem;
+      transition: all 0.3s;
+    }
+    .track-btn:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(16,185,129,0.4); }
+    .track-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .track-btn.tracked { background: var(--text-dark); }
+    
+    .stats-section {
+      background: linear-gradient(145deg, rgba(168,85,247,0.1), rgba(34,211,238,0.1));
+      border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .stats-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--accent-purple);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stats-card {
+      background: var(--bg-card);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .stats-card-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+    .stats-card-value.green { color: var(--accent-green); }
+    .stats-card-value.red { color: var(--accent-red); }
+    .stats-card-value.yellow { color: var(--accent-yellow); }
+    .stats-card-label {
+      font-size: 0.75rem;
+      color: var(--text-gray);
+      margin-top: 4px;
+    }
+    .stats-winrate {
+      background: var(--bg-card);
+      padding: 20px;
+      border-radius: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .stats-winrate-value {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stats-winrate-label {
+      font-size: 0.9rem;
+      color: var(--text-gray);
+    }
+    .stats-breakdown {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      padding: 12px 16px;
+      border-radius: 10px;
+    }
+    .stats-row-label {
+      font-weight: 600;
+      color: var(--text-white);
+    }
+    .stats-row-value {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .stats-row-wr {
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .stats-row-wr.good { background: rgba(16,185,129,0.2); color: var(--accent-green); }
+    .stats-row-wr.medium { background: rgba(251,191,36,0.2); color: var(--accent-yellow); }
+    .stats-row-wr.bad { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+    .stats-row-count {
+      font-size: 0.8rem;
+      color: var(--text-dark);
+    }
+    .stats-toggle-btn {
+      padding: 8px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-gray);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .stats-toggle-btn:hover { border-color: var(--accent-purple); color: var(--text-white); }
+    .stats-toggle-btn.active { background: var(--accent-purple); color: white; border-color: var(--accent-purple); }
+    
+    .live-track-btn {
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+    .live-track-btn:hover { transform: scale(1.02); }
+    .live-track-btn.tracked { background: var(--text-dark); }
+    
+    @media (max-width: 600px) {
+      .stats-overview { grid-template-columns: repeat(2, 1fr); }
+    }
   </style>
 </head>
 <body>
@@ -1120,7 +1325,11 @@
       liveInterval: null,
       liveBackgroundInterval: null,
       countdownInterval: null,
-      liveCountdown: 60
+      liveCountdown: 60,
+      // Tracking Pronostici
+      trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
+      statsView: false,
+      statsModal: false
     };
 
     // === UTILITIES ===
@@ -2405,15 +2614,15 @@
           stats.corners = stats.cornersHome + stats.cornersAway;
         }
         
-        // === LOGICA ALERT ===
+        // === LOGICA ALERT OTTIMIZZATA ===
         
-        // ALERT 1: 0-0 con tanti tiri (Over 0.5)
-        if (totalGoals === 0 && elapsed >= 50 && elapsed <= 80) {
+        // ALERT 1: 0-0 con tanti tiri (Over 0.5) - Dal 45' al 85'
+        if (totalGoals === 0 && elapsed >= 45 && elapsed <= 85) {
           const pressure = stats.shotsOn * 2 + stats.corners * 0.5;
-          let prob = 50 + (elapsed - 45) * 0.5 + pressure * 2;
+          let prob = 50 + (elapsed - 40) * 0.6 + pressure * 2;
           prob = Math.min(95, prob);
           
-          if (prob >= 65 && stats.shotsOn >= 4) {
+          if (prob >= 60 && stats.shotsOn >= 3) {
             const quotaStimata = (100 / prob).toFixed(2);
             alerts.push({
               match,
@@ -2428,16 +2637,17 @@
           }
         }
         
-        // ALERT 2: 0-0 o 1-0 tardi (Over 1.5)
-        if (totalGoals <= 1 && elapsed >= 60 && elapsed <= 80) {
+        // ALERT 2: 0-0 o 1-0 tardi (Over 1.5) - Soglia tiri abbassata
+        if (totalGoals <= 1 && elapsed >= 55 && elapsed <= 85) {
           const pressure = stats.shotsOn * 1.5 + stats.corners * 0.3;
-          let prob = 40 + pressure * 1.5;
+          let prob = 40 + pressure * 1.8;
           
-          if (totalGoals === 0) prob += 15; // Se 0-0 più probabile che escano 2 gol
-          if (elapsed >= 70) prob += 10;
-          prob = Math.min(85, prob);
+          if (totalGoals === 0) prob += 15;
+          if (elapsed >= 65) prob += 8;
+          if (elapsed >= 75) prob += 5;
+          prob = Math.min(88, prob);
           
-          if (prob >= 60 && stats.shots >= 15) {
+          if (prob >= 58 && stats.shots >= 10) {
             const quotaStimata = (100 / prob).toFixed(2);
             alerts.push({
               match,
@@ -2453,12 +2663,13 @@
         }
         
         // ALERT 3: 1-1 partita aperta (Over 2.5)
-        if (homeGoals === 1 && awayGoals === 1 && elapsed >= 55 && elapsed <= 80) {
+        if (homeGoals === 1 && awayGoals === 1 && elapsed >= 50 && elapsed <= 85) {
           let prob = 55 + (stats.shotsOn * 1.5);
-          if (elapsed >= 65) prob += 8;
-          prob = Math.min(80, prob);
+          if (elapsed >= 60) prob += 8;
+          if (elapsed >= 70) prob += 5;
+          prob = Math.min(82, prob);
           
-          if (prob >= 58) {
+          if (prob >= 55) {
             const quotaStimata = (100 / prob).toFixed(2);
             alerts.push({
               match,
@@ -2473,32 +2684,54 @@
           }
         }
         
-        // ALERT 4: Squadra domina ma non segna
-        if (totalGoals === 0 && elapsed >= 40 && elapsed <= 75) {
-          const homeDominating = stats.shotsOnHome >= 5 && stats.possessionHome >= 60;
-          const awayDominating = stats.shotsOnAway >= 5 && stats.possessionAway >= 60;
+        // ALERT 3b: 2-1 o 1-2 (Over 3.5 possibile)
+        if ((homeGoals === 2 && awayGoals === 1) || (homeGoals === 1 && awayGoals === 2)) {
+          if (elapsed >= 55 && elapsed <= 80) {
+            let prob = 50 + stats.shotsOn * 1.5;
+            if (elapsed >= 65) prob += 5;
+            prob = Math.min(75, prob);
+            
+            if (prob >= 55 && stats.shotsOn >= 4) {
+              alerts.push({
+                match,
+                type: 'over35',
+                level: prob >= 65 ? 'high' : 'medium',
+                pick: 'Over 3.5',
+                prob: prob.toFixed(0),
+                quota: (100 / prob).toFixed(2),
+                reason: `Partita vivace (${homeGoals}-${awayGoals}), ${stats.shotsOn} tiri in porta`,
+                stats
+              });
+            }
+          }
+        }
+        
+        // ALERT 4: Squadra domina ma non segna - Soglie abbassate
+        if (totalGoals === 0 && elapsed >= 35 && elapsed <= 80) {
+          const homeDominating = stats.shotsOnHome >= 3 && stats.possessionHome >= 55;
+          const awayDominating = stats.shotsOnAway >= 3 && stats.possessionAway >= 55;
           
-          if (homeDominating) {
-            let prob = 60 + stats.shotsOnHome * 3;
-            prob = Math.min(85, prob);
+          if (homeDominating && stats.shotsOnHome > stats.shotsOnAway + 1) {
+            let prob = 55 + stats.shotsOnHome * 4;
+            prob = Math.min(88, prob);
             alerts.push({
               match,
               type: 'homeScores',
-              level: prob >= 75 ? 'high' : 'medium',
-              pick: `${match.home.name} Segna`,
+              level: prob >= 72 ? 'high' : 'medium',
+              pick: `${match.home.name.substring(0,15)} Segna`,
               prob: prob.toFixed(0),
               quota: (100 / prob).toFixed(2),
-              reason: `Dominio totale: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
+              reason: `Dominio: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
               stats
             });
-          } else if (awayDominating) {
-            let prob = 55 + stats.shotsOnAway * 3;
-            prob = Math.min(80, prob);
+          } else if (awayDominating && stats.shotsOnAway > stats.shotsOnHome + 1) {
+            let prob = 50 + stats.shotsOnAway * 4;
+            prob = Math.min(85, prob);
             alerts.push({
               match,
               type: 'awayScores',
               level: prob >= 70 ? 'high' : 'medium',
-              pick: `${match.away.name} Segna`,
+              pick: `${match.away.name.substring(0,15)} Segna`,
               prob: prob.toFixed(0),
               quota: (100 / prob).toFixed(2),
               reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`,
@@ -2507,20 +2740,20 @@
           }
         }
         
-        // ALERT 5: Intervallo con tanti tiri (Gol 2° Tempo)
-        if (match.status === 'HT' && totalGoals <= 1) {
-          let prob = 55 + stats.shotsOn * 2;
-          prob = Math.min(85, prob);
+        // ALERT 5: Intervallo con tanti tiri (Gol 2° Tempo) - Soglia abbassata
+        if (match.status === 'HT' && totalGoals <= 2) {
+          let prob = 50 + stats.shotsOn * 2.5;
+          prob = Math.min(88, prob);
           
-          if (prob >= 65 && stats.shotsOn >= 5) {
+          if (prob >= 60 && stats.shotsOn >= 3) {
             alerts.push({
               match,
               type: 'goal2T',
-              level: prob >= 75 ? 'high' : 'medium',
+              level: prob >= 72 ? 'high' : 'medium',
               pick: 'Gol 2° Tempo',
               prob: prob.toFixed(0),
               quota: (100 / prob).toFixed(2),
-              reason: `${stats.shotsOn} tiri in porta nel 1° tempo, statisticamente il gol arriva`,
+              reason: `${stats.shotsOn} tiri in porta nel 1° tempo - gol in arrivo!`,
               stats
             });
           }
@@ -2528,54 +2761,54 @@
         
         // === ALERT PRIMO TEMPO ===
         
-        // ALERT 6: Over 0.5 Primo Tempo (0-0 tra 25' e 45')
-        if (totalGoals === 0 && elapsed >= 25 && elapsed <= 45 && match.status === '1H') {
+        // ALERT 6: Over 0.5 Primo Tempo (0-0 tra 20' e 45')
+        if (totalGoals === 0 && elapsed >= 20 && elapsed <= 45 && match.status === '1H') {
           const pressure = stats.shotsOn * 2.5 + stats.corners * 0.5;
-          let prob = 40 + (elapsed - 20) * 0.8 + pressure * 2;
+          let prob = 35 + (elapsed - 15) * 0.8 + pressure * 2;
           prob = Math.min(90, prob);
           
-          if (prob >= 65 && stats.shotsOn >= 4) {
+          if (prob >= 60 && stats.shotsOn >= 3) {
             alerts.push({
               match,
               type: 'over05_1T',
-              level: prob >= 75 ? 'high' : 'medium',
+              level: prob >= 72 ? 'high' : 'medium',
               pick: 'Over 0.5 1°T',
               prob: prob.toFixed(0),
               quota: (100 / prob).toFixed(2),
-              reason: `${stats.shotsOn} tiri in porta in ${elapsed}' - gol in arrivo nel 1° tempo!`,
+              reason: `${stats.shotsOn} tiri in porta in ${elapsed}' - gol in arrivo!`,
               stats
             });
           }
         }
         
-        // ALERT 7: Squadra Segna nel 1° Tempo (dominio evidente 20'-40')
-        if (totalGoals === 0 && elapsed >= 20 && elapsed <= 40 && match.status === '1H') {
-          const homeDominating = stats.shotsOnHome >= 4 && stats.possessionHome >= 60;
-          const awayDominating = stats.shotsOnAway >= 4 && stats.possessionAway >= 60;
+        // ALERT 7: Squadra Segna nel 1° Tempo (dominio evidente 15'-40')
+        if (totalGoals === 0 && elapsed >= 15 && elapsed <= 40 && match.status === '1H') {
+          const homeDominating = stats.shotsOnHome >= 3 && stats.possessionHome >= 55;
+          const awayDominating = stats.shotsOnAway >= 3 && stats.possessionAway >= 55;
           
-          if (homeDominating) {
-            let prob = 55 + stats.shotsOnHome * 4;
+          if (homeDominating && stats.shotsOnHome > stats.shotsOnAway + 1) {
+            let prob = 50 + stats.shotsOnHome * 5;
             prob = Math.min(85, prob);
-            if (prob >= 65) {
+            if (prob >= 60) {
               alerts.push({
                 match,
                 type: 'homeScores1T',
-                level: prob >= 75 ? 'high' : 'medium',
+                level: prob >= 72 ? 'high' : 'medium',
                 pick: `${match.home.name.substring(0,12)} Segna 1°T`,
                 prob: prob.toFixed(0),
                 quota: (100 / prob).toFixed(2),
-                reason: `Dominio casa: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
+                reason: `Dominio: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
                 stats
               });
             }
-          } else if (awayDominating) {
-            let prob = 50 + stats.shotsOnAway * 4;
-            prob = Math.min(80, prob);
-            if (prob >= 65) {
+          } else if (awayDominating && stats.shotsOnAway > stats.shotsOnHome + 1) {
+            let prob = 45 + stats.shotsOnAway * 5;
+            prob = Math.min(82, prob);
+            if (prob >= 60) {
               alerts.push({
                 match,
                 type: 'awayScores1T',
-                level: prob >= 75 ? 'high' : 'medium',
+                level: prob >= 70 ? 'high' : 'medium',
                 pick: `${match.away.name.substring(0,12)} Segna 1°T`,
                 prob: prob.toFixed(0),
                 quota: (100 / prob).toFixed(2),
@@ -2586,21 +2819,41 @@
           }
         }
         
-        // ALERT 8: Over 1.5 Primo Tempo (1-0 o 0-1 tra 30' e 45', partita aperta)
-        if (totalGoals === 1 && elapsed >= 30 && elapsed <= 45 && match.status === '1H') {
-          let prob = 45 + stats.shotsOn * 2;
-          if (stats.shotsOn >= 6) prob += 10;
-          prob = Math.min(80, prob);
+        // ALERT 8: Over 1.5 Primo Tempo (1-0 o 0-1 tra 25' e 45')
+        if (totalGoals === 1 && elapsed >= 25 && elapsed <= 45 && match.status === '1H') {
+          let prob = 40 + stats.shotsOn * 2.5;
+          if (stats.shotsOn >= 5) prob += 10;
+          prob = Math.min(82, prob);
           
-          if (prob >= 60 && stats.shotsOn >= 5) {
+          if (prob >= 55 && stats.shotsOn >= 4) {
             alerts.push({
               match,
               type: 'over15_1T',
-              level: prob >= 70 ? 'high' : 'medium',
+              level: prob >= 68 ? 'high' : 'medium',
               pick: 'Over 1.5 1°T',
               prob: prob.toFixed(0),
               quota: (100 / prob).toFixed(2),
               reason: `Già 1 gol + ${stats.shotsOn} tiri in porta - altro gol probabile!`,
+              stats
+            });
+          }
+        }
+        
+        // ALERT 9: Gol nei primi minuti di ripresa (50'-60')
+        if (totalGoals <= 1 && elapsed >= 50 && elapsed <= 65 && match.status === '2H') {
+          let prob = 45 + stats.shotsOn * 2;
+          if (totalGoals === 0) prob += 10;
+          prob = Math.min(80, prob);
+          
+          if (prob >= 58 && stats.shotsOn >= 4) {
+            alerts.push({
+              match,
+              type: 'earlyGoal2T',
+              level: prob >= 68 ? 'high' : 'medium',
+              pick: totalGoals === 0 ? 'Over 0.5' : 'Over 1.5',
+              prob: prob.toFixed(0),
+              quota: (100 / prob).toFixed(2),
+              reason: `Inizio 2°T con ${stats.shotsOn} tiri - pressione alta!`,
               stats
             });
           }
@@ -2719,6 +2972,246 @@
       render();
     }
     
+    // === TRACKING PRONOSTICI ===
+    
+    function trackBet(type, matchId, matchName, pick, prob, odds, isLive = false) {
+      const bet = {
+        id: Date.now(),
+        type, // 'prematch' o 'live'
+        matchId,
+        matchName,
+        pick,
+        prob: parseFloat(prob),
+        odds: parseFloat(odds) || 0,
+        isLive,
+        timestamp: new Date().toISOString(),
+        status: 'pending', // pending, won, lost
+        result: null
+      };
+      
+      state.trackedBets.push(bet);
+      saveTrackedBets();
+      
+      // Salva anche su Firebase
+      saveTrackingToFirebase();
+      
+      return bet;
+    }
+    
+    function updateBetResult(betId, status, result) {
+      const bet = state.trackedBets.find(b => b.id === betId);
+      if (bet) {
+        bet.status = status;
+        bet.result = result;
+        saveTrackedBets();
+        saveTrackingToFirebase();
+      }
+    }
+    
+    function saveTrackedBets() {
+      localStorage.setItem('bp_tracked', JSON.stringify(state.trackedBets));
+    }
+    
+    async function saveTrackingToFirebase() {
+      try {
+        await fetch(`${CONFIG.FIREBASE.url}/tracking/${USER_ID}.json`, {
+          method: 'PUT',
+          body: JSON.stringify(state.trackedBets)
+        });
+      } catch (e) {
+        console.warn('Firebase tracking save error:', e);
+      }
+    }
+    
+    async function loadTrackingFromFirebase() {
+      try {
+        const res = await fetch(`${CONFIG.FIREBASE.url}/tracking/${USER_ID}.json`);
+        const data = await res.json();
+        if (data && Array.isArray(data)) {
+          state.trackedBets = data;
+          saveTrackedBets();
+        }
+      } catch (e) {
+        console.warn('Firebase tracking load error:', e);
+      }
+    }
+    
+    async function checkPendingResults() {
+      const pending = state.trackedBets.filter(b => b.status === 'pending');
+      
+      for (const bet of pending) {
+        try {
+          const data = await callAPIFootball('/fixtures', { id: bet.matchId });
+          if (data && data.response && data.response[0]) {
+            const fixture = data.response[0];
+            const status = fixture.fixture.status.short;
+            
+            // Solo se la partita è finita
+            if (['FT', 'AET', 'PEN'].includes(status)) {
+              const homeGoals = fixture.goals.home;
+              const awayGoals = fixture.goals.away;
+              const totalGoals = homeGoals + awayGoals;
+              const result = `${homeGoals}-${awayGoals}`;
+              
+              // Verifica se ha vinto
+              let won = false;
+              const pick = bet.pick.toLowerCase();
+              
+              if (pick.includes('over 0.5') && totalGoals >= 1) won = true;
+              else if (pick.includes('over 1.5') && totalGoals >= 2) won = true;
+              else if (pick.includes('over 2.5') && totalGoals >= 3) won = true;
+              else if (pick.includes('over 3.5') && totalGoals >= 4) won = true;
+              else if (pick.includes('under 2.5') && totalGoals < 3) won = true;
+              else if (pick.includes('under 3.5') && totalGoals < 4) won = true;
+              else if (pick.includes('gg') && homeGoals > 0 && awayGoals > 0) won = true;
+              else if (pick.includes('ng') && (homeGoals === 0 || awayGoals === 0)) won = true;
+              else if (pick === '1' && homeGoals > awayGoals) won = true;
+              else if (pick === 'x' && homeGoals === awayGoals) won = true;
+              else if (pick === '2' && homeGoals < awayGoals) won = true;
+              else if (pick === '1x' && homeGoals >= awayGoals) won = true;
+              else if (pick === 'x2' && homeGoals <= awayGoals) won = true;
+              else if (pick.includes('segna') && totalGoals > 0) won = true;
+              else if (pick.includes('gol 2°') && totalGoals > 0) won = true; // Semplificato
+              
+              updateBetResult(bet.id, won ? 'won' : 'lost', result);
+            }
+          }
+        } catch (e) {
+          console.warn('Check result error:', e);
+        }
+      }
+      
+      render();
+    }
+    
+    function getTrackingStats() {
+      const stats = {
+        total: state.trackedBets.length,
+        pending: state.trackedBets.filter(b => b.status === 'pending').length,
+        won: state.trackedBets.filter(b => b.status === 'won').length,
+        lost: state.trackedBets.filter(b => b.status === 'lost').length,
+        byType: {},
+        byPick: {}
+      };
+      
+      // Win rate
+      const completed = stats.won + stats.lost;
+      stats.winRate = completed > 0 ? ((stats.won / completed) * 100).toFixed(1) : 0;
+      
+      // Per tipo (prematch vs live)
+      ['prematch', 'live'].forEach(type => {
+        const bets = state.trackedBets.filter(b => b.type === type);
+        const won = bets.filter(b => b.status === 'won').length;
+        const lost = bets.filter(b => b.status === 'lost').length;
+        const total = won + lost;
+        stats.byType[type] = {
+          total: bets.length,
+          won,
+          lost,
+          winRate: total > 0 ? ((won / total) * 100).toFixed(1) : 0
+        };
+      });
+      
+      // Per tipo di pick
+      const pickTypes = ['over 0.5', 'over 1.5', 'over 2.5', 'over 3.5', 'gg', '1x', 'x2', 'segna', 'gol 2°'];
+      pickTypes.forEach(pickType => {
+        const bets = state.trackedBets.filter(b => b.pick.toLowerCase().includes(pickType));
+        const won = bets.filter(b => b.status === 'won').length;
+        const lost = bets.filter(b => b.status === 'lost').length;
+        const total = won + lost;
+        if (bets.length > 0) {
+          stats.byPick[pickType] = {
+            total: bets.length,
+            won,
+            lost,
+            winRate: total > 0 ? ((won / total) * 100).toFixed(1) : 0
+          };
+        }
+      });
+      
+      return stats;
+    }
+    
+    function clearOldTrackedBets() {
+      // Rimuove bet completati più vecchi di 30 giorni
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      state.trackedBets = state.trackedBets.filter(b => {
+        if (b.status === 'pending') return true;
+        return new Date(b.timestamp).getTime() > thirtyDaysAgo;
+      });
+      saveTrackedBets();
+    }
+    
+    function renderStatsModal() {
+      const stats = getTrackingStats();
+      const winRateClass = stats.winRate >= 65 ? 'good' : stats.winRate >= 50 ? 'medium' : 'bad';
+      
+      return `
+        <div class="stats-modal" id="statsModal">
+          <div class="stats-modal-content">
+            <div class="stats-modal-header">
+              <div class="stats-modal-title">📊 Statistiche Pronostici</div>
+              <button class="stats-modal-close" id="closeStats">×</button>
+            </div>
+            <div class="stats-modal-body">
+              <div class="stats-winrate-box">
+                <div class="stats-winrate-big ${winRateClass}">${stats.winRate}%</div>
+                <div class="stats-winrate-label">Win Rate Totale</div>
+              </div>
+              
+              <div class="stats-grid">
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value purple">${stats.total}</div>
+                  <div class="stats-grid-label">Totali</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value green">${stats.won}</div>
+                  <div class="stats-grid-label">Vinti</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value red">${stats.lost}</div>
+                  <div class="stats-grid-label">Persi</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value yellow">${stats.pending}</div>
+                  <div class="stats-grid-label">In attesa</div>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value" style="color: var(--accent-cyan);">${stats.byType.prematch?.winRate || 0}%</div>
+                  <div class="stats-grid-label">PRE-MATCH (${stats.byType.prematch?.won || 0}/${(stats.byType.prematch?.won || 0) + (stats.byType.prematch?.lost || 0)})</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value" style="color: var(--accent-red);">${stats.byType.live?.winRate || 0}%</div>
+                  <div class="stats-grid-label">LIVE (${stats.byType.live?.won || 0}/${(stats.byType.live?.won || 0) + (stats.byType.live?.lost || 0)})</div>
+                </div>
+              </div>
+              
+              <div class="stats-by-pick">
+                <div class="stats-pick-title">📈 Win Rate per Mercato</div>
+                ${Object.entries(stats.byPick).map(([pick, data]) => {
+                  const rateClass = data.winRate >= 65 ? 'good' : data.winRate >= 50 ? 'medium' : 'bad';
+                  return `
+                    <div class="stats-pick-item">
+                      <div class="stats-pick-name">${pick.toUpperCase()}</div>
+                      <div class="stats-pick-rate ${rateClass}">${data.won}/${data.won + data.lost} (${data.winRate}%)</div>
+                    </div>
+                  `;
+                }).join('') || '<div style="color: var(--text-dark); text-align: center; padding: 20px;">Nessun dato ancora</div>'}
+              </div>
+              
+              <div class="stats-buttons">
+                <button class="stats-btn stats-btn-check" id="checkResults">🔄 Verifica Risultati</button>
+                <button class="stats-btn stats-btn-reset" id="resetStats">🗑️ Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
     // === RENDER ===
     function render() {
       document.getElementById('app').innerHTML = `
@@ -2731,11 +3224,13 @@
         </main>
         ${renderSlipFloating()}
         ${state.slipModal ? renderSlipModal() : ''}
+        ${state.statsModal ? renderStatsModal() : ''}
       `;
       attachEvents();
     }
 
     function renderHeader() {
+      const stats = getTrackingStats();
       return `
         <header class="header">
           <div class="header-inner">
@@ -2753,6 +3248,9 @@
                   <span class="status-dot ${state.api.footystats}"></span>
                   <span>Stats</span>
                 </div>
+              </div>
+              <div class="stats-badge" id="openStats">
+                📊 ${stats.won}/${stats.won + stats.lost} ${stats.winRate}%
               </div>
               <div class="slip-badge" id="openSlip">
                 🎫 ${state.slip.length} pronostici
@@ -3073,6 +3571,11 @@
                         <span style="color: var(--accent-yellow);">💰 ~@${alert.quota}</span>
                       </div>
                       <div class="live-pick-reason">💡 ${alert.reason}</div>
+                      <button class="live-track-btn ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'tracked' : ''}"
+                              onclick="trackLiveBet(${alert.match.id}, '${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}', '${esc(alert.pick)}', ${alert.prob}, ${alert.quota}, event)"
+                              ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'disabled' : ''}>
+                        ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? '✅ Tracciato' : '🎯 GIOCATO'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3186,6 +3689,12 @@
               </div>
             </div>
           ` : ''}
+          
+          <button class="track-btn ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'tracked' : ''}" 
+                  onclick="trackPrematchBet(${m.id}, '${esc(m.home.name)} vs ${esc(m.away.name)}', '${esc(ai.pick)}', ${ai.prob.toFixed(0)}, event)"
+                  ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'disabled' : ''}>
+            ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
+          </button>
         </div>
         
         <div class="combo-panel">
@@ -3350,6 +3859,34 @@
     }
 
     function attachEvents() {
+      // Stats Modal
+      document.getElementById('openStats')?.addEventListener('click', () => {
+        state.statsModal = true;
+        render();
+      });
+      document.getElementById('closeStats')?.addEventListener('click', () => {
+        state.statsModal = false;
+        render();
+      });
+      document.getElementById('statsModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'statsModal') {
+          state.statsModal = false;
+          render();
+        }
+      });
+      document.getElementById('checkResults')?.addEventListener('click', async () => {
+        await checkPendingResults();
+        render();
+      });
+      document.getElementById('resetStats')?.addEventListener('click', () => {
+        if (confirm('Sei sicuro di voler cancellare tutte le statistiche?')) {
+          state.trackedBets = [];
+          saveTrackedBets();
+          saveTrackingToFirebase();
+          render();
+        }
+      });
+      
       // LIVE Tab
       document.getElementById('liveTab')?.addEventListener('click', toggleLiveMode);
       document.getElementById('refreshLive')?.addEventListener('click', loadLiveMatches);
@@ -3482,12 +4019,16 @@
     async function init() {
       console.log('🚀 BettingPro v5 starting...');
       await loadSlipFromFirebase();
+      await loadTrackingFromFirebase();
       render();
       await loadMatches(0);
       
       // Avvia monitoraggio LIVE in background
       startLiveBackgroundMonitoring();
       console.log('📡 LIVE background monitoring started');
+      
+      // Verifica risultati pending ogni 5 minuti
+      setInterval(checkPendingResults, 5 * 60 * 1000);
     }
 
     init();
