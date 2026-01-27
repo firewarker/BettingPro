@@ -2998,6 +2998,26 @@
       return bet;
     }
     
+    // Funzione per tracking LIVE (chiamata da onclick)
+    function trackLiveBet(matchId, matchName, pick, prob, odds, event) {
+      event.stopPropagation();
+      if (!state.trackedBets.some(b => b.matchId === matchId && b.isLive)) {
+        trackBet('live', matchId, matchName, pick, prob, odds, true);
+        render();
+        alert('✅ Pronostico LIVE tracciato!');
+      }
+    }
+    
+    // Funzione per tracking PRE-MATCH (chiamata da onclick)
+    function trackPrematchBet(matchId, matchName, pick, prob, event) {
+      event.stopPropagation();
+      if (!state.trackedBets.some(b => b.matchId === matchId && b.type === 'prematch')) {
+        trackBet('prematch', matchId, matchName, pick, prob, 0, false);
+        render();
+        alert('✅ Pronostico tracciato!');
+      }
+    }
+    
     function updateBetResult(betId, status, result) {
       const bet = state.trackedBets.find(b => b.id === betId);
       if (bet) {
@@ -3572,7 +3592,11 @@
                       </div>
                       <div class="live-pick-reason">💡 ${alert.reason}</div>
                       <button class="live-track-btn ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'tracked' : ''}"
-                              onclick="trackLiveBet(${alert.match.id}, '${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}', '${esc(alert.pick)}', ${alert.prob}, ${alert.quota}, event)"
+                              data-matchid="${alert.match.id}"
+                              data-matchname="${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}"
+                              data-pick="${esc(alert.pick)}"
+                              data-prob="${alert.prob}"
+                              data-odds="${alert.quota}"
                               ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'disabled' : ''}>
                         ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? '✅ Tracciato' : '🎯 GIOCATO'}
                       </button>
@@ -3691,7 +3715,10 @@
           ` : ''}
           
           <button class="track-btn ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'tracked' : ''}" 
-                  onclick="trackPrematchBet(${m.id}, '${esc(m.home.name)} vs ${esc(m.away.name)}', '${esc(ai.pick)}', ${ai.prob.toFixed(0)}, event)"
+                  data-matchid="${m.id}"
+                  data-matchname="${esc(m.home.name)} vs ${esc(m.away.name)}"
+                  data-pick="${esc(ai.pick)}"
+                  data-prob="${ai.prob.toFixed(0)}"
                   ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'disabled' : ''}>
             ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
           </button>
@@ -3885,6 +3912,46 @@
           saveTrackingToFirebase();
           render();
         }
+      });
+      
+      // Track buttons - PRE-MATCH
+      document.querySelectorAll('.track-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const matchId = parseInt(btn.dataset.matchid);
+          const matchName = btn.dataset.matchname;
+          const pick = btn.dataset.pick;
+          const prob = btn.dataset.prob;
+          const odds = btn.dataset.odds || 0;
+          
+          if (!state.trackedBets.some(b => b.matchId === matchId && b.type === 'prematch')) {
+            trackBet('prematch', matchId, matchName, pick, prob, odds, false);
+            btn.classList.add('tracked');
+            btn.textContent = '✅ Pronostico Tracciato';
+            btn.disabled = true;
+            alert('✅ Pronostico tracciato! Controlla le statistiche nel badge 📊');
+          }
+        });
+      });
+      
+      // Track buttons - LIVE
+      document.querySelectorAll('.live-track-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const matchId = parseInt(btn.dataset.matchid);
+          const matchName = btn.dataset.matchname;
+          const pick = btn.dataset.pick;
+          const prob = btn.dataset.prob;
+          const odds = btn.dataset.odds || 0;
+          
+          if (!state.trackedBets.some(b => b.matchId === matchId && b.isLive)) {
+            trackBet('live', matchId, matchName, pick, prob, odds, true);
+            btn.classList.add('tracked');
+            btn.textContent = '✅ Tracciato';
+            btn.disabled = true;
+            alert('✅ Pronostico LIVE tracciato! Controlla le statistiche nel badge 📊');
+          }
+        });
       });
       
       // LIVE Tab
