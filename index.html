@@ -2004,6 +2004,7 @@
       render();
       
       let homeStats = null, awayStats = null, h2h = [], apiPred = null;
+      let homeLastMatches = [], awayLastMatches = [];
       
       try {
         const [hs, as] = await Promise.all([
@@ -2012,6 +2013,16 @@
         ]);
         homeStats = hs?.response;
         awayStats = as?.response;
+      } catch (e) {}
+      
+      // NUOVO: Ottieni ultime 5 partite per calcolare form REALE
+      try {
+        const [homeLastRes, awayLastRes] = await Promise.all([
+          callAPIFootball('/fixtures', { team: match.home.id, last: 5 }),
+          callAPIFootball('/fixtures', { team: match.away.id, last: 5 })
+        ]);
+        homeLastMatches = homeLastRes?.response || [];
+        awayLastMatches = awayLastRes?.response || [];
       } catch (e) {}
       
       try {
@@ -2036,16 +2047,48 @@
         }
       }
       
-      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch);
+      // Calcola form reale dalle ultime partite
+      const homeForm = calculateRealForm(homeLastMatches, match.home.id);
+      const awayForm = calculateRealForm(awayLastMatches, match.away.id);
+      
+      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm);
       state.loading = false;
       render();
     }
+    
+    // NUOVO: Calcola form reale dalle ultime partite
+    function calculateRealForm(matches, teamId) {
+      if (!matches || matches.length === 0) return 'DDDDD';
+      
+      let form = '';
+      matches.forEach(m => {
+        const homeGoals = m.goals?.home ?? 0;
+        const awayGoals = m.goals?.away ?? 0;
+        const isHome = m.teams?.home?.id === teamId;
+        
+        if (isHome) {
+          if (homeGoals > awayGoals) form += 'W';
+          else if (homeGoals < awayGoals) form += 'L';
+          else form += 'D';
+        } else {
+          if (awayGoals > homeGoals) form += 'W';
+          else if (awayGoals < homeGoals) form += 'L';
+          else form += 'D';
+        }
+      });
+      
+      return form || 'DDDDD';
+    }
 
     // === ALGORITMO AVANZATO ===
-    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch) {
+    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm) {
       // Extract real data
       const homeData = extractTeamData(homeStats, 'home');
       const awayData = extractTeamData(awayStats, 'away');
+      
+      // NUOVO: Usa form reale calcolata dalle ultime partite
+      if (homeForm && homeForm !== 'DDDDD') homeData.form = homeForm;
+      if (awayForm && awayForm !== 'DDDDD') awayData.form = awayForm;
       
       // Calculate xG
       let homeXG = calculateXG(homeData, awayData, 'home', apiPred, fsMatch);
