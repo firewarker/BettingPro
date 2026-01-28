@@ -308,6 +308,60 @@
     .stat-box-label { font-size: 0.65rem; color: var(--text-dark); margin-bottom: 4px; text-transform: uppercase; }
     .stat-box-value { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan); }
     .stat-box-sub { font-size: 0.6rem; color: var(--text-dark); margin-top: 2px; }
+    
+    /* CORNER & CARTELLINI POTENZIATI */
+    .corner-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .corner-section, .cards-section {
+      background: var(--bg-input);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .corner-header, .cards-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .corner-pick, .cards-pick {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .corner-pick-value, .cards-pick-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-white);
+    }
+    .corner-pick-prob, .cards-pick-prob {
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .corner-pick-prob.high, .cards-pick-prob.high { background: var(--accent-green); color: var(--bg-dark); }
+    .corner-pick-prob.medium, .cards-pick-prob.medium { background: var(--accent-yellow); color: var(--bg-dark); }
+    .corner-stats, .cards-stats { display: flex; flex-direction: column; gap: 6px; }
+    .corner-stat, .cards-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-gray);
+    }
+    .corner-stat strong, .cards-stat strong { color: var(--text-white); }
+    .corner-stat.total, .cards-stat.total {
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .corner-stat.total strong { color: var(--accent-cyan); }
+    .cards-stat.total strong { color: var(--accent-yellow); }
     .scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px; }
     .score-box {
       background: var(--bg-card-light);
@@ -345,6 +399,45 @@
     .combo-stats { display: flex; justify-content: center; gap: 12px; font-size: 0.75rem; }
     .combo-prob { color: var(--accent-cyan); }
     .combo-odds { color: var(--accent-green); }
+    
+    /* CONFRONTO PRONOSTICI */
+    .comparison-panel {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
+      border: 2px solid var(--accent-cyan);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .comparison-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 16px; text-align: center; }
+    .comparison-grid { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+    .comparison-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      flex: 1;
+      min-width: 140px;
+      max-width: 200px;
+    }
+    .comparison-box.ai { border-color: var(--accent-purple); }
+    .comparison-box.stats { border-color: var(--accent-green); }
+    .comparison-box-header { font-size: 0.7rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .comparison-box.ai .comparison-box-header { color: var(--accent-purple); }
+    .comparison-box.stats .comparison-box-header { color: var(--accent-green); }
+    .comparison-box-pick { font-size: 1.2rem; font-weight: 800; color: var(--text-white); margin-bottom: 4px; }
+    .comparison-box-prob { font-size: 1.5rem; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
+    .comparison-box-basis { font-size: 0.65rem; color: var(--text-dark); line-height: 1.3; }
+    .comparison-vs { font-size: 1rem; font-weight: 800; color: var(--text-dark); }
+    .comparison-verdict {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: var(--bg-input);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-gray);
+    }
     
     /* PRONOSTICI AI */
     .predictions-panel {
@@ -1107,6 +1200,10 @@
       .predictions-grid { grid-template-columns: repeat(2, 1fr); }
       .stat-grid { grid-template-columns: repeat(3, 1fr); }
       .combo-grid { grid-template-columns: repeat(2, 1fr); }
+      .corner-cards-grid { grid-template-columns: 1fr; }
+      .comparison-grid { flex-direction: column; }
+      .comparison-box { max-width: 100%; }
+      .comparison-vs { display: none; }
       .slip-floating { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
     }
     
@@ -3724,18 +3821,44 @@
           </button>
         </div>
         
-        <div class="combo-panel">
-          <div class="combo-title">🔥 Combo Suggerite</div>
-          <div class="combo-grid">
-            ${d.combos.map(c => `
-              <div class="combo-card ${isInSlip(m.id, 'combo_'+c.value) ? 'selected' : ''}" data-market="combo_${c.value}" data-value="${c.value}" data-prob="${c.prob.toFixed(0)}">
-                <div class="combo-value">${c.value}</div>
-                <div class="combo-stats">
-                  <span class="combo-prob">${c.prob.toFixed(0)}%</span>
-                  <span class="combo-odds">@${c.odds}</span>
-                </div>
-              </div>
-            `).join('')}
+        <div class="comparison-panel">
+          <div class="comparison-title">🔮 Confronto Pronostici</div>
+          <div class="comparison-grid">
+            <div class="comparison-box ai">
+              <div class="comparison-box-header">🤖 ALGORITMO AI</div>
+              <div class="comparison-box-pick">${ai.pick.split(' (')[0]}</div>
+              <div class="comparison-box-prob">${ai.prob.toFixed(0)}%</div>
+              <div class="comparison-box-basis">Basato su: xG, Dixon-Coles, Form, H2H</div>
+            </div>
+            <div class="comparison-vs">VS</div>
+            <div class="comparison-box stats">
+              <div class="comparison-box-header">📊 STATISTICHE PURE</div>
+              ${(() => {
+                // Calcola pronostico statistiche pure (basato solo su medie, non xG)
+                const statsPicks = [
+                  { pick: 'Over 2.5', prob: d.pOU[2.5].over },
+                  { pick: 'Under 2.5', prob: d.pOU[2.5].under },
+                  { pick: 'GG', prob: d.pBTTS },
+                  { pick: 'NG', prob: 100 - d.pBTTS },
+                  { pick: 'Over 1.5', prob: d.pOU[1.5].over }
+                ];
+                const bestStats = statsPicks.sort((a, b) => b.prob - a.prob)[0];
+                return `
+                  <div class="comparison-box-pick">${bestStats.pick}</div>
+                  <div class="comparison-box-prob">${bestStats.prob.toFixed(0)}%</div>
+                  <div class="comparison-box-basis">Basato su: Medie gol, % storiche</div>
+                `;
+              })()}
+            </div>
+          </div>
+          <div class="comparison-verdict">
+            ${ai.pick.includes('Over') || ai.pick.includes('GG') ? 
+              (d.pOU[2.5].over >= 55 || d.pBTTS >= 55 ? 
+                '✅ <strong>AI e Statistiche concordano:</strong> partita da gol!' : 
+                '⚠️ <strong>Attenzione:</strong> AI e Statistiche in disaccordo') :
+              (ai.prob >= 70 ? 
+                '✅ <strong>Pronostico solido:</strong> AI sicura al ' + ai.prob.toFixed(0) + '%' : 
+                '📊 <strong>Valuta entrambi:</strong> confronta prima di scommettere')}
           </div>
         </div>
         
@@ -3793,17 +3916,33 @@
             </div>
           </div>
           
-          <div class="analysis-card">
-            <div class="card-title"><div class="card-title-icon">🚩</div><span>Corner & Cartellini</span></div>
-            <div class="stat-grid">
-              <div class="stat-box"><div class="stat-box-label">Casa</div><div class="stat-box-value">${d.corners.home.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-              <div class="stat-box"><div class="stat-box-label">Tot</div><div class="stat-box-value">${d.corners.total.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-              <div class="stat-box"><div class="stat-box-label">Ospite</div><div class="stat-box-value">${d.corners.away.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-            </div>
-            <div class="stat-grid" style="margin-top:10px">
-              <div class="stat-box"><div class="stat-box-label">Casa</div><div class="stat-box-value">${d.cards.home.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
-              <div class="stat-box"><div class="stat-box-label">Tot</div><div class="stat-box-value">${d.cards.total.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
-              <div class="stat-box"><div class="stat-box-label">Ospite</div><div class="stat-box-value">${d.cards.away.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
+          <div class="analysis-card wide">
+            <div class="card-title"><div class="card-title-icon">📐</div><span>Corner & Cartellini - Pronostici</span></div>
+            <div class="corner-cards-grid">
+              <div class="corner-section">
+                <div class="corner-header">🚩 CORNER</div>
+                <div class="corner-pick">
+                  <span class="corner-pick-value">Over ${d.corners.total >= 10 ? '10.5' : d.corners.total >= 9 ? '9.5' : '8.5'}</span>
+                  <span class="corner-pick-prob ${d.corners.probs[d.corners.total >= 10 ? 10.5 : d.corners.total >= 9 ? 9.5 : 8.5]?.over >= 60 ? 'high' : 'medium'}">${(d.corners.probs[d.corners.total >= 10 ? 10.5 : d.corners.total >= 9 ? 9.5 : 8.5]?.over || 50).toFixed(0)}%</span>
+                </div>
+                <div class="corner-stats">
+                  <div class="corner-stat"><span>Casa:</span><strong>${d.corners.home.toFixed(1)}</strong></div>
+                  <div class="corner-stat"><span>Ospite:</span><strong>${d.corners.away.toFixed(1)}</strong></div>
+                  <div class="corner-stat total"><span>Media Tot:</span><strong>${d.corners.total.toFixed(1)}</strong></div>
+                </div>
+              </div>
+              <div class="cards-section">
+                <div class="cards-header">🟨 CARTELLINI</div>
+                <div class="cards-pick">
+                  <span class="cards-pick-value">Over ${d.cards.total >= 4.5 ? '4.5' : d.cards.total >= 4 ? '3.5' : '2.5'}</span>
+                  <span class="cards-pick-prob ${d.cards.probs[d.cards.total >= 4.5 ? 4.5 : d.cards.total >= 4 ? 3.5 : 2.5]?.over >= 60 ? 'high' : 'medium'}">${(d.cards.probs[d.cards.total >= 4.5 ? 4.5 : d.cards.total >= 4 ? 3.5 : 2.5]?.over || 50).toFixed(0)}%</span>
+                </div>
+                <div class="cards-stats">
+                  <div class="cards-stat"><span>Casa:</span><strong>${d.cards.home.toFixed(1)}</strong></div>
+                  <div class="cards-stat"><span>Ospite:</span><strong>${d.cards.away.toFixed(1)}</strong></div>
+                  <div class="cards-stat total"><span>Media Tot:</span><strong>${d.cards.total.toFixed(1)}</strong></div>
+                </div>
+              </div>
             </div>
           </div>
           
