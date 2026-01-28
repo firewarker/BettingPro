@@ -615,6 +615,7 @@
     .ai-reason-icon { font-size: 1rem; }
     .ai-reason.positive { color: var(--accent-green); }
     .ai-reason.negative { color: var(--accent-red); }
+    .ai-reason.warning { color: var(--accent-yellow); }
     .ai-reason.neutral { color: var(--accent-yellow); }
     .ai-alternatives {
       margin-top: 16px;
@@ -2098,6 +2099,10 @@
       // H2H info
       const h2hInfo = summarizeH2H(h2h, match.home.id);
       
+      // NUOVO: Calcola momentum per entrambe le squadre
+      const homeMomentum = calculateMomentum(homeData.form);
+      const awayMomentum = calculateMomentum(awayData.form);
+      
       return {
         match,
         xG: { home: homeXG, away: awayXG, total: totXG },
@@ -2107,6 +2112,7 @@
         h2h: h2hInfo,
         predictions,
         combos,
+        homeMomentum, awayMomentum,
         quality: (homeStats || awayStats) ? 'enhanced' : 'base'
       };
     }
@@ -2157,9 +2163,13 @@
       
       let xg = 1.25 * attackStrength * defenseWeakness; // Expected goals base
       
-      // Fattore forma recente (peso 20%)
+      // Fattore forma recente (peso aumentato al 30%)
       const formMultiplier = calculateFormMultiplier(teamData.form);
-      xg = xg * 0.80 + xg * formMultiplier * 0.20;
+      xg = xg * 0.70 + xg * formMultiplier * 0.30;
+      
+      // NUOVO: Fattore momentum (trend recente - crisi o forma top)
+      const momentum = calculateMomentum(teamData.form);
+      xg = xg * momentum.multiplier;
       
       // Fattore win rate (squadre che vincono spesso segnano di più)
       if (teamData.winRate > 60) xg *= 1.08;
@@ -2221,6 +2231,53 @@
       // Score 0.5 (medio) -> 1.00
       // Score 1 (tutte vittorie) -> 1.20
       return 0.80 + (avgScore * 0.40);
+    }
+    
+    // NUOVO: Calcola momentum (trend recente) - rileva crisi e momenti top
+    function calculateMomentum(form) {
+      if (!form || form.length < 3) return { multiplier: 1.0, status: 'normal', message: '' };
+      
+      const recent = form.slice(0, 5).toUpperCase();
+      const wins = (recent.match(/W/g) || []).length;
+      const losses = (recent.match(/L/g) || []).length;
+      const draws = (recent.match(/D/g) || []).length;
+      
+      let multiplier = 1.0;
+      let status = 'normal';
+      let message = '';
+      
+      // CRISI: 3+ sconfitte nelle ultime 5
+      if (losses >= 3) {
+        multiplier = 0.85; // -15%
+        status = 'crisis';
+        message = `In crisi (${wins}V-${draws}P-${losses}S)`;
+      }
+      // CRISI LIEVE: 0 vittorie nelle ultime 5
+      else if (wins === 0 && recent.length >= 4) {
+        multiplier = 0.90; // -10%
+        status = 'crisis';
+        message = `Senza vittorie (${wins}V-${draws}P-${losses}S)`;
+      }
+      // ON FIRE: 4+ vittorie nelle ultime 5
+      else if (wins >= 4) {
+        multiplier = 1.10; // +10%
+        status = 'hot';
+        message = `In grande forma (${wins}V-${draws}P-${losses}S)`;
+      }
+      // BUONA FORMA: 3 vittorie nelle ultime 5
+      else if (wins === 3 && losses <= 1) {
+        multiplier = 1.05; // +5%
+        status = 'good';
+        message = `In buona forma (${wins}V-${draws}P-${losses}S)`;
+      }
+      // FORMA NEGATIVA: 2+ sconfitte, 0-1 vittorie
+      else if (losses >= 2 && wins <= 1) {
+        multiplier = 0.93; // -7%
+        status = 'poor';
+        message = `Forma negativa (${wins}V-${draws}P-${losses}S)`;
+      }
+      
+      return { multiplier, status, message, wins, draws, losses };
     }
 
     function analyzeH2H(h2h, homeId) {
@@ -2627,6 +2684,27 @@
       if (analysis.quality === 'base') {
         advice.reasons.push({ text: 'Dati statistici limitati', type: 'negative' });
         if (advice.confidence === 'high') advice.confidence = 'medium';
+      }
+      
+      // NUOVO: Aggiungi warning sul momentum delle squadre
+      if (analysis.homeMomentum && analysis.homeMomentum.status === 'crisis') {
+        advice.reasons.push({ text: `⚠️ ${analysis.match.home.name}: ${analysis.homeMomentum.message}`, type: 'warning' });
+        // Abbassa la confidenza se la squadra favorita è in crisi
+        if (advice.pick.includes('1') && !advice.pick.includes('X') && advice.confidence === 'high') {
+          advice.confidence = 'medium';
+        }
+      } else if (analysis.homeMomentum && analysis.homeMomentum.status === 'hot') {
+        advice.reasons.push({ text: `🔥 ${analysis.match.home.name}: ${analysis.homeMomentum.message}`, type: 'positive' });
+      }
+      
+      if (analysis.awayMomentum && analysis.awayMomentum.status === 'crisis') {
+        advice.reasons.push({ text: `⚠️ ${analysis.match.away.name}: ${analysis.awayMomentum.message}`, type: 'warning' });
+        // Abbassa la confidenza se la squadra favorita è in crisi
+        if (advice.pick.includes('2') && advice.confidence === 'high') {
+          advice.confidence = 'medium';
+        }
+      } else if (analysis.awayMomentum && analysis.awayMomentum.status === 'hot') {
+        advice.reasons.push({ text: `🔥 ${analysis.match.away.name}: ${analysis.awayMomentum.message}`, type: 'positive' });
       }
       
       return advice;
@@ -3793,7 +3871,7 @@
             <div class="ai-reasoning-list">
               ${ai.reasons.map(r => `
                 <div class="ai-reason ${r.type}">
-                  <span class="ai-reason-icon">${r.type === 'positive' ? '✅' : r.type === 'negative' ? '⚠️' : '📊'}</span>
+                  <span class="ai-reason-icon">${r.type === 'positive' ? '✅' : r.type === 'negative' ? '❌' : r.type === 'warning' ? '⚠️' : '📊'}</span>
                   <span>${r.text}</span>
                 </div>
               `).join('')}
