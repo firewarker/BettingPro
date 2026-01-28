@@ -91,6 +91,22 @@
       cursor: pointer;
     }
     .stats-badge:hover { transform: scale(1.05); }
+    .csv-badge {
+      background: linear-gradient(135deg, var(--accent-yellow), var(--accent-green));
+      color: var(--bg-dark);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .csv-badge:hover { transform: scale(1.05); }
+    .csv-badge.loaded { background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); }
+    .csv-input { display: none; }
     .stats-modal {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.85);
@@ -3487,6 +3503,10 @@
                   <span>Stats</span>
                 </div>
               </div>
+              <label class="csv-badge ${state.fsData.size > 0 ? 'loaded' : ''}" id="csvUpload">
+                📁 ${state.fsData.size > 0 ? state.fsData.size + ' partite' : 'CSV'}
+                <input type="file" accept=".csv" class="csv-input" id="csvInput" multiple>
+              </label>
               <div class="stats-badge" id="openStats">
                 📊 ${stats.won}/${stats.won + stats.lost} ${stats.winRate}%
               </div>
@@ -4340,11 +4360,190 @@
       document.querySelectorAll('.slip-item-remove').forEach(btn => {
         btn.addEventListener('click', () => removeFromSlip(btn.dataset.key));
       });
+      
+      // CSV FootyStats upload handler
+      document.getElementById('csvInput')?.addEventListener('change', handleCSVUpload);
+    }
+    
+    // === CSV FOOTYSTATS PARSER ===
+    async function handleCSVUpload(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      
+      let totalLoaded = 0;
+      
+      for (const file of files) {
+        try {
+          const text = await file.text();
+          const parsed = parseFootyStatsCSV(text);
+          totalLoaded += parsed;
+        } catch (e) {
+          console.error('Errore parsing CSV:', e);
+        }
+      }
+      
+      if (totalLoaded > 0) {
+        state.api.footystats = 'green';
+        // Salva in localStorage
+        saveFootyStatsToLocal();
+        alert(`✅ Caricati ${totalLoaded} match da FootyStats!\n\nI dati sono stati salvati e saranno disponibili anche dopo aver chiuso l'app.\n\nI pronostici ora useranno dati più precisi per:\n• xG (Expected Goals)\n• Corner\n• Cartellini\n• Media gol`);
+        render();
+      } else {
+        alert('⚠️ Nessun dato valido trovato nel CSV.\n\nAssicurati di scaricare il CSV corretto da FootyStats.org');
+      }
+    }
+    
+    // Salva dati FootyStats in localStorage
+    function saveFootyStatsToLocal() {
+      try {
+        const data = {};
+        state.fsData.forEach((value, key) => {
+          data[key] = value;
+        });
+        localStorage.setItem('bettingpro_footystats', JSON.stringify(data));
+        console.log(`💾 FootyStats salvati: ${Object.keys(data).length} match`);
+      } catch (e) {
+        console.error('Errore salvataggio localStorage:', e);
+      }
+    }
+    
+    // Carica dati FootyStats da localStorage
+    function loadFootyStatsFromLocal() {
+      try {
+        const saved = localStorage.getItem('bettingpro_footystats');
+        if (saved) {
+          const data = JSON.parse(saved);
+          Object.entries(data).forEach(([key, value]) => {
+            state.fsData.set(key, value);
+          });
+          if (state.fsData.size > 0) {
+            state.api.footystats = 'green';
+            console.log(`📂 FootyStats caricati da localStorage: ${state.fsData.size} match`);
+          }
+        }
+      } catch (e) {
+        console.error('Errore caricamento localStorage:', e);
+      }
+    }
+    
+    function parseFootyStatsCSV(csvText) {
+      const lines = csvText.split('\n');
+      if (lines.length < 2) return 0;
+      
+      // Parse header
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+      
+      // Trova indici colonne importanti
+      const colMap = {};
+      const possibleCols = {
+        home: ['home', 'home_team', 'hometeam', 'team_a', 'home team'],
+        away: ['away', 'away_team', 'awayteam', 'team_b', 'away team'],
+        home_xg: ['home_xg', 'homexg', 'xg_home', 'team_a_xg', 'home xg'],
+        away_xg: ['away_xg', 'awayxg', 'xg_away', 'team_b_xg', 'away xg'],
+        home_corners: ['home_corners', 'corners_home', 'team_a_corners', 'home corners avg'],
+        away_corners: ['away_corners', 'corners_away', 'team_b_corners', 'away corners avg'],
+        home_cards: ['home_cards', 'cards_home', 'team_a_cards', 'home cards'],
+        away_cards: ['away_cards', 'cards_away', 'team_b_cards', 'away cards'],
+        avg_goals_home: ['avg_goals_home', 'home_goals_avg', 'team_a_goals_avg', 'home goals'],
+        avg_goals_away: ['avg_goals_away', 'away_goals_avg', 'team_b_goals_avg', 'away goals'],
+        home_ppg: ['home_ppg', 'ppg_home', 'team_a_ppg'],
+        away_ppg: ['away_ppg', 'ppg_away', 'team_b_ppg'],
+        corners_avg: ['corners_avg', 'avg_corners', 'total_corners_avg'],
+        btts_pct: ['btts', 'btts_pct', 'btts_percentage', 'both_teams_score'],
+        over25_pct: ['over25', 'over_25', 'over25_pct', 'over_2_5']
+      };
+      
+      for (const [key, variants] of Object.entries(possibleCols)) {
+        for (let i = 0; i < header.length; i++) {
+          if (variants.some(v => header[i].includes(v))) {
+            colMap[key] = i;
+            break;
+          }
+        }
+      }
+      
+      // Verifica colonne minime
+      if (colMap.home === undefined || colMap.away === undefined) {
+        console.warn('CSV non valido: mancano colonne home/away');
+        return 0;
+      }
+      
+      let loaded = 0;
+      
+      // Parse righe
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Parse CSV considerando virgole dentro virgolette
+        const cols = parseCSVLine(line);
+        if (cols.length < 2) continue;
+        
+        const home = (cols[colMap.home] || '').trim().replace(/['"]/g, '');
+        const away = (cols[colMap.away] || '').trim().replace(/['"]/g, '');
+        
+        if (!home || !away) continue;
+        
+        const matchData = {
+          home_xg: parseFloat(cols[colMap.home_xg]) || 0,
+          away_xg: parseFloat(cols[colMap.away_xg]) || 0,
+          home_corners: parseFloat(cols[colMap.home_corners]) || 0,
+          away_corners: parseFloat(cols[colMap.away_corners]) || 0,
+          home_cards: parseFloat(cols[colMap.home_cards]) || 0,
+          away_cards: parseFloat(cols[colMap.away_cards]) || 0,
+          avg_goals_home: parseFloat(cols[colMap.avg_goals_home]) || 0,
+          avg_goals_away: parseFloat(cols[colMap.avg_goals_away]) || 0,
+          home_ppg: parseFloat(cols[colMap.home_ppg]) || 0,
+          away_ppg: parseFloat(cols[colMap.away_ppg]) || 0,
+          corners_avg: parseFloat(cols[colMap.corners_avg]) || 0,
+          btts_pct: parseFloat(cols[colMap.btts_pct]) || 0,
+          over25_pct: parseFloat(cols[colMap.over25_pct]) || 0
+        };
+        
+        // Genera chiavi per matching
+        const keys = [
+          `${home.toLowerCase()}_${away.toLowerCase()}`,
+          `${home.toLowerCase().replace(/\s+/g, '')}_${away.toLowerCase().replace(/\s+/g, '')}`,
+          `${home.toLowerCase().split(' ')[0]}_${away.toLowerCase().split(' ')[0]}`
+        ];
+        
+        keys.forEach(k => state.fsData.set(k, matchData));
+        loaded++;
+      }
+      
+      console.log(`📊 FootyStats: caricati ${loaded} match`);
+      return loaded;
+    }
+    
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      
+      return result;
     }
 
     // === INIT ===
     async function init() {
       console.log('🚀 BettingPro v5 starting...');
+      
+      // Carica dati FootyStats salvati
+      loadFootyStatsFromLocal();
+      
       await loadSlipFromFirebase();
       await loadTrackingFromFirebase();
       render();
