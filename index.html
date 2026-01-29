@@ -636,6 +636,33 @@
     }
     .ai-alt-chip:hover { border-color: var(--accent-cyan); color: var(--text-white); }
     
+    /* STRATEGIA PERSONALE */
+    .strategy-panel { margin-top: 20px; background: linear-gradient(145deg, rgba(168,85,247,0.08), rgba(34,211,238,0.08)); border: 1px solid rgba(168,85,247,0.3); border-radius: 16px; padding: 20px; }
+    .strategy-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .strategy-title { font-size: 1rem; font-weight: 700; color: var(--accent-purple); flex: 1; }
+    .strategy-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; }
+    .strategy-badge.pass { background: var(--accent-green); color: white; }
+    .strategy-badge.caution { background: var(--accent-yellow); color: var(--bg-dark); }
+    .strategy-badge.skip { background: var(--accent-red); color: white; }
+    .strategy-recs { display: grid; gap: 10px; margin-bottom: 16px; }
+    .strategy-rec { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-input); border-radius: 12px; border-left: 4px solid var(--accent-green); }
+    .strategy-rec.high { border-left-color: var(--accent-green); }
+    .strategy-rec.medium { border-left-color: var(--accent-cyan); }
+    .strategy-rec.low { border-left-color: var(--accent-yellow); }
+    .strategy-rec-info { flex: 1; }
+    .strategy-rec-market { font-weight: 700; color: var(--text-white); font-size: 0.95rem; }
+    .strategy-rec-details { font-size: 0.75rem; color: var(--text-gray); margin-top: 2px; }
+    .strategy-rec-wr { text-align: right; }
+    .strategy-rec-wr-val { font-size: 1.1rem; font-weight: 800; color: var(--accent-green); }
+    .strategy-rec-wr-lbl { font-size: 0.65rem; color: var(--text-dark); }
+    .strategy-rec-stake { background: var(--accent-purple); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; }
+    .strategy-avoid { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+    .strategy-avoid-title { font-size: 0.75rem; color: var(--accent-red); font-weight: 600; margin-bottom: 8px; }
+    .strategy-avoid-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .strategy-avoid-item { padding: 6px 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 0.75rem; color: var(--accent-red); }
+    .strategy-footer { margin-top: 16px; padding: 12px; background: var(--bg-card-light); border-radius: 10px; font-size: 0.8rem; color: var(--text-gray); text-align: center; }
+    .strategy-footer strong { color: var(--text-white); }
+    
     /* LIVE BETTING */
     .live-tab { 
       background: linear-gradient(135deg, var(--accent-red), #ff6b6b) !important; 
@@ -1427,7 +1454,13 @@
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
       statsView: false,
-      statsModal: false
+      statsModal: false,
+      // === STRATEGIA PERSONALE ===
+      userStrategy: {
+        winRates: { 'GG': 90, 'Over 1.5': 86.7, '1X': 85.7, '2X': 85.7, 'Over 2.5': 67.7, '1': 65, '2': 65 },
+        thresholds: { 'GG': 55, 'Over 1.5': 60, '1X': 65, '2X': 65, 'Over 2.5': 70, '1': 75, '2': 75 },
+        stakes: { 'GG': 2, 'Over 1.5': 2, '1X': 1.5, '2X': 1.5, 'Over 2.5': 1, '1': 1, '2': 1 }
+      }
     };
 
     // === UTILITIES ===
@@ -1706,6 +1739,32 @@
     
     function quickCalcBTTS(lH, lA) {
       return clamp(15, (1 - poisson(lH, 0)) * (1 - poisson(lA, 0)) * 100, 85);
+    }
+    
+    // === STRATEGIA PERSONALE ===
+    function getPersonalStrategy(d) {
+      const strat = state.userStrategy;
+      const recs = [], avoid = [];
+      const markets = [
+        { name: 'GG', prob: d.pBTTS },
+        { name: 'Over 1.5', prob: d.pOU[1.5].over },
+        { name: 'Over 2.5', prob: d.pOU[2.5].over },
+        { name: '1X', prob: d.p1X2.home + d.p1X2.draw },
+        { name: '2X', prob: d.p1X2.away + d.p1X2.draw },
+        { name: '1', prob: d.p1X2.home },
+        { name: '2', prob: d.p1X2.away }
+      ];
+      for (const m of markets) {
+        const th = strat.thresholds[m.name], wr = strat.winRates[m.name], st = strat.stakes[m.name];
+        if (m.prob >= th) {
+          recs.push({ market: m.name, prob: m.prob.toFixed(0), threshold: th, winRate: wr, stake: st, priority: wr >= 85 ? 'high' : wr >= 70 ? 'medium' : 'low' });
+        } else if (m.prob >= th - 15) {
+          avoid.push({ market: m.name, prob: m.prob.toFixed(0), threshold: th });
+        }
+      }
+      recs.sort((a, b) => { const o = { high: 0, medium: 1, low: 2 }; return o[a.priority] - o[b.priority]; });
+      const pass = recs.some(r => r.priority === 'high' || r.priority === 'medium');
+      return { recs, avoid, pass };
     }
     
     // === MONEY MANAGEMENT ===
@@ -3941,6 +4000,37 @@
             ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
           </button>
         </div>
+        
+        <!-- STRATEGIA PERSONALE -->
+        ${(() => {
+          const s = getPersonalStrategy(d);
+          const badge = s.pass ? 'pass' : s.recs.length > 0 ? 'caution' : 'skip';
+          const txt = s.pass ? '✅ GIOCA' : s.recs.length > 0 ? '⚠️ VALUTA' : '❌ SKIP';
+          return `
+          <div class="strategy-panel">
+            <div class="strategy-header">
+              <span style="font-size:1.3rem">🎯</span>
+              <div class="strategy-title">Strategia Personale</div>
+              <div class="strategy-badge ${badge}">${txt}</div>
+            </div>
+            ${s.recs.length > 0 ? `<div class="strategy-recs">${s.recs.slice(0,4).map(r => `
+              <div class="strategy-rec ${r.priority}">
+                <span style="font-size:1.2rem">${r.priority === 'high' ? '🟢' : r.priority === 'medium' ? '🔵' : '🟡'}</span>
+                <div class="strategy-rec-info">
+                  <div class="strategy-rec-market">${r.market}</div>
+                  <div class="strategy-rec-details">Prob: ${r.prob}% | Soglia: ${r.threshold}%</div>
+                </div>
+                <div class="strategy-rec-wr">
+                  <div class="strategy-rec-wr-val">${r.winRate}%</div>
+                  <div class="strategy-rec-wr-lbl">Win Rate</div>
+                </div>
+                <div class="strategy-rec-stake">${r.stake}%</div>
+              </div>
+            `).join('')}</div>` : `<div class="strategy-footer">❌ <strong>Nessun mercato supera le soglie</strong></div>`}
+            ${s.avoid.length > 0 ? `<div class="strategy-avoid"><div class="strategy-avoid-title">⚠️ Mercati da evitare:</div><div class="strategy-avoid-list">${s.avoid.map(a => `<div class="strategy-avoid-item">${a.market} (${a.prob}% < ${a.threshold}%)</div>`).join('')}</div></div>` : ''}
+            <div class="strategy-footer">💡 <strong>Win rate:</strong> GG 90% | Over 1.5 86.7% | 1X 85.7% | Over 2.5 67.7%</div>
+          </div>`;
+        })()}
         
         <div class="comparison-panel">
           <div class="comparison-title">🔮 Confronto Pronostici</div>
