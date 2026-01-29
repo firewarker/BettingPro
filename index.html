@@ -636,120 +636,6 @@
     }
     .ai-alt-chip:hover { border-color: var(--accent-cyan); color: var(--text-white); }
     
-    /* STRATEGIA PERSONALE */
-    .strategy-panel {
-      margin-top: 20px;
-      background: linear-gradient(145deg, rgba(168,85,247,0.08), rgba(34,211,238,0.08));
-      border: 1px solid rgba(168,85,247,0.3);
-      border-radius: 16px;
-      padding: 20px;
-    }
-    .strategy-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .strategy-icon { font-size: 1.3rem; }
-    .strategy-title { 
-      font-size: 1rem; 
-      font-weight: 700; 
-      color: var(--accent-purple);
-      flex: 1;
-    }
-    .strategy-badge {
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      font-weight: 700;
-    }
-    .strategy-badge.pass { background: var(--accent-green); color: white; }
-    .strategy-badge.caution { background: var(--accent-yellow); color: var(--bg-dark); }
-    .strategy-badge.skip { background: var(--accent-red); color: white; }
-    .strategy-recommendations {
-      display: grid;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .strategy-rec {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      background: var(--bg-input);
-      border-radius: 12px;
-      border-left: 4px solid var(--accent-green);
-    }
-    .strategy-rec.high { border-left-color: var(--accent-green); }
-    .strategy-rec.medium { border-left-color: var(--accent-cyan); }
-    .strategy-rec.low { border-left-color: var(--accent-yellow); }
-    .strategy-rec-icon { font-size: 1.2rem; }
-    .strategy-rec-info { flex: 1; }
-    .strategy-rec-market { 
-      font-weight: 700; 
-      color: var(--text-white);
-      font-size: 0.95rem;
-    }
-    .strategy-rec-details {
-      font-size: 0.75rem;
-      color: var(--text-gray);
-      margin-top: 2px;
-    }
-    .strategy-rec-winrate {
-      text-align: right;
-    }
-    .strategy-rec-winrate-value {
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: var(--accent-green);
-    }
-    .strategy-rec-winrate-label {
-      font-size: 0.65rem;
-      color: var(--text-dark);
-    }
-    .strategy-rec-stake {
-      background: var(--accent-purple);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    .strategy-avoid {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px dashed var(--border);
-    }
-    .strategy-avoid-title {
-      font-size: 0.75rem;
-      color: var(--accent-red);
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .strategy-avoid-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .strategy-avoid-item {
-      padding: 6px 12px;
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
-      font-size: 0.75rem;
-      color: var(--accent-red);
-    }
-    .strategy-summary {
-      margin-top: 16px;
-      padding: 12px;
-      background: var(--bg-card-light);
-      border-radius: 10px;
-      font-size: 0.8rem;
-      color: var(--text-gray);
-      text-align: center;
-    }
-    .strategy-summary strong { color: var(--text-white); }
-    
     /* LIVE BETTING */
     .live-tab { 
       background: linear-gradient(135deg, var(--accent-red), #ff6b6b) !important; 
@@ -1541,40 +1427,7 @@
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
       statsView: false,
-      statsModal: false,
-      // === STRATEGIA PERSONALE (basata sui tuoi win rate storici) ===
-      userStrategy: {
-        winRates: {
-          'GG': 90,
-          'Over 1.5': 86.7,
-          '1X': 85.7,
-          '2X': 85.7,
-          'Over 2.5': 67.7,
-          '1': 65,
-          '2': 65,
-          'LIVE': 70.2
-        },
-        thresholds: {
-          'GG': 55,
-          'Over 1.5': 60,
-          '1X': 65,
-          '2X': 65,
-          'Over 2.5': 70,
-          '1': 75,
-          '2': 75
-        },
-        stakes: {
-          'LIVE_HIGH': 3,
-          'LIVE_MEDIUM': 2,
-          'GG': 2,
-          'Over 1.5': 2,
-          '1X': 1.5,
-          '2X': 1.5,
-          'Over 2.5': 1,
-          '1': 1,
-          '2': 1
-        }
-      }
+      statsModal: false
     };
 
     // === UTILITIES ===
@@ -1828,69 +1681,6 @@
       return result;
     }
     
-    // === CALCOLA STRATEGIA PERSONALE ===
-    function getPersonalStrategy(analysis, match) {
-      const d = analysis;
-      const strat = state.userStrategy;
-      const recommendations = [];
-      const avoid = [];
-      
-      const markets = [
-        { name: 'GG', prob: d.pBTTS, threshold: strat.thresholds['GG'], winRate: strat.winRates['GG'], stake: strat.stakes['GG'] },
-        { name: 'Over 1.5', prob: d.pOU[1.5].over, threshold: strat.thresholds['Over 1.5'], winRate: strat.winRates['Over 1.5'], stake: strat.stakes['Over 1.5'] },
-        { name: 'Over 2.5', prob: d.pOU[2.5].over, threshold: strat.thresholds['Over 2.5'], winRate: strat.winRates['Over 2.5'], stake: strat.stakes['Over 2.5'] },
-        { name: '1X', prob: d.p1X2.home + d.p1X2.draw, threshold: strat.thresholds['1X'], winRate: strat.winRates['1X'], stake: strat.stakes['1X'] },
-        { name: '2X', prob: d.p1X2.away + d.p1X2.draw, threshold: strat.thresholds['2X'], winRate: strat.winRates['2X'], stake: strat.stakes['2X'] },
-        { name: '1', prob: d.p1X2.home, threshold: strat.thresholds['1'], winRate: strat.winRates['1'], stake: strat.stakes['1'] },
-        { name: '2', prob: d.p1X2.away, threshold: strat.thresholds['2'], winRate: strat.winRates['2'], stake: strat.stakes['2'] }
-      ];
-      
-      for (const m of markets) {
-        if (m.prob >= m.threshold) {
-          const expectedValue = (m.prob / 100) * (m.winRate / 100) * 100;
-          recommendations.push({
-            market: m.name,
-            prob: m.prob.toFixed(0),
-            threshold: m.threshold,
-            winRate: m.winRate,
-            stake: m.stake,
-            expectedValue: expectedValue.toFixed(1),
-            priority: m.winRate >= 85 ? 'high' : m.winRate >= 70 ? 'medium' : 'low'
-          });
-        } else if (m.prob >= m.threshold - 15) {
-          avoid.push({
-            market: m.name,
-            prob: m.prob.toFixed(0),
-            threshold: m.threshold,
-            reason: `Prob. ${m.prob.toFixed(0)}% < soglia ${m.threshold}%`
-          });
-        }
-      }
-      
-      recommendations.sort((a, b) => {
-        if (a.priority !== b.priority) {
-          const order = { high: 0, medium: 1, low: 2 };
-          return order[a.priority] - order[b.priority];
-        }
-        return parseFloat(b.expectedValue) - parseFloat(a.expectedValue);
-      });
-      
-      const bestPick = recommendations.length > 0 ? recommendations[0] : null;
-      const passesFilters = recommendations.some(r => r.priority === 'high' || r.priority === 'medium');
-      
-      return {
-        recommendations,
-        avoid,
-        bestPick,
-        passesFilters,
-        summary: passesFilters 
-          ? `✅ ${recommendations.length} mercati consigliati` 
-          : recommendations.length > 0 
-            ? `⚠️ ${recommendations.length} mercati disponibili` 
-            : '❌ Nessun mercato consigliato'
-      };
-    }
-    
     // Calcoli rapidi per picks (senza Dixon-Coles per velocità)
     function quickCalc1X2(lH, lA) {
       let pH = 0, pD = 0, pA = 0;
@@ -2124,32 +1914,13 @@
       state.api.footystats = 'loading';
       
       try {
-        // Try multiple CORS proxies
-        const proxies = [
-          'https://api.allorigins.win/raw?url=',
-          'https://corsproxy.io/?',
-          'https://cors-anywhere.herokuapp.com/'
-        ];
-        
-        let data = null;
-        for (const proxy of proxies) {
-          try {
-            const proxyUrl = proxy + encodeURIComponent(url.toString());
-            const res = await fetch(proxyUrl, { timeout: 8000 });
-            if (res.ok) {
-              data = await res.json();
-              break;
-            }
-          } catch (e) {
-            console.log('Proxy failed:', proxy);
-          }
-        }
-        
-        if (data) {
-          state.api.footystats = 'online';
-          return data;
-        }
-        throw new Error('All proxies failed');
+        // FootyStats needs CORS proxy
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url.toString());
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        state.api.footystats = 'online';
+        return data;
       } catch (e) {
         console.error('FootyStats error:', e);
         state.api.footystats = 'offline';
@@ -4170,62 +3941,6 @@
             ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
           </button>
         </div>
-        
-        <!-- STRATEGIA PERSONALE -->
-        ${(() => {
-          const strategy = getPersonalStrategy(d, m);
-          const badgeClass = strategy.passesFilters ? 'pass' : strategy.recommendations.length > 0 ? 'caution' : 'skip';
-          const badgeText = strategy.passesFilters ? '✅ GIOCA' : strategy.recommendations.length > 0 ? '⚠️ VALUTA' : '❌ SKIP';
-          
-          return `
-          <div class="strategy-panel">
-            <div class="strategy-header">
-              <div class="strategy-icon">🎯</div>
-              <div class="strategy-title">Strategia Personale</div>
-              <div class="strategy-badge ${badgeClass}">${badgeText}</div>
-            </div>
-            
-            ${strategy.recommendations.length > 0 ? `
-              <div class="strategy-recommendations">
-                ${strategy.recommendations.slice(0, 4).map(rec => `
-                  <div class="strategy-rec ${rec.priority}">
-                    <div class="strategy-rec-icon">${rec.priority === 'high' ? '🟢' : rec.priority === 'medium' ? '🔵' : '🟡'}</div>
-                    <div class="strategy-rec-info">
-                      <div class="strategy-rec-market">${rec.market}</div>
-                      <div class="strategy-rec-details">Prob: ${rec.prob}% | Soglia: ${rec.threshold}%</div>
-                    </div>
-                    <div class="strategy-rec-winrate">
-                      <div class="strategy-rec-winrate-value">${rec.winRate}%</div>
-                      <div class="strategy-rec-winrate-label">Win Rate</div>
-                    </div>
-                    <div class="strategy-rec-stake">${rec.stake}%</div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : `
-              <div class="strategy-summary">
-                ❌ <strong>Nessun mercato supera le soglie minime</strong><br>
-                Consiglio: salta questa partita o attendi i LIVE alerts
-              </div>
-            `}
-            
-            ${strategy.avoid.length > 0 ? `
-              <div class="strategy-avoid">
-                <div class="strategy-avoid-title">⚠️ Mercati da evitare:</div>
-                <div class="strategy-avoid-list">
-                  ${strategy.avoid.map(a => `
-                    <div class="strategy-avoid-item">${a.market} (${a.reason})</div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-            
-            <div class="strategy-summary">
-              💡 <strong>Basato sui tuoi win rate:</strong> GG 90% | Over 1.5 86.7% | 1X 85.7% | Over 2.5 67.7%
-            </div>
-          </div>
-          `;
-        })()}
         
         <div class="comparison-panel">
           <div class="comparison-title">🔮 Confronto Pronostici</div>
