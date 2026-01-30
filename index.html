@@ -1913,19 +1913,38 @@
       
       state.api.footystats = 'loading';
       
-      try {
-        // FootyStats needs CORS proxy
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url.toString());
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        state.api.footystats = 'online';
-        return data;
-      } catch (e) {
-        console.error('FootyStats error:', e);
-        state.api.footystats = 'offline';
-        return null;
+      // Lista proxy CORS con fallback automatico
+      const proxies = [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.org/?',
+        'https://cors-anywhere.herokuapp.com/'
+      ];
+      
+      for (const proxy of proxies) {
+        try {
+          const proxyUrl = proxy + encodeURIComponent(url.toString());
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          
+          const res = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(timeout);
+          
+          if (!res.ok) continue; // Prova prossimo proxy
+          
+          const data = await res.json();
+          state.api.footystats = 'online';
+          console.log('✅ FootyStats OK via:', proxy.split('/')[2]);
+          return data;
+        } catch (e) {
+          console.warn('Proxy failed:', proxy.split('/')[2], e.message);
+          continue; // Prova prossimo proxy
+        }
       }
+      
+      // Tutti i proxy falliti
+      console.error('FootyStats: tutti i proxy falliti');
+      state.api.footystats = 'offline';
+      return null;
     }
 
     // === DATA LOADING ===
