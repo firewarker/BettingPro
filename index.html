@@ -1913,38 +1913,19 @@
       
       state.api.footystats = 'loading';
       
-      // Lista proxy CORS con fallback automatico
-      const proxies = [
-        'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.org/?',
-        'https://cors-anywhere.herokuapp.com/'
-      ];
-      
-      for (const proxy of proxies) {
-        try {
-          const proxyUrl = proxy + encodeURIComponent(url.toString());
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
-          
-          const res = await fetch(proxyUrl, { signal: controller.signal });
-          clearTimeout(timeout);
-          
-          if (!res.ok) continue; // Prova prossimo proxy
-          
-          const data = await res.json();
-          state.api.footystats = 'online';
-          console.log('✅ FootyStats OK via:', proxy.split('/')[2]);
-          return data;
-        } catch (e) {
-          console.warn('Proxy failed:', proxy.split('/')[2], e.message);
-          continue; // Prova prossimo proxy
-        }
+      try {
+        // FootyStats needs CORS proxy
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url.toString());
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        state.api.footystats = 'online';
+        return data;
+      } catch (e) {
+        console.error('FootyStats error:', e);
+        state.api.footystats = 'offline';
+        return null;
       }
-      
-      // Tutti i proxy falliti
-      console.error('FootyStats: tutti i proxy falliti');
-      state.api.footystats = 'offline';
-      return null;
     }
 
     // === DATA LOADING ===
@@ -3314,19 +3295,24 @@
               let won = false;
               const pick = bet.pick.toLowerCase();
               
+              // Over/Under
               if (pick.includes('over 0.5') && totalGoals >= 1) won = true;
               else if (pick.includes('over 1.5') && totalGoals >= 2) won = true;
               else if (pick.includes('over 2.5') && totalGoals >= 3) won = true;
               else if (pick.includes('over 3.5') && totalGoals >= 4) won = true;
               else if (pick.includes('under 2.5') && totalGoals < 3) won = true;
               else if (pick.includes('under 3.5') && totalGoals < 4) won = true;
-              else if (pick.includes('gg') && homeGoals > 0 && awayGoals > 0) won = true;
+              // GG/NG
+              else if ((pick.includes('gg') || pick.includes('entrambe segnano')) && homeGoals > 0 && awayGoals > 0) won = true;
               else if (pick.includes('ng') && (homeGoals === 0 || awayGoals === 0)) won = true;
-              else if (pick === '1' && homeGoals > awayGoals) won = true;
-              else if (pick === 'x' && homeGoals === awayGoals) won = true;
-              else if (pick === '2' && homeGoals < awayGoals) won = true;
-              else if (pick === '1x' && homeGoals >= awayGoals) won = true;
-              else if (pick === 'x2' && homeGoals <= awayGoals) won = true;
+              // 1X2 - con supporto per formato esteso "(Vittoria Casa)" ecc.
+              else if ((pick === '1' || pick.startsWith('1 (') || pick.startsWith('1 ')) && homeGoals > awayGoals) won = true;
+              else if ((pick === 'x' || pick.startsWith('x (') || pick === 'pareggio') && homeGoals === awayGoals) won = true;
+              else if ((pick === '2' || pick.startsWith('2 (') || pick.startsWith('2 ')) && homeGoals < awayGoals) won = true;
+              // Doppie chance
+              else if ((pick === '1x' || pick.startsWith('1x (') || pick.startsWith('1x ')) && homeGoals >= awayGoals) won = true;
+              else if ((pick === 'x2' || pick.startsWith('x2 (') || pick.startsWith('x2 ')) && homeGoals <= awayGoals) won = true;
+              // Segna
               else if (pick.includes('segna') && totalGoals > 0) won = true;
               else if (pick.includes('gol 2°') && totalGoals > 0) won = true; // Semplificato
               
@@ -3370,14 +3356,27 @@
       });
       
       // Per tipo di pick
-      const pickTypes = ['over 0.5', 'over 1.5', 'over 2.5', 'over 3.5', 'gg', '1x', 'x2', 'segna', 'gol 2°'];
+      const pickTypes = [
+        { key: 'over 0.5', label: 'Over 0.5' },
+        { key: 'over 1.5', label: 'Over 1.5' },
+        { key: 'over 2.5', label: 'Over 2.5' },
+        { key: 'over 3.5', label: 'Over 3.5' },
+        { key: 'under', label: 'Under' },
+        { key: 'gg', label: 'GG' },
+        { key: 'entrambe segnano', label: 'GG' },
+        { key: '1 (', label: '1 (Vittoria Casa)' },
+        { key: '2 (', label: '2 (Vittoria Ospite)' },
+        { key: '1x', label: '1X' },
+        { key: 'x2', label: 'X2' },
+        { key: 'pareggio', label: 'X (Pareggio)' }
+      ];
       pickTypes.forEach(pickType => {
-        const bets = state.trackedBets.filter(b => b.pick.toLowerCase().includes(pickType));
+        const bets = state.trackedBets.filter(b => b.pick.toLowerCase().includes(pickType.key));
         const won = bets.filter(b => b.status === 'won').length;
         const lost = bets.filter(b => b.status === 'lost').length;
         const total = won + lost;
         if (bets.length > 0) {
-          stats.byPick[pickType] = {
+          stats.byPick[pickType.label] = {
             total: bets.length,
             won,
             lost,
