@@ -82,6 +82,61 @@
       cursor: pointer;
     }
     .slip-badge:hover { transform: scale(1.05); }
+    .stats-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+      border-radius: 20px;
+      font-size: 0.8rem; font-weight: 700;
+      cursor: pointer;
+    }
+    .stats-badge:hover { transform: scale(1.05); }
+    .stats-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000; padding: 20px;
+    }
+    .stats-modal-content {
+      background: var(--bg-card);
+      border-radius: 20px;
+      width: 100%; max-width: 600px;
+      max-height: 90vh; overflow-y: auto;
+      border: 1px solid var(--border);
+    }
+    .stats-modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px; border-bottom: 1px solid var(--border);
+    }
+    .stats-modal-title { font-size: 1.2rem; font-weight: 800; color: var(--accent-purple); }
+    .stats-modal-close { background: none; border: none; color: var(--text-gray); font-size: 1.5rem; cursor: pointer; }
+    .stats-modal-body { padding: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stats-grid-item { background: var(--bg-input); padding: 16px; border-radius: 12px; text-align: center; }
+    .stats-grid-value { font-size: 1.5rem; font-weight: 800; }
+    .stats-grid-value.green { color: var(--accent-green); }
+    .stats-grid-value.red { color: var(--accent-red); }
+    .stats-grid-value.yellow { color: var(--accent-yellow); }
+    .stats-grid-value.purple { color: var(--accent-purple); }
+    .stats-grid-label { font-size: 0.7rem; color: var(--text-gray); margin-top: 4px; }
+    .stats-winrate-box { background: var(--bg-input); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 20px; }
+    .stats-winrate-big { font-size: 3rem; font-weight: 800; }
+    .stats-winrate-big.good { color: var(--accent-green); }
+    .stats-winrate-big.medium { color: var(--accent-yellow); }
+    .stats-winrate-big.bad { color: var(--accent-red); }
+    .stats-winrate-label { font-size: 0.9rem; color: var(--text-gray); }
+    .stats-by-pick { margin-top: 20px; }
+    .stats-pick-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--text-white); }
+    .stats-pick-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 8px; }
+    .stats-pick-name { font-size: 0.85rem; color: var(--text-gray); }
+    .stats-pick-rate { font-size: 0.85rem; font-weight: 700; }
+    .stats-pick-rate.good { color: var(--accent-green); }
+    .stats-pick-rate.medium { color: var(--accent-yellow); }
+    .stats-pick-rate.bad { color: var(--accent-red); }
+    .stats-buttons { display: flex; gap: 10px; margin-top: 20px; }
+    .stats-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .stats-btn-check { background: var(--accent-cyan); color: var(--bg-dark); }
+    .stats-btn-reset { background: var(--accent-red); color: white; }
     .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .date-tabs {
       display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
@@ -253,6 +308,60 @@
     .stat-box-label { font-size: 0.65rem; color: var(--text-dark); margin-bottom: 4px; text-transform: uppercase; }
     .stat-box-value { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan); }
     .stat-box-sub { font-size: 0.6rem; color: var(--text-dark); margin-top: 2px; }
+    
+    /* CORNER & CARTELLINI POTENZIATI */
+    .corner-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .corner-section, .cards-section {
+      background: var(--bg-input);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .corner-header, .cards-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .corner-pick, .cards-pick {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .corner-pick-value, .cards-pick-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-white);
+    }
+    .corner-pick-prob, .cards-pick-prob {
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .corner-pick-prob.high, .cards-pick-prob.high { background: var(--accent-green); color: var(--bg-dark); }
+    .corner-pick-prob.medium, .cards-pick-prob.medium { background: var(--accent-yellow); color: var(--bg-dark); }
+    .corner-stats, .cards-stats { display: flex; flex-direction: column; gap: 6px; }
+    .corner-stat, .cards-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-gray);
+    }
+    .corner-stat strong, .cards-stat strong { color: var(--text-white); }
+    .corner-stat.total, .cards-stat.total {
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .corner-stat.total strong { color: var(--accent-cyan); }
+    .cards-stat.total strong { color: var(--accent-yellow); }
     .scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px; }
     .score-box {
       background: var(--bg-card-light);
@@ -290,6 +399,45 @@
     .combo-stats { display: flex; justify-content: center; gap: 12px; font-size: 0.75rem; }
     .combo-prob { color: var(--accent-cyan); }
     .combo-odds { color: var(--accent-green); }
+    
+    /* CONFRONTO PRONOSTICI */
+    .comparison-panel {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
+      border: 2px solid var(--accent-cyan);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .comparison-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 16px; text-align: center; }
+    .comparison-grid { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+    .comparison-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      flex: 1;
+      min-width: 140px;
+      max-width: 200px;
+    }
+    .comparison-box.ai { border-color: var(--accent-purple); }
+    .comparison-box.stats { border-color: var(--accent-green); }
+    .comparison-box-header { font-size: 0.7rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .comparison-box.ai .comparison-box-header { color: var(--accent-purple); }
+    .comparison-box.stats .comparison-box-header { color: var(--accent-green); }
+    .comparison-box-pick { font-size: 1.2rem; font-weight: 800; color: var(--text-white); margin-bottom: 4px; }
+    .comparison-box-prob { font-size: 1.5rem; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
+    .comparison-box-basis { font-size: 0.65rem; color: var(--text-dark); line-height: 1.3; }
+    .comparison-vs { font-size: 1rem; font-weight: 800; color: var(--text-dark); }
+    .comparison-verdict {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: var(--bg-input);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-gray);
+    }
     
     /* PRONOSTICI AI */
     .predictions-panel {
@@ -467,6 +615,7 @@
     .ai-reason-icon { font-size: 1rem; }
     .ai-reason.positive { color: var(--accent-green); }
     .ai-reason.negative { color: var(--accent-red); }
+    .ai-reason.warning { color: var(--accent-yellow); }
     .ai-reason.neutral { color: var(--accent-yellow); }
     .ai-alternatives {
       margin-top: 16px;
@@ -1052,6 +1201,10 @@
       .predictions-grid { grid-template-columns: repeat(2, 1fr); }
       .stat-grid { grid-template-columns: repeat(3, 1fr); }
       .combo-grid { grid-template-columns: repeat(2, 1fr); }
+      .corner-cards-grid { grid-template-columns: 1fr; }
+      .comparison-grid { flex-direction: column; }
+      .comparison-box { max-width: 100%; }
+      .comparison-vs { display: none; }
       .slip-floating { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
     }
     
@@ -1273,7 +1426,8 @@
       liveCountdown: 60,
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
-      statsView: false
+      statsView: false,
+      statsModal: false
     };
 
     // === UTILITIES ===
@@ -1850,6 +2004,7 @@
       render();
       
       let homeStats = null, awayStats = null, h2h = [], apiPred = null;
+      let homeLastMatches = [], awayLastMatches = [];
       
       try {
         const [hs, as] = await Promise.all([
@@ -1858,6 +2013,16 @@
         ]);
         homeStats = hs?.response;
         awayStats = as?.response;
+      } catch (e) {}
+      
+      // NUOVO: Ottieni ultime 5 partite per calcolare form REALE
+      try {
+        const [homeLastRes, awayLastRes] = await Promise.all([
+          callAPIFootball('/fixtures', { team: match.home.id, last: 5 }),
+          callAPIFootball('/fixtures', { team: match.away.id, last: 5 })
+        ]);
+        homeLastMatches = homeLastRes?.response || [];
+        awayLastMatches = awayLastRes?.response || [];
       } catch (e) {}
       
       try {
@@ -1882,16 +2047,48 @@
         }
       }
       
-      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch);
+      // Calcola form reale dalle ultime partite
+      const homeForm = calculateRealForm(homeLastMatches, match.home.id);
+      const awayForm = calculateRealForm(awayLastMatches, match.away.id);
+      
+      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm);
       state.loading = false;
       render();
     }
+    
+    // NUOVO: Calcola form reale dalle ultime partite
+    function calculateRealForm(matches, teamId) {
+      if (!matches || matches.length === 0) return 'DDDDD';
+      
+      let form = '';
+      matches.forEach(m => {
+        const homeGoals = m.goals?.home ?? 0;
+        const awayGoals = m.goals?.away ?? 0;
+        const isHome = m.teams?.home?.id === teamId;
+        
+        if (isHome) {
+          if (homeGoals > awayGoals) form += 'W';
+          else if (homeGoals < awayGoals) form += 'L';
+          else form += 'D';
+        } else {
+          if (awayGoals > homeGoals) form += 'W';
+          else if (awayGoals < homeGoals) form += 'L';
+          else form += 'D';
+        }
+      });
+      
+      return form || 'DDDDD';
+    }
 
     // === ALGORITMO AVANZATO ===
-    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch) {
+    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm) {
       // Extract real data
       const homeData = extractTeamData(homeStats, 'home');
       const awayData = extractTeamData(awayStats, 'away');
+      
+      // NUOVO: Usa form reale calcolata dalle ultime partite
+      if (homeForm && homeForm !== 'DDDDD') homeData.form = homeForm;
+      if (awayForm && awayForm !== 'DDDDD') awayData.form = awayForm;
       
       // Calculate xG
       let homeXG = calculateXG(homeData, awayData, 'home', apiPred, fsMatch);
@@ -1945,6 +2142,10 @@
       // H2H info
       const h2hInfo = summarizeH2H(h2h, match.home.id);
       
+      // NUOVO: Calcola momentum per entrambe le squadre
+      const homeMomentum = calculateMomentum(homeData.form);
+      const awayMomentum = calculateMomentum(awayData.form);
+      
       return {
         match,
         xG: { home: homeXG, away: awayXG, total: totXG },
@@ -1954,6 +2155,7 @@
         h2h: h2hInfo,
         predictions,
         combos,
+        homeMomentum, awayMomentum,
         quality: (homeStats || awayStats) ? 'enhanced' : 'base'
       };
     }
@@ -2004,9 +2206,13 @@
       
       let xg = 1.25 * attackStrength * defenseWeakness; // Expected goals base
       
-      // Fattore forma recente (peso 20%)
+      // Fattore forma recente (peso aumentato al 30%)
       const formMultiplier = calculateFormMultiplier(teamData.form);
-      xg = xg * 0.80 + xg * formMultiplier * 0.20;
+      xg = xg * 0.70 + xg * formMultiplier * 0.30;
+      
+      // NUOVO: Fattore momentum (trend recente - crisi o forma top)
+      const momentum = calculateMomentum(teamData.form);
+      xg = xg * momentum.multiplier;
       
       // Fattore win rate (squadre che vincono spesso segnano di più)
       if (teamData.winRate > 60) xg *= 1.08;
@@ -2068,6 +2274,53 @@
       // Score 0.5 (medio) -> 1.00
       // Score 1 (tutte vittorie) -> 1.20
       return 0.80 + (avgScore * 0.40);
+    }
+    
+    // NUOVO: Calcola momentum (trend recente) - rileva crisi e momenti top
+    function calculateMomentum(form) {
+      if (!form || form.length < 3) return { multiplier: 1.0, status: 'normal', message: '' };
+      
+      const recent = form.slice(0, 5).toUpperCase();
+      const wins = (recent.match(/W/g) || []).length;
+      const losses = (recent.match(/L/g) || []).length;
+      const draws = (recent.match(/D/g) || []).length;
+      
+      let multiplier = 1.0;
+      let status = 'normal';
+      let message = '';
+      
+      // CRISI: 3+ sconfitte nelle ultime 5
+      if (losses >= 3) {
+        multiplier = 0.85; // -15%
+        status = 'crisis';
+        message = `In crisi (${wins}V-${draws}P-${losses}S)`;
+      }
+      // CRISI LIEVE: 0 vittorie nelle ultime 5
+      else if (wins === 0 && recent.length >= 4) {
+        multiplier = 0.90; // -10%
+        status = 'crisis';
+        message = `Senza vittorie (${wins}V-${draws}P-${losses}S)`;
+      }
+      // ON FIRE: 4+ vittorie nelle ultime 5
+      else if (wins >= 4) {
+        multiplier = 1.10; // +10%
+        status = 'hot';
+        message = `In grande forma (${wins}V-${draws}P-${losses}S)`;
+      }
+      // BUONA FORMA: 3 vittorie nelle ultime 5
+      else if (wins === 3 && losses <= 1) {
+        multiplier = 1.05; // +5%
+        status = 'good';
+        message = `In buona forma (${wins}V-${draws}P-${losses}S)`;
+      }
+      // FORMA NEGATIVA: 2+ sconfitte, 0-1 vittorie
+      else if (losses >= 2 && wins <= 1) {
+        multiplier = 0.93; // -7%
+        status = 'poor';
+        message = `Forma negativa (${wins}V-${draws}P-${losses}S)`;
+      }
+      
+      return { multiplier, status, message, wins, draws, losses };
     }
 
     function analyzeH2H(h2h, homeId) {
@@ -2474,6 +2727,27 @@
       if (analysis.quality === 'base') {
         advice.reasons.push({ text: 'Dati statistici limitati', type: 'negative' });
         if (advice.confidence === 'high') advice.confidence = 'medium';
+      }
+      
+      // NUOVO: Aggiungi warning sul momentum delle squadre
+      if (analysis.homeMomentum && analysis.homeMomentum.status === 'crisis') {
+        advice.reasons.push({ text: `⚠️ ${analysis.match.home.name}: ${analysis.homeMomentum.message}`, type: 'warning' });
+        // Abbassa la confidenza se la squadra favorita è in crisi
+        if (advice.pick.includes('1') && !advice.pick.includes('X') && advice.confidence === 'high') {
+          advice.confidence = 'medium';
+        }
+      } else if (analysis.homeMomentum && analysis.homeMomentum.status === 'hot') {
+        advice.reasons.push({ text: `🔥 ${analysis.match.home.name}: ${analysis.homeMomentum.message}`, type: 'positive' });
+      }
+      
+      if (analysis.awayMomentum && analysis.awayMomentum.status === 'crisis') {
+        advice.reasons.push({ text: `⚠️ ${analysis.match.away.name}: ${analysis.awayMomentum.message}`, type: 'warning' });
+        // Abbassa la confidenza se la squadra favorita è in crisi
+        if (advice.pick.includes('2') && advice.confidence === 'high') {
+          advice.confidence = 'medium';
+        }
+      } else if (analysis.awayMomentum && analysis.awayMomentum.status === 'hot') {
+        advice.reasons.push({ text: `🔥 ${analysis.match.away.name}: ${analysis.awayMomentum.message}`, type: 'positive' });
       }
       
       return advice;
@@ -2942,6 +3216,26 @@
       return bet;
     }
     
+    // Funzione per tracking LIVE (chiamata da onclick)
+    function trackLiveBet(matchId, matchName, pick, prob, odds, event) {
+      event.stopPropagation();
+      if (!state.trackedBets.some(b => b.matchId === matchId && b.isLive)) {
+        trackBet('live', matchId, matchName, pick, prob, odds, true);
+        render();
+        alert('✅ Pronostico LIVE tracciato!');
+      }
+    }
+    
+    // Funzione per tracking PRE-MATCH (chiamata da onclick)
+    function trackPrematchBet(matchId, matchName, pick, prob, event) {
+      event.stopPropagation();
+      if (!state.trackedBets.some(b => b.matchId === matchId && b.type === 'prematch')) {
+        trackBet('prematch', matchId, matchName, pick, prob, 0, false);
+        render();
+        alert('✅ Pronostico tracciato!');
+      }
+    }
+    
     function updateBetResult(betId, status, result) {
       const bet = state.trackedBets.find(b => b.id === betId);
       if (bet) {
@@ -3001,19 +3295,24 @@
               let won = false;
               const pick = bet.pick.toLowerCase();
               
+              // Over/Under
               if (pick.includes('over 0.5') && totalGoals >= 1) won = true;
               else if (pick.includes('over 1.5') && totalGoals >= 2) won = true;
               else if (pick.includes('over 2.5') && totalGoals >= 3) won = true;
               else if (pick.includes('over 3.5') && totalGoals >= 4) won = true;
               else if (pick.includes('under 2.5') && totalGoals < 3) won = true;
               else if (pick.includes('under 3.5') && totalGoals < 4) won = true;
-              else if (pick.includes('gg') && homeGoals > 0 && awayGoals > 0) won = true;
+              // GG/NG
+              else if ((pick.includes('gg') || pick.includes('entrambe segnano')) && homeGoals > 0 && awayGoals > 0) won = true;
               else if (pick.includes('ng') && (homeGoals === 0 || awayGoals === 0)) won = true;
-              else if (pick === '1' && homeGoals > awayGoals) won = true;
-              else if (pick === 'x' && homeGoals === awayGoals) won = true;
-              else if (pick === '2' && homeGoals < awayGoals) won = true;
-              else if (pick === '1x' && homeGoals >= awayGoals) won = true;
-              else if (pick === 'x2' && homeGoals <= awayGoals) won = true;
+              // 1X2 - con supporto per formato esteso "(Vittoria Casa)" ecc.
+              else if ((pick === '1' || pick.startsWith('1 (') || pick.startsWith('1 ')) && homeGoals > awayGoals) won = true;
+              else if ((pick === 'x' || pick.startsWith('x (') || pick === 'pareggio') && homeGoals === awayGoals) won = true;
+              else if ((pick === '2' || pick.startsWith('2 (') || pick.startsWith('2 ')) && homeGoals < awayGoals) won = true;
+              // Doppie chance
+              else if ((pick === '1x' || pick.startsWith('1x (') || pick.startsWith('1x ')) && homeGoals >= awayGoals) won = true;
+              else if ((pick === 'x2' || pick.startsWith('x2 (') || pick.startsWith('x2 ')) && homeGoals <= awayGoals) won = true;
+              // Segna
               else if (pick.includes('segna') && totalGoals > 0) won = true;
               else if (pick.includes('gol 2°') && totalGoals > 0) won = true; // Semplificato
               
@@ -3057,14 +3356,27 @@
       });
       
       // Per tipo di pick
-      const pickTypes = ['over 0.5', 'over 1.5', 'over 2.5', 'over 3.5', 'gg', '1x', 'x2', 'segna', 'gol 2°'];
+      const pickTypes = [
+        { key: 'over 0.5', label: 'Over 0.5' },
+        { key: 'over 1.5', label: 'Over 1.5' },
+        { key: 'over 2.5', label: 'Over 2.5' },
+        { key: 'over 3.5', label: 'Over 3.5' },
+        { key: 'under', label: 'Under' },
+        { key: 'gg', label: 'GG' },
+        { key: 'entrambe segnano', label: 'GG' },
+        { key: '1 (', label: '1 (Vittoria Casa)' },
+        { key: '2 (', label: '2 (Vittoria Ospite)' },
+        { key: '1x', label: '1X' },
+        { key: 'x2', label: 'X2' },
+        { key: 'pareggio', label: 'X (Pareggio)' }
+      ];
       pickTypes.forEach(pickType => {
-        const bets = state.trackedBets.filter(b => b.pick.toLowerCase().includes(pickType));
+        const bets = state.trackedBets.filter(b => b.pick.toLowerCase().includes(pickType.key));
         const won = bets.filter(b => b.status === 'won').length;
         const lost = bets.filter(b => b.status === 'lost').length;
         const total = won + lost;
         if (bets.length > 0) {
-          stats.byPick[pickType] = {
+          stats.byPick[pickType.label] = {
             total: bets.length,
             won,
             lost,
@@ -3086,6 +3398,76 @@
       saveTrackedBets();
     }
     
+    function renderStatsModal() {
+      const stats = getTrackingStats();
+      const winRateClass = stats.winRate >= 65 ? 'good' : stats.winRate >= 50 ? 'medium' : 'bad';
+      
+      return `
+        <div class="stats-modal" id="statsModal">
+          <div class="stats-modal-content">
+            <div class="stats-modal-header">
+              <div class="stats-modal-title">📊 Statistiche Pronostici</div>
+              <button class="stats-modal-close" id="closeStats">×</button>
+            </div>
+            <div class="stats-modal-body">
+              <div class="stats-winrate-box">
+                <div class="stats-winrate-big ${winRateClass}">${stats.winRate}%</div>
+                <div class="stats-winrate-label">Win Rate Totale</div>
+              </div>
+              
+              <div class="stats-grid">
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value purple">${stats.total}</div>
+                  <div class="stats-grid-label">Totali</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value green">${stats.won}</div>
+                  <div class="stats-grid-label">Vinti</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value red">${stats.lost}</div>
+                  <div class="stats-grid-label">Persi</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value yellow">${stats.pending}</div>
+                  <div class="stats-grid-label">In attesa</div>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value" style="color: var(--accent-cyan);">${stats.byType.prematch?.winRate || 0}%</div>
+                  <div class="stats-grid-label">PRE-MATCH (${stats.byType.prematch?.won || 0}/${(stats.byType.prematch?.won || 0) + (stats.byType.prematch?.lost || 0)})</div>
+                </div>
+                <div class="stats-grid-item">
+                  <div class="stats-grid-value" style="color: var(--accent-red);">${stats.byType.live?.winRate || 0}%</div>
+                  <div class="stats-grid-label">LIVE (${stats.byType.live?.won || 0}/${(stats.byType.live?.won || 0) + (stats.byType.live?.lost || 0)})</div>
+                </div>
+              </div>
+              
+              <div class="stats-by-pick">
+                <div class="stats-pick-title">📈 Win Rate per Mercato</div>
+                ${Object.entries(stats.byPick).map(([pick, data]) => {
+                  const rateClass = data.winRate >= 65 ? 'good' : data.winRate >= 50 ? 'medium' : 'bad';
+                  return `
+                    <div class="stats-pick-item">
+                      <div class="stats-pick-name">${pick.toUpperCase()}</div>
+                      <div class="stats-pick-rate ${rateClass}">${data.won}/${data.won + data.lost} (${data.winRate}%)</div>
+                    </div>
+                  `;
+                }).join('') || '<div style="color: var(--text-dark); text-align: center; padding: 20px;">Nessun dato ancora</div>'}
+              </div>
+              
+              <div class="stats-buttons">
+                <button class="stats-btn stats-btn-check" id="checkResults">🔄 Verifica Risultati</button>
+                <button class="stats-btn stats-btn-reset" id="resetStats">🗑️ Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
     // === RENDER ===
     function render() {
       document.getElementById('app').innerHTML = `
@@ -3098,11 +3480,13 @@
         </main>
         ${renderSlipFloating()}
         ${state.slipModal ? renderSlipModal() : ''}
+        ${state.statsModal ? renderStatsModal() : ''}
       `;
       attachEvents();
     }
 
     function renderHeader() {
+      const stats = getTrackingStats();
       return `
         <header class="header">
           <div class="header-inner">
@@ -3120,6 +3504,9 @@
                   <span class="status-dot ${state.api.footystats}"></span>
                   <span>Stats</span>
                 </div>
+              </div>
+              <div class="stats-badge" id="openStats">
+                📊 ${stats.won}/${stats.won + stats.lost} ${stats.winRate}%
               </div>
               <div class="slip-badge" id="openSlip">
                 🎫 ${state.slip.length} pronostici
@@ -3441,7 +3828,11 @@
                       </div>
                       <div class="live-pick-reason">💡 ${alert.reason}</div>
                       <button class="live-track-btn ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'tracked' : ''}"
-                              onclick="trackLiveBet(${alert.match.id}, '${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}', '${esc(alert.pick)}', ${alert.prob}, ${alert.quota}, event)"
+                              data-matchid="${alert.match.id}"
+                              data-matchname="${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}"
+                              data-pick="${esc(alert.pick)}"
+                              data-prob="${alert.prob}"
+                              data-odds="${alert.quota}"
                               ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'disabled' : ''}>
                         ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? '✅ Tracciato' : '🎯 GIOCATO'}
                       </button>
@@ -3541,7 +3932,7 @@
             <div class="ai-reasoning-list">
               ${ai.reasons.map(r => `
                 <div class="ai-reason ${r.type}">
-                  <span class="ai-reason-icon">${r.type === 'positive' ? '✅' : r.type === 'negative' ? '⚠️' : '📊'}</span>
+                  <span class="ai-reason-icon">${r.type === 'positive' ? '✅' : r.type === 'negative' ? '❌' : r.type === 'warning' ? '⚠️' : '📊'}</span>
                   <span>${r.text}</span>
                 </div>
               `).join('')}
@@ -3560,24 +3951,53 @@
           ` : ''}
           
           <button class="track-btn ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'tracked' : ''}" 
-                  onclick="trackPrematchBet(${m.id}, '${esc(m.home.name)} vs ${esc(m.away.name)}', '${esc(ai.pick)}', ${ai.prob.toFixed(0)}, event)"
+                  data-matchid="${m.id}"
+                  data-matchname="${esc(m.home.name)} vs ${esc(m.away.name)}"
+                  data-pick="${esc(ai.pick)}"
+                  data-prob="${ai.prob.toFixed(0)}"
                   ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'disabled' : ''}>
             ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
           </button>
         </div>
         
-        <div class="combo-panel">
-          <div class="combo-title">🔥 Combo Suggerite</div>
-          <div class="combo-grid">
-            ${d.combos.map(c => `
-              <div class="combo-card ${isInSlip(m.id, 'combo_'+c.value) ? 'selected' : ''}" data-market="combo_${c.value}" data-value="${c.value}" data-prob="${c.prob.toFixed(0)}">
-                <div class="combo-value">${c.value}</div>
-                <div class="combo-stats">
-                  <span class="combo-prob">${c.prob.toFixed(0)}%</span>
-                  <span class="combo-odds">@${c.odds}</span>
-                </div>
-              </div>
-            `).join('')}
+        <div class="comparison-panel">
+          <div class="comparison-title">🔮 Confronto Pronostici</div>
+          <div class="comparison-grid">
+            <div class="comparison-box ai">
+              <div class="comparison-box-header">🤖 ALGORITMO AI</div>
+              <div class="comparison-box-pick">${ai.pick.split(' (')[0]}</div>
+              <div class="comparison-box-prob">${ai.prob.toFixed(0)}%</div>
+              <div class="comparison-box-basis">Basato su: xG, Dixon-Coles, Form, H2H</div>
+            </div>
+            <div class="comparison-vs">VS</div>
+            <div class="comparison-box stats">
+              <div class="comparison-box-header">📊 STATISTICHE PURE</div>
+              ${(() => {
+                // Calcola pronostico statistiche pure (basato solo su medie, non xG)
+                const statsPicks = [
+                  { pick: 'Over 2.5', prob: d.pOU[2.5].over },
+                  { pick: 'Under 2.5', prob: d.pOU[2.5].under },
+                  { pick: 'GG', prob: d.pBTTS },
+                  { pick: 'NG', prob: 100 - d.pBTTS },
+                  { pick: 'Over 1.5', prob: d.pOU[1.5].over }
+                ];
+                const bestStats = statsPicks.sort((a, b) => b.prob - a.prob)[0];
+                return `
+                  <div class="comparison-box-pick">${bestStats.pick}</div>
+                  <div class="comparison-box-prob">${bestStats.prob.toFixed(0)}%</div>
+                  <div class="comparison-box-basis">Basato su: Medie gol, % storiche</div>
+                `;
+              })()}
+            </div>
+          </div>
+          <div class="comparison-verdict">
+            ${ai.pick.includes('Over') || ai.pick.includes('GG') ? 
+              (d.pOU[2.5].over >= 55 || d.pBTTS >= 55 ? 
+                '✅ <strong>AI e Statistiche concordano:</strong> partita da gol!' : 
+                '⚠️ <strong>Attenzione:</strong> AI e Statistiche in disaccordo') :
+              (ai.prob >= 70 ? 
+                '✅ <strong>Pronostico solido:</strong> AI sicura al ' + ai.prob.toFixed(0) + '%' : 
+                '📊 <strong>Valuta entrambi:</strong> confronta prima di scommettere')}
           </div>
         </div>
         
@@ -3635,17 +4055,33 @@
             </div>
           </div>
           
-          <div class="analysis-card">
-            <div class="card-title"><div class="card-title-icon">🚩</div><span>Corner & Cartellini</span></div>
-            <div class="stat-grid">
-              <div class="stat-box"><div class="stat-box-label">Casa</div><div class="stat-box-value">${d.corners.home.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-              <div class="stat-box"><div class="stat-box-label">Tot</div><div class="stat-box-value">${d.corners.total.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-              <div class="stat-box"><div class="stat-box-label">Ospite</div><div class="stat-box-value">${d.corners.away.toFixed(1)}</div><div class="stat-box-sub">corner</div></div>
-            </div>
-            <div class="stat-grid" style="margin-top:10px">
-              <div class="stat-box"><div class="stat-box-label">Casa</div><div class="stat-box-value">${d.cards.home.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
-              <div class="stat-box"><div class="stat-box-label">Tot</div><div class="stat-box-value">${d.cards.total.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
-              <div class="stat-box"><div class="stat-box-label">Ospite</div><div class="stat-box-value">${d.cards.away.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
+          <div class="analysis-card wide">
+            <div class="card-title"><div class="card-title-icon">📐</div><span>Corner & Cartellini - Pronostici</span></div>
+            <div class="corner-cards-grid">
+              <div class="corner-section">
+                <div class="corner-header">🚩 CORNER</div>
+                <div class="corner-pick">
+                  <span class="corner-pick-value">Over ${d.corners.total >= 10 ? '10.5' : d.corners.total >= 9 ? '9.5' : '8.5'}</span>
+                  <span class="corner-pick-prob ${d.corners.probs[d.corners.total >= 10 ? 10.5 : d.corners.total >= 9 ? 9.5 : 8.5]?.over >= 60 ? 'high' : 'medium'}">${(d.corners.probs[d.corners.total >= 10 ? 10.5 : d.corners.total >= 9 ? 9.5 : 8.5]?.over || 50).toFixed(0)}%</span>
+                </div>
+                <div class="corner-stats">
+                  <div class="corner-stat"><span>Casa:</span><strong>${d.corners.home.toFixed(1)}</strong></div>
+                  <div class="corner-stat"><span>Ospite:</span><strong>${d.corners.away.toFixed(1)}</strong></div>
+                  <div class="corner-stat total"><span>Media Tot:</span><strong>${d.corners.total.toFixed(1)}</strong></div>
+                </div>
+              </div>
+              <div class="cards-section">
+                <div class="cards-header">🟨 CARTELLINI</div>
+                <div class="cards-pick">
+                  <span class="cards-pick-value">Over ${d.cards.total >= 4.5 ? '4.5' : d.cards.total >= 4 ? '3.5' : '2.5'}</span>
+                  <span class="cards-pick-prob ${d.cards.probs[d.cards.total >= 4.5 ? 4.5 : d.cards.total >= 4 ? 3.5 : 2.5]?.over >= 60 ? 'high' : 'medium'}">${(d.cards.probs[d.cards.total >= 4.5 ? 4.5 : d.cards.total >= 4 ? 3.5 : 2.5]?.over || 50).toFixed(0)}%</span>
+                </div>
+                <div class="cards-stats">
+                  <div class="cards-stat"><span>Casa:</span><strong>${d.cards.home.toFixed(1)}</strong></div>
+                  <div class="cards-stat"><span>Ospite:</span><strong>${d.cards.away.toFixed(1)}</strong></div>
+                  <div class="cards-stat total"><span>Media Tot:</span><strong>${d.cards.total.toFixed(1)}</strong></div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -3728,6 +4164,74 @@
     }
 
     function attachEvents() {
+      // Stats Modal
+      document.getElementById('openStats')?.addEventListener('click', () => {
+        state.statsModal = true;
+        render();
+      });
+      document.getElementById('closeStats')?.addEventListener('click', () => {
+        state.statsModal = false;
+        render();
+      });
+      document.getElementById('statsModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'statsModal') {
+          state.statsModal = false;
+          render();
+        }
+      });
+      document.getElementById('checkResults')?.addEventListener('click', async () => {
+        await checkPendingResults();
+        render();
+      });
+      document.getElementById('resetStats')?.addEventListener('click', () => {
+        if (confirm('Sei sicuro di voler cancellare tutte le statistiche?')) {
+          state.trackedBets = [];
+          saveTrackedBets();
+          saveTrackingToFirebase();
+          render();
+        }
+      });
+      
+      // Track buttons - PRE-MATCH
+      document.querySelectorAll('.track-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const matchId = parseInt(btn.dataset.matchid);
+          const matchName = btn.dataset.matchname;
+          const pick = btn.dataset.pick;
+          const prob = btn.dataset.prob;
+          const odds = btn.dataset.odds || 0;
+          
+          if (!state.trackedBets.some(b => b.matchId === matchId && b.type === 'prematch')) {
+            trackBet('prematch', matchId, matchName, pick, prob, odds, false);
+            btn.classList.add('tracked');
+            btn.textContent = '✅ Pronostico Tracciato';
+            btn.disabled = true;
+            alert('✅ Pronostico tracciato! Controlla le statistiche nel badge 📊');
+          }
+        });
+      });
+      
+      // Track buttons - LIVE
+      document.querySelectorAll('.live-track-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const matchId = parseInt(btn.dataset.matchid);
+          const matchName = btn.dataset.matchname;
+          const pick = btn.dataset.pick;
+          const prob = btn.dataset.prob;
+          const odds = btn.dataset.odds || 0;
+          
+          if (!state.trackedBets.some(b => b.matchId === matchId && b.isLive)) {
+            trackBet('live', matchId, matchName, pick, prob, odds, true);
+            btn.classList.add('tracked');
+            btn.textContent = '✅ Tracciato';
+            btn.disabled = true;
+            alert('✅ Pronostico LIVE tracciato! Controlla le statistiche nel badge 📊');
+          }
+        });
+      });
+      
       // LIVE Tab
       document.getElementById('liveTab')?.addEventListener('click', toggleLiveMode);
       document.getElementById('refreshLive')?.addEventListener('click', loadLiveMatches);
@@ -3860,12 +4364,16 @@
     async function init() {
       console.log('🚀 BettingPro v5 starting...');
       await loadSlipFromFirebase();
+      await loadTrackingFromFirebase();
       render();
       await loadMatches(0);
       
       // Avvia monitoraggio LIVE in background
       startLiveBackgroundMonitoring();
       console.log('📡 LIVE background monitoring started');
+      
+      // Verifica risultati pending ogni 5 minuti
+      setInterval(checkPendingResults, 5 * 60 * 1000);
     }
 
     init();
