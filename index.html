@@ -265,31 +265,7 @@
     .score-box-prob { font-size: 0.6rem; color: var(--text-dark); margin-top: 2px; }
     .score-box.highlight .score-box-prob { color: rgba(255,255,255,0.8); }
     
-    /* COMBO SUGGERITE */
-    .combo-panel {
-      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
-      border: 2px solid var(--accent-purple);
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .combo-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-purple); margin-bottom: 16px; }
-    .combo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-    .combo-card {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .combo-card:hover { border-color: var(--accent-purple); transform: translateY(-2px); }
-    .combo-card.selected { border-color: var(--accent-green); background: rgba(16,185,129,0.1); }
-    .combo-value { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-    .combo-stats { display: flex; justify-content: center; gap: 12px; font-size: 0.75rem; }
-    .combo-prob { color: var(--accent-cyan); }
-    .combo-odds { color: var(--accent-green); }
+
     
     /* PRONOSTICI AI */
     .predictions-panel {
@@ -676,59 +652,6 @@
       color: var(--accent-cyan);
     }
     .ai-alt-chip span { color: var(--accent-green); margin-left: 6px; }
-
-    /* DUAL ADVICE LAYOUT */
-    .dual-advice-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 968px) {
-      .dual-advice-container { grid-template-columns: 1fr; }
-    }
-
-    /* STATISTICAL ADVICE */
-    .statistical-advice {
-      background: linear-gradient(135deg, rgba(34,211,238,0.15), rgba(16,185,129,0.15));
-      border: 2px solid var(--accent-cyan);
-      border-radius: 20px;
-      padding: 24px;
-      position: relative;
-      overflow: hidden;
-    }
-    .statistical-advice::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green), var(--accent-yellow));
-    }
-    .stat-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .stat-icon {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-    }
-    .stat-title-group { flex: 1; }
-    .stat-title {
-      font-size: 1.1rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .stat-subtitle { font-size: 0.75rem; color: var(--text-dark); }
     .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
     .picks-title-icon { font-size: 1.3rem; }
@@ -2539,36 +2462,6 @@
       return combos.sort((a, b) => b.prob - a.prob);
     }
     
-    // === STATISTICAL ADVICE - Pronostico basato SOLO sulla probabilità più alta ===
-    function generateStatisticalAdvice(match, analysis) {
-      const { predictions } = analysis;
-
-      // Trova semplicemente il pronostico con la probabilità più alta
-      const bestPrediction = predictions.reduce((best, current) => {
-        return current.prob > best.prob ? current : best;
-      }, predictions[0]);
-
-      // Determina confidence in base alla probabilità
-      let confidence = 'medium';
-      if (bestPrediction.prob >= 70) confidence = 'high';
-      else if (bestPrediction.prob < 55) confidence = 'low';
-
-      // Top 3 alternative
-      const alternatives = predictions
-        .filter(p => p.market !== bestPrediction.market)
-        .sort((a, b) => b.prob - a.prob)
-        .slice(0, 3)
-        .map(p => ({ pick: p.value, prob: p.prob.toFixed(0) }));
-
-      return {
-        pick: bestPrediction.value,
-        market: bestPrediction.market,
-        prob: bestPrediction.prob,
-        confidence,
-        alternatives
-      };
-    }
-
     // === AI ADVICE - Genera il consiglio intelligente ===
     function generateAIAdvice(match, analysis) {
       const { xG, p1X2, pOU, pBTTS, exactScores } = analysis;
@@ -3736,11 +3629,8 @@
           </div>
         </div>
         
-        <!-- DUAL ADVICE: AI + STATISTICAL -->
-        <div class="dual-advice-container">
-
-          <!-- AI CONSIGLIO -->
-          <div class="ai-advice">
+        <!-- AI CONSIGLIO -->
+        <div class="ai-advice">
           <div class="ai-header">
             <div class="ai-icon">🤖</div>
             <div class="ai-title-group">
@@ -3785,75 +3675,30 @@
             ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
           </button>
         </div>
-
-        <!-- PRONOSTICO STATISTICO -->
-        <div class="statistical-advice">
-          <div class="stat-header">
-            <div class="stat-icon">📊</div>
-            <div class="stat-title-group">
-              <div class="stat-title">Pronostico Statistico</div>
-              <div class="stat-subtitle">Basato solo sulla probabilità più alta</div>
-            </div>
-            <div class="stat-confidence ${stat.confidence}">${stat.confidence === 'high' ? '🎯 Alta' : stat.confidence === 'medium' ? '✓ Media' : '⚠️ Bassa'}</div>
-          </div>
-
-          <div class="ai-pick">
-            <div class="ai-pick-label">Pronostico con Prob. Massima</div>
-            <div class="ai-pick-value">${stat.pick}</div>
-            <div class="ai-pick-prob">${stat.prob.toFixed(0)}% probabilità</div>
-          </div>
-
-          <div class="ai-reasoning">
-            <div class="ai-reasoning-title">📈 Dettagli Statistici</div>
-            <div class="ai-reasoning-list">
-              <div class="ai-reason positive">
-                <span class="ai-reason-icon">✅</span>
-                <span>Mercato: ${stat.market}</span>
-              </div>
-              <div class="ai-reason positive">
-                <span class="ai-reason-icon">📊</span>
-                <span>Probabilità più alta tra tutti i pronostici</span>
-              </div>
-              <div class="ai-reason neutral">
-                <span class="ai-reason-icon">🔢</span>
-                <span>Basato su calcoli Poisson e xG</span>
-              </div>
-            </div>
-          </div>
-
-          ${stat.alternatives.length > 0 ? `
-            <div class="ai-alternatives">
-              <div class="ai-alt-title">Top 3 alternative:</div>
-              <div class="ai-alt-grid">
-                ${stat.alternatives.map(a => `
-                  <div class="ai-alt-chip">${a.pick}<span>${a.prob}%</span></div>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
-
-          <button class="track-btn ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'tracked' : ''}" 
-                  onclick="trackPrematchBet(${m.id}, '${esc(m.home.name)} vs ${esc(m.away.name)}', '${esc(stat.pick)}', ${stat.prob.toFixed(0)}, event)"
-                  ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? 'disabled' : ''}
-                  style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));">
-            ${state.trackedBets.some(b => b.matchId === m.id && b.type === 'prematch') ? '✅ Pronostico Tracciato' : '🎯 GIOCATO - Traccia questo pronostico'}
-          </button>
-        </div>
-
-      </div>
         
-        <div class="combo-panel">
-          <div class="combo-title">🔥 Combo Suggerite</div>
-          <div class="combo-grid">
-            ${d.combos.map(c => `
-              <div class="combo-card ${isInSlip(m.id, 'combo_'+c.value) ? 'selected' : ''}" data-market="combo_${c.value}" data-value="${c.value}" data-prob="${c.prob.toFixed(0)}">
-                <div class="combo-value">${c.value}</div>
-                <div class="combo-stats">
-                  <span class="combo-prob">${c.prob.toFixed(0)}%</span>
-                  <span class="combo-odds">@${c.odds}</span>
+        <!-- PRONOSTICI STATISTICI -->
+        <div class="predictions-panel">
+          <div class="predictions-header">
+            <div class="predictions-title">🎯 Pronostici Statistici</div>
+            <div class="predictions-subtitle">Basati su xG, Poisson e Dixon-Coles</div>
+            <div class="predictions-legend">
+              <div class="legend-item"><span class="legend-dot high"></span> Alta (≥65%)</div>
+              <div class="legend-item"><span class="legend-dot mid"></span> Media (50-64%)</div>
+              <div class="legend-item"><span class="legend-dot low"></span> Bassa (<50%)</div>
+            </div>
+          </div>
+          <div class="predictions-grid">
+            ${d.predictions.map(p => {
+              const probClass = getProbClass(p.prob);
+              return `
+                <div class="prediction-card ${probClass} ${isInSlip(m.id, p.market) ? 'selected' : ''}" 
+                     data-market="${p.market}" data-value="${p.value}" data-prob="${p.prob.toFixed(0)}">
+                  <div class="prediction-market">${p.market}</div>
+                  <div class="prediction-value">${p.value}</div>
+                  <div class="prediction-prob ${probClass}">${p.prob.toFixed(0)}%</div>
                 </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
         
