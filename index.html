@@ -265,31 +265,7 @@
     .score-box-prob { font-size: 0.6rem; color: var(--text-dark); margin-top: 2px; }
     .score-box.highlight .score-box-prob { color: rgba(255,255,255,0.8); }
     
-    /* COMBO SUGGERITE */
-    .combo-panel {
-      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
-      border: 2px solid var(--accent-purple);
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .combo-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-purple); margin-bottom: 16px; }
-    .combo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-    .combo-card {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .combo-card:hover { border-color: var(--accent-purple); transform: translateY(-2px); }
-    .combo-card.selected { border-color: var(--accent-green); background: rgba(16,185,129,0.1); }
-    .combo-value { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-    .combo-stats { display: flex; justify-content: center; gap: 12px; font-size: 0.75rem; }
-    .combo-prob { color: var(--accent-cyan); }
-    .combo-odds { color: var(--accent-green); }
+
     
     /* PRONOSTICI AI */
     .predictions-panel {
@@ -3700,18 +3676,29 @@
           </button>
         </div>
         
-        <div class="combo-panel">
-          <div class="combo-title">🔥 Combo Suggerite</div>
-          <div class="combo-grid">
-            ${d.combos.map(c => `
-              <div class="combo-card ${isInSlip(m.id, 'combo_'+c.value) ? 'selected' : ''}" data-market="combo_${c.value}" data-value="${c.value}" data-prob="${c.prob.toFixed(0)}">
-                <div class="combo-value">${c.value}</div>
-                <div class="combo-stats">
-                  <span class="combo-prob">${c.prob.toFixed(0)}%</span>
-                  <span class="combo-odds">@${c.odds}</span>
+        <!-- PRONOSTICI STATISTICI -->
+        <div class="predictions-panel">
+          <div class="predictions-header">
+            <div class="predictions-title">🎯 Pronostici Statistici</div>
+            <div class="predictions-subtitle">Basati su xG, Poisson e Dixon-Coles</div>
+            <div class="predictions-legend">
+              <div class="legend-item"><span class="legend-dot high"></span> Alta (≥65%)</div>
+              <div class="legend-item"><span class="legend-dot mid"></span> Media (50-64%)</div>
+              <div class="legend-item"><span class="legend-dot low"></span> Bassa (<50%)</div>
+            </div>
+          </div>
+          <div class="predictions-grid">
+            ${d.predictions.map(p => {
+              const probClass = getProbClass(p.prob);
+              return `
+                <div class="prediction-card ${probClass} ${isInSlip(m.id, p.market) ? 'selected' : ''}" 
+                     data-market="${p.market}" data-value="${p.value}" data-prob="${p.prob.toFixed(0)}">
+                  <div class="prediction-market">${p.market}</div>
+                  <div class="prediction-value">${p.value}</div>
+                  <div class="prediction-prob ${probClass}">${p.prob.toFixed(0)}%</div>
                 </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
         
