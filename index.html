@@ -381,6 +381,234 @@
     .form-d { background: var(--accent-yellow); color: #1a1a2e; }
     .form-l { background: var(--accent-red); color: white; }
     
+    /* CLASSIFICA E MOTIVAZIONE */
+    .standings-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .standings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .standings-position {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+    }
+    .standings-position sup {
+      font-size: 0.7rem;
+      color: var(--text-dark);
+    }
+    .motivation-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .motivation-badge.gold { background: rgba(255,215,0,0.2); color: gold; border: 1px solid gold; }
+    .motivation-badge.cyan { background: rgba(6,182,212,0.2); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+    .motivation-badge.blue { background: rgba(59,130,246,0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+    .motivation-badge.red { background: rgba(239,68,68,0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+    .motivation-badge.orange { background: rgba(249,115,22,0.2); color: #f97316; border: 1px solid #f97316; }
+    .motivation-badge.gray { background: rgba(156,163,175,0.2); color: var(--text-dark); border: 1px solid var(--border); }
+    .standings-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: var(--text-dark);
+    }
+    .standings-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    /* INFORTUNATI */
+    .injuries-card {
+      background: rgba(239,68,68,0.05);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .injuries-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--accent-red);
+    }
+    .injuries-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .injury-chip {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      color: var(--text);
+    }
+    .no-injuries {
+      color: var(--accent-green);
+      font-size: 0.8rem;
+    }
+    
+    /* PANNELLO IMPOSTAZIONI */
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100vh;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      z-index: 1000;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .settings-panel.open { transform: translateX(0); }
+    .settings-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      display: none;
+    }
+    .settings-overlay.open { display: block; }
+    .settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .settings-close {
+      background: none;
+      border: none;
+      color: var(--text-dark);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .settings-section {
+      margin-bottom: 20px;
+    }
+    .settings-section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .settings-label {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+    .settings-input {
+      width: 70px;
+      padding: 6px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      text-align: center;
+    }
+    .settings-toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--bg-input);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .settings-toggle.active { background: var(--accent-green); }
+    .settings-toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    .settings-toggle.active::after { transform: translateX(20px); }
+    
+    /* STORICO WIN RATE */
+    .history-chart {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .history-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 80px;
+      margin-bottom: 8px;
+    }
+    .history-bar {
+      flex: 1;
+      background: var(--accent-cyan);
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      position: relative;
+    }
+    .history-bar.won { background: var(--accent-green); }
+    .history-bar.lost { background: var(--accent-red); }
+    .history-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--text-dark);
+    }
+    
+    /* SETTINGS BUTTON */
+    .settings-btn {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .settings-btn:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(6,182,212,0.1);
+    }
+    
     /* PRONOSTICI AI */
     .predictions-panel {
       background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
@@ -1532,6 +1760,24 @@
       liveCountdown: 60,
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
+      // NUOVO: Cache Classifica e Infortunati
+      standingsCache: new Map(),
+      injuriesCache: new Map(),
+      // NUOVO: Impostazioni soglie configurabili
+      settings: JSON.parse(localStorage.getItem('bp_settings') || JSON.stringify({
+        thresholds: {
+          '1': 50,
+          'X': 28,
+          '2': 50,
+          'GG': 55,
+          'Over 2.5': 50,
+          'Over 1.5': 65
+        },
+        showInjuries: true,
+        showStandings: true,
+        autoRefresh: true
+      })),
+      settingsOpen: false,
 
   smartFilters: {
     active: '1',
@@ -1570,12 +1816,14 @@
     function calculateSmartFilters(filterType) {
       if (state.matches.length === 0) return [];
       const results = [];
-      const minProb = filterType === 'X' ? 35 : 60;  // X abbassato a 35%
+      // Usa soglie configurabili dall'utente
+      const minProb = state.settings?.thresholds?.[filterType] || 50;
 
       state.matches.forEach(match => {
         if (['1H','2H','HT','ET','P','LIVE','FT','AET','PEN'].includes(match.status)) return;
 
-        let homeXG = 1.35, awayXG = 1.10;
+        // xG di default più realistici basati su medie campionati
+        let homeXG = 1.45, awayXG = 1.15;
         const fsKeys = [
           `${match.home.name.toLowerCase()}${match.away.name.toLowerCase()}`,
           `${match.home.name.toLowerCase().replace(/\s/g, '')}${match.away.name.toLowerCase().replace(/\s/g, '')}`
@@ -2195,6 +2443,163 @@
         return null;
       }
     }
+    
+    // === CLASSIFICA E POSIZIONE ===
+    async function getStandings(leagueId, season) {
+      const cacheKey = `${leagueId}_${season}`;
+      if (state.standingsCache.has(cacheKey)) {
+        return state.standingsCache.get(cacheKey);
+      }
+      
+      try {
+        const data = await callAPIFootball('/standings', { league: leagueId, season: season || 2024 });
+        if (data?.response?.[0]?.league?.standings?.[0]) {
+          const standings = data.response[0].league.standings[0];
+          state.standingsCache.set(cacheKey, standings);
+          return standings;
+        }
+      } catch (e) {
+        console.warn('Standings error:', e);
+      }
+      return null;
+    }
+    
+    function getTeamPosition(standings, teamId) {
+      if (!standings) return null;
+      const team = standings.find(s => s.team.id === teamId);
+      if (!team) return null;
+      
+      const totalTeams = standings.length;
+      const position = team.rank;
+      
+      // Calcola motivazione
+      let motivation = 'normale';
+      let motivationText = '';
+      let motivationColor = 'gray';
+      
+      if (position <= 1) {
+        motivation = 'alta';
+        motivationText = '🏆 Lotta Scudetto';
+        motivationColor = 'gold';
+      } else if (position <= 4) {
+        motivation = 'alta';
+        motivationText = '⭐ Zona Champions';
+        motivationColor = 'cyan';
+      } else if (position <= 6) {
+        motivation = 'media-alta';
+        motivationText = '🌟 Zona Europa';
+        motivationColor = 'blue';
+      } else if (position >= totalTeams - 2) {
+        motivation = 'altissima';
+        motivationText = '🔥 Zona Retrocessione';
+        motivationColor = 'red';
+      } else if (position >= totalTeams - 5) {
+        motivation = 'alta';
+        motivationText = '⚠️ Rischio Retrocessione';
+        motivationColor = 'orange';
+      } else {
+        motivation = 'normale';
+        motivationText = '➖ Metà Classifica';
+        motivationColor = 'gray';
+      }
+      
+      return {
+        position,
+        totalTeams,
+        points: team.points,
+        form: team.form,
+        played: team.all.played,
+        won: team.all.win,
+        draw: team.all.draw,
+        lost: team.all.lose,
+        goalsFor: team.all.goals.for,
+        goalsAgainst: team.all.goals.against,
+        goalDiff: team.goalsDiff,
+        motivation,
+        motivationText,
+        motivationColor
+      };
+    }
+    
+    // === INFORTUNATI ===
+    async function getInjuries(teamId, season) {
+      const cacheKey = `injuries_${teamId}_${season}`;
+      if (state.injuriesCache.has(cacheKey)) {
+        return state.injuriesCache.get(cacheKey);
+      }
+      
+      try {
+        const data = await callAPIFootball('/injuries', { team: teamId, season: season || 2024 });
+        if (data?.response) {
+          // Filtra solo infortuni attivi (ultimi 30 giorni)
+          const now = new Date();
+          const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+          
+          const injuries = data.response.filter(inj => {
+            const injDate = new Date(inj.fixture.date);
+            return injDate >= thirtyDaysAgo;
+          }).map(inj => ({
+            player: inj.player.name,
+            type: inj.player.type || 'Infortunio',
+            reason: inj.player.reason || 'Non specificato'
+          }));
+          
+          // Rimuovi duplicati
+          const uniqueInjuries = injuries.filter((inj, idx, arr) => 
+            arr.findIndex(i => i.player === inj.player) === idx
+          );
+          
+          state.injuriesCache.set(cacheKey, uniqueInjuries);
+          return uniqueInjuries;
+        }
+      } catch (e) {
+        console.warn('Injuries error:', e);
+      }
+      return [];
+    }
+    
+    // Calcola impatto infortunati sull'attacco/difesa
+    function calculateInjuryImpact(injuries) {
+      if (!injuries || injuries.length === 0) return { attack: 1.0, defense: 1.0, text: '' };
+      
+      let attackImpact = 1.0;
+      let defenseImpact = 1.0;
+      const keyPlayers = [];
+      
+      injuries.forEach(inj => {
+        // Stima impatto base: -3% per ogni infortunato
+        attackImpact *= 0.97;
+        defenseImpact *= 0.98;
+        keyPlayers.push(inj.player);
+      });
+      
+      // Limita l'impatto massimo
+      attackImpact = Math.max(0.75, attackImpact);
+      defenseImpact = Math.max(0.80, defenseImpact);
+      
+      const text = injuries.length > 0 
+        ? `${injuries.length} assenti: ${keyPlayers.slice(0, 3).join(', ')}${injuries.length > 3 ? '...' : ''}`
+        : '';
+      
+      return { attack: attackImpact, defense: defenseImpact, text };
+    }
+    
+    // === SALVA IMPOSTAZIONI ===
+    function saveSettings() {
+      localStorage.setItem('bp_settings', JSON.stringify(state.settings));
+    }
+    
+    function updateThreshold(type, value) {
+      state.settings.thresholds[type] = parseInt(value);
+      saveSettings();
+      setSmartFilter(state.smartFilters.active);
+      render();
+    }
+    
+    function toggleSettingsPanel() {
+      state.settingsOpen = !state.settingsOpen;
+      render();
+    }
 
     async function callFootyStats(endpoint, params = {}) {
       const url = new URL(CONFIG.FOOTYSTATS.baseURL + endpoint);
@@ -2341,6 +2746,7 @@
       
       let homeStats = null, awayStats = null, h2h = [], apiPred = null;
       let homeLastMatches = [], awayLastMatches = [];
+      let standings = null, homeInjuries = [], awayInjuries = [];
       
       try {
         const [hs, as] = await Promise.all([
@@ -2371,6 +2777,25 @@
         apiPred = predRes?.response?.[0];
       } catch (e) {}
       
+      // NUOVO: Ottieni classifica
+      if (state.settings.showStandings) {
+        try {
+          standings = await getStandings(match.league.id, match.league.season || 2024);
+        } catch (e) {}
+      }
+      
+      // NUOVO: Ottieni infortunati
+      if (state.settings.showInjuries) {
+        try {
+          const [homeInj, awayInj] = await Promise.all([
+            getInjuries(match.home.id, match.league.season || 2024),
+            getInjuries(match.away.id, match.league.season || 2024)
+          ]);
+          homeInjuries = homeInj || [];
+          awayInjuries = awayInj || [];
+        } catch (e) {}
+      }
+      
       let fsMatch = null;
       const fsKeys = [
         `${match.home.name.toLowerCase()}_${match.away.name.toLowerCase()}`,
@@ -2387,7 +2812,17 @@
       const homeForm = calculateRealForm(homeLastMatches, match.home.id);
       const awayForm = calculateRealForm(awayLastMatches, match.away.id);
       
-      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm);
+      // NUOVO: Calcola posizione e motivazione
+      const homePosition = getTeamPosition(standings, match.home.id);
+      const awayPosition = getTeamPosition(standings, match.away.id);
+      
+      // NUOVO: Calcola impatto infortunati
+      const homeInjuryImpact = calculateInjuryImpact(homeInjuries);
+      const awayInjuryImpact = calculateInjuryImpact(awayInjuries);
+      
+      state.analysis = buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm, {
+        homePosition, awayPosition, homeInjuries, awayInjuries, homeInjuryImpact, awayInjuryImpact
+      });
       state.loading = false;
       render();
     }
@@ -2417,10 +2852,13 @@
     }
 
     // === ALGORITMO AVANZATO ===
-    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm) {
+    function buildAnalysis(match, homeStats, awayStats, h2h, apiPred, fsMatch, homeForm, awayForm, extraData = {}) {
       // Extract real data
       const homeData = extractTeamData(homeStats, 'home');
       const awayData = extractTeamData(awayStats, 'away');
+      
+      // Estrai dati extra
+      const { homePosition, awayPosition, homeInjuries, awayInjuries, homeInjuryImpact, awayInjuryImpact } = extraData;
       
       // Calculate xG
       let homeXG = calculateXG(homeData, awayData, 'home', apiPred, fsMatch);
@@ -2448,6 +2886,21 @@
         if (awayWins >= 4) awayXG *= 1.08; // Ottima forma ospite
         else if (awayWins >= 3) awayXG *= 1.04;
         else if (awayLosses >= 3) awayXG *= 0.92; // Pessima forma ospite
+      }
+      
+      // NUOVO: Motivation adjustment (classifica)
+      if (homePosition?.motivation === 'altissima') homeXG *= 1.10; // Lotta retrocessione
+      else if (homePosition?.motivation === 'alta') homeXG *= 1.05; // Champions/Europa
+      
+      if (awayPosition?.motivation === 'altissima') awayXG *= 1.08;
+      else if (awayPosition?.motivation === 'alta') awayXG *= 1.04;
+      
+      // NUOVO: Injury adjustment (infortunati)
+      if (homeInjuryImpact) {
+        homeXG *= homeInjuryImpact.attack;
+      }
+      if (awayInjuryImpact) {
+        awayXG *= awayInjuryImpact.attack;
       }
       
       // Home advantage (casa gioca meglio, trasferta peggio)
@@ -2526,6 +2979,11 @@
         multigoalAway,
         homeForm: homeForm || 'N/A',
         awayForm: awayForm || 'N/A',
+        // NUOVO: Classifica e Infortunati
+        homePosition,
+        awayPosition,
+        homeInjuries: homeInjuries || [],
+        awayInjuries: awayInjuries || [],
         quality: (homeStats || awayStats) ? 'enhanced' : 'base'
       };
     }
@@ -3793,13 +4251,141 @@
                   <span>Stats</span>
                 </div>
               </div>
+              <button class="settings-btn" onclick="toggleSettingsPanel()">
+                ⚙️ <span style="display:none">Impostazioni</span>
+              </button>
               <div class="slip-badge" id="openSlip">
                 🎫 ${state.slip.length} pronostici
               </div>
             </div>
           </div>
         </header>
+        ${renderSettingsPanel()}
       `;
+    }
+    
+    function renderSettingsPanel() {
+      const s = state.settings;
+      return `
+        <div class="settings-overlay ${state.settingsOpen ? 'open' : ''}" onclick="toggleSettingsPanel()"></div>
+        <div class="settings-panel ${state.settingsOpen ? 'open' : ''}">
+          <div class="settings-header">
+            <span class="settings-title">⚙️ Impostazioni</span>
+            <button class="settings-close" onclick="toggleSettingsPanel()">×</button>
+          </div>
+          
+          <div class="settings-section">
+            <div class="settings-section-title">📊 Soglie Filtri Top Picks</div>
+            <div class="settings-row">
+              <span class="settings-label">1 (Vittoria Casa)</span>
+              <input type="number" class="settings-input" value="${s.thresholds['1']}" 
+                onchange="updateThreshold('1', this.value)" min="30" max="80">
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">X (Pareggio)</span>
+              <input type="number" class="settings-input" value="${s.thresholds['X']}" 
+                onchange="updateThreshold('X', this.value)" min="20" max="50">
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">2 (Vittoria Ospite)</span>
+              <input type="number" class="settings-input" value="${s.thresholds['2']}" 
+                onchange="updateThreshold('2', this.value)" min="30" max="80">
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">GG (Entrambe Segnano)</span>
+              <input type="number" class="settings-input" value="${s.thresholds['GG']}" 
+                onchange="updateThreshold('GG', this.value)" min="40" max="75">
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Over 2.5</span>
+              <input type="number" class="settings-input" value="${s.thresholds['Over 2.5']}" 
+                onchange="updateThreshold('Over 2.5', this.value)" min="40" max="75">
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Over 1.5</span>
+              <input type="number" class="settings-input" value="${s.thresholds['Over 1.5']}" 
+                onchange="updateThreshold('Over 1.5', this.value)" min="50" max="85">
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <div class="settings-section-title">🔧 Funzionalità</div>
+            <div class="settings-row">
+              <span class="settings-label">Mostra Classifica</span>
+              <div class="settings-toggle ${s.showStandings ? 'active' : ''}" 
+                onclick="toggleSetting('showStandings')"></div>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Mostra Infortunati</span>
+              <div class="settings-toggle ${s.showInjuries ? 'active' : ''}" 
+                onclick="toggleSetting('showInjuries')"></div>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Auto-refresh LIVE</span>
+              <div class="settings-toggle ${s.autoRefresh ? 'active' : ''}" 
+                onclick="toggleSetting('autoRefresh')"></div>
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <div class="settings-section-title">📈 Storico Win Rate</div>
+            ${renderHistoryChart()}
+          </div>
+          
+          <div class="settings-section">
+            <button class="btn btn-secondary" style="width:100%" onclick="resetAllData()">
+              🗑️ Reset tutti i dati
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderHistoryChart() {
+      const bets = state.trackedBets.filter(b => b.status !== 'pending').slice(-20);
+      if (bets.length === 0) {
+        return '<div style="text-align:center; color:var(--text-dark); padding:20px;">Nessun pronostico verificato</div>';
+      }
+      
+      const maxHeight = 60;
+      return `
+        <div class="history-chart">
+          <div class="history-bars">
+            ${bets.map(b => `
+              <div class="history-bar ${b.status}" style="height: ${maxHeight}px" title="${b.match}: ${b.pick} - ${b.status === 'won' ? 'VINTO' : 'PERSO'}"></div>
+            `).join('')}
+          </div>
+          <div class="history-labels">
+            <span>Ultimi ${bets.length} pronostici</span>
+            <span style="color: var(--accent-green)">${bets.filter(b => b.status === 'won').length}V</span>
+            <span style="color: var(--accent-red)">${bets.filter(b => b.status === 'lost').length}P</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    function toggleSetting(key) {
+      state.settings[key] = !state.settings[key];
+      saveSettings();
+      render();
+    }
+    
+    function resetAllData() {
+      if (confirm('Sei sicuro di voler cancellare TUTTI i dati? (pronostici, impostazioni, statistiche)')) {
+        localStorage.removeItem('bp_tracked');
+        localStorage.removeItem('bp_settings');
+        localStorage.removeItem('bp_history');
+        localStorage.removeItem('bp_bankroll');
+        localStorage.removeItem('bp_slip');
+        state.trackedBets = [];
+        state.slip = [];
+        state.settings = {
+          thresholds: { '1': 50, 'X': 28, '2': 50, 'GG': 55, 'Over 2.5': 50, 'Over 1.5': 65 },
+          showInjuries: true, showStandings: true, autoRefresh: true
+        };
+        render();
+        alert('✅ Tutti i dati sono stati cancellati');
+      }
     }
 
     function renderLoading() {
@@ -3915,12 +4501,12 @@
         </div>
 
         <div class="filter-buttons">
-          <div class="filter-btn ${state.smartFilters.active === '1' ? 'active' : ''}" onclick="setSmartFilter('1')">1 (≥60%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'X' ? 'active' : ''}" onclick="setSmartFilter('X')">X (≥35%)</div>
-          <div class="filter-btn ${state.smartFilters.active === '2' ? 'active' : ''}" onclick="setSmartFilter('2')">2 (≥60%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'GG' ? 'active' : ''}" onclick="setSmartFilter('GG')">GG (≥60%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'Over 2.5' ? 'active' : ''}" onclick="setSmartFilter('Over 2.5')">Over 2.5 (≥60%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'Over 1.5' ? 'active' : ''}" onclick="setSmartFilter('Over 1.5')">Over 1.5 (≥60%)</div>
+          <div class="filter-btn ${state.smartFilters.active === '1' ? 'active' : ''}" onclick="setSmartFilter('1')">1 (≥50%)</div>
+          <div class="filter-btn ${state.smartFilters.active === 'X' ? 'active' : ''}" onclick="setSmartFilter('X')">X (≥28%)</div>
+          <div class="filter-btn ${state.smartFilters.active === '2' ? 'active' : ''}" onclick="setSmartFilter('2')">2 (≥50%)</div>
+          <div class="filter-btn ${state.smartFilters.active === 'GG' ? 'active' : ''}" onclick="setSmartFilter('GG')">GG (≥55%)</div>
+          <div class="filter-btn ${state.smartFilters.active === 'Over 2.5' ? 'active' : ''}" onclick="setSmartFilter('Over 2.5')">Over 2.5 (≥50%)</div>
+          <div class="filter-btn ${state.smartFilters.active === 'Over 1.5' ? 'active' : ''}" onclick="setSmartFilter('Over 1.5')">Over 1.5 (≥65%)</div>
         </div>
 
         <div class="filtered-picks">
@@ -4499,6 +5085,76 @@
                   '<span class="form-l">S</span>'
                 ).join('') : 'N/A'}</span>
               </div>
+            </div>
+          </div>
+          
+          <!-- CLASSIFICA E MOTIVAZIONE -->
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">🏆</div><span>Classifica</span></div>
+            ${d.homePosition ? `
+              <div class="standings-card">
+                <div class="standings-header">
+                  <div>
+                    <span style="font-weight:600; font-size:0.85rem;">${m.home.name.split(' ')[0]}</span>
+                    <span class="standings-position">${d.homePosition.position}°<sup>/${d.homePosition.totalTeams}</sup></span>
+                  </div>
+                  <span class="motivation-badge ${d.homePosition.motivationColor}">${d.homePosition.motivationText}</span>
+                </div>
+                <div class="standings-stats">
+                  <span class="standings-stat">📊 ${d.homePosition.points} pt</span>
+                  <span class="standings-stat">✅ ${d.homePosition.won}V</span>
+                  <span class="standings-stat">➖ ${d.homePosition.draw}P</span>
+                  <span class="standings-stat">❌ ${d.homePosition.lost}S</span>
+                </div>
+              </div>
+            ` : '<div class="standings-card"><span style="color:var(--text-dark)">Classifica non disponibile</span></div>'}
+            ${d.awayPosition ? `
+              <div class="standings-card">
+                <div class="standings-header">
+                  <div>
+                    <span style="font-weight:600; font-size:0.85rem;">${m.away.name.split(' ')[0]}</span>
+                    <span class="standings-position">${d.awayPosition.position}°<sup>/${d.awayPosition.totalTeams}</sup></span>
+                  </div>
+                  <span class="motivation-badge ${d.awayPosition.motivationColor}">${d.awayPosition.motivationText}</span>
+                </div>
+                <div class="standings-stats">
+                  <span class="standings-stat">📊 ${d.awayPosition.points} pt</span>
+                  <span class="standings-stat">✅ ${d.awayPosition.won}V</span>
+                  <span class="standings-stat">➖ ${d.awayPosition.draw}P</span>
+                  <span class="standings-stat">❌ ${d.awayPosition.lost}S</span>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          
+          <!-- INFORTUNATI -->
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">🏥</div><span>Assenze</span></div>
+            <div class="injuries-card" style="margin-bottom: 8px;">
+              <div class="injuries-header">
+                <span>🏠 ${m.home.name.split(' ')[0]}</span>
+              </div>
+              ${d.homeInjuries && d.homeInjuries.length > 0 ? `
+                <div class="injuries-list">
+                  ${d.homeInjuries.slice(0, 5).map(inj => `
+                    <span class="injury-chip">❌ ${inj.player}</span>
+                  `).join('')}
+                  ${d.homeInjuries.length > 5 ? `<span class="injury-chip">+${d.homeInjuries.length - 5} altri</span>` : ''}
+                </div>
+              ` : '<span class="no-injuries">✅ Rosa completa</span>'}
+            </div>
+            <div class="injuries-card">
+              <div class="injuries-header">
+                <span>✈️ ${m.away.name.split(' ')[0]}</span>
+              </div>
+              ${d.awayInjuries && d.awayInjuries.length > 0 ? `
+                <div class="injuries-list">
+                  ${d.awayInjuries.slice(0, 5).map(inj => `
+                    <span class="injury-chip">❌ ${inj.player}</span>
+                  `).join('')}
+                  ${d.awayInjuries.length > 5 ? `<span class="injury-chip">+${d.awayInjuries.length - 5} altri</span>` : ''}
+                </div>
+              ` : '<span class="no-injuries">✅ Rosa completa</span>'}
             </div>
           </div>
           
