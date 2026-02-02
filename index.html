@@ -609,6 +609,30 @@
       background: rgba(6,182,212,0.1);
     }
     
+    /* MG PROBABILE BOX */
+    .mg-best-box {
+      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.1));
+      border: 1px solid var(--accent-purple);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .mg-best-label {
+      font-size: 0.7rem;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+    .mg-best-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+    .mg-best-prob {
+      font-size: 0.75rem;
+      color: var(--accent-green);
+    }
+    
     /* PRONOSTICI AI */
     .predictions-panel {
       background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
@@ -1822,8 +1846,17 @@
       state.matches.forEach(match => {
         if (['1H','2H','HT','ET','P','LIVE','FT','AET','PEN'].includes(match.status)) return;
 
-        // xG di default più realistici basati su medie campionati
-        let homeXG = 1.45, awayXG = 1.15;
+        // xG variabili basati su campionato (stima)
+        let homeXG = 1.50, awayXG = 1.15;
+        
+        // Boost per campionati offensivi noti
+        const offensiveLeagues = [39, 140, 135, 78, 61, 88, 94]; // PL, LaLiga, SerieA, Bundesliga, L1, Eredivisie, Primeira
+        if (offensiveLeagues.includes(match.league.id)) {
+          homeXG = 1.60;
+          awayXG = 1.25;
+        }
+        
+        // FootyStats data
         const fsKeys = [
           `${match.home.name.toLowerCase()}${match.away.name.toLowerCase()}`,
           `${match.home.name.toLowerCase().replace(/\s/g, '')}${match.away.name.toLowerCase().replace(/\s/g, '')}`
@@ -1838,18 +1871,19 @@
 
         if (fsMatch) {
           if (fsMatch.homexg) homeXG = fsMatch.homexg;
-          else if (fsMatch.homeppg) homeXG = fsMatch.homeppg * 0.8;
+          else if (fsMatch.homeppg) homeXG = fsMatch.homeppg * 0.85;
           else if (fsMatch.avggoalshome) homeXG = fsMatch.avggoalshome;
 
           if (fsMatch.awayxg) awayXG = fsMatch.awayxg;
-          else if (fsMatch.awayppg) awayXG = fsMatch.awayppg * 0.7;
+          else if (fsMatch.awayppg) awayXG = fsMatch.awayppg * 0.75;
           else if (fsMatch.avggoalsaway) awayXG = fsMatch.avggoalsaway;
         }
 
-        homeXG *= 1.10;
-        awayXG *= 0.93;
-        homeXG = clamp(0.3, homeXG, 3.5);
-        awayXG = clamp(0.2, awayXG, 3.0);
+        // Home advantage
+        homeXG *= 1.12;
+        awayXG *= 0.92;
+        homeXG = clamp(0.4, homeXG, 3.5);
+        awayXG = clamp(0.25, awayXG, 3.0);
 
         const p1X2 = quickCalc1X2(homeXG, awayXG);
         const pGG = quickCalcBTTS(homeXG, awayXG);
@@ -1907,6 +1941,16 @@
       state.smartFilters.active = type;
       state.smartFilters.results = calculateSmartFilters(type);
       render();
+    }
+    
+    // Seleziona una partita dal filtro e avvia l'analisi
+    function selectMatch(matchId) {
+      const match = state.matches.find(m => m.id === matchId);
+      if (match) {
+        analyzeMatch(match);
+      } else {
+        console.warn('Partita non trovata:', matchId);
+      }
     }
 
     // === DAILY PICKS - Analisi rapida di tutte le partite ===
@@ -4031,6 +4075,12 @@
     // === TRACKING PRONOSTICI ===
     
     function trackBet(type, matchId, matchName, pick, prob, odds, isLive = false) {
+      // Evita duplicati
+      if (state.trackedBets.some(b => b.matchId === matchId && b.pick === pick)) {
+        console.log('Pronostico già tracciato');
+        return null;
+      }
+      
       const bet = {
         id: Date.now(),
         type, // 'prematch' o 'live'
@@ -4051,7 +4101,35 @@
       // Salva anche su Firebase
       saveTrackingToFirebase();
       
+      render();
       return bet;
+    }
+    
+    // Funzione per tracciare pronostici pre-match
+    function trackPrematchBet(matchId, matchName, pick, prob, event) {
+      if (event) event.stopPropagation();
+      
+      // Stima quota basata sulla probabilità
+      const odds = (100 / prob).toFixed(2);
+      
+      const bet = trackBet('prematch', matchId, matchName, pick, prob, odds, false);
+      if (bet) {
+        alert(`✅ Pronostico tracciato!\n\n${matchName}\n${pick} @ ${odds}\n\nVerrà verificato automaticamente a fine partita.`);
+      } else {
+        alert('⚠️ Questo pronostico è già stato tracciato.');
+      }
+    }
+    
+    // Funzione per tracciare pronostici LIVE
+    function trackLiveBet(matchId, matchName, pick, prob, odds, event) {
+      if (event) event.stopPropagation();
+      
+      const bet = trackBet('live', matchId, matchName, pick, prob, odds, true);
+      if (bet) {
+        alert(`✅ Pronostico LIVE tracciato!\n\n${matchName}\n${pick} @ ${odds}\n\nVerrà verificato automaticamente a fine partita.`);
+      } else {
+        alert('⚠️ Questo pronostico LIVE è già stato tracciato.');
+      }
     }
     
     function updateBetResult(betId, status, result) {
@@ -4387,7 +4465,8 @@
         alert('✅ Tutti i dati sono stati cancellati');
       }
     }
-
+    
+    // Filtra campionati e squadre
     function renderLoading() {
       return `<div class="loading"><div class="spinner"></div><div class="loading-text">Caricamento...</div></div>`;
     }
@@ -4409,85 +4488,15 @@
         </div>
         
         ${state.liveMode ? renderLiveSection() : `
-        <!-- MONEY MANAGEMENT - SISTEMA OBIETTIVO -->
-        <div class="money-section">
-          <div class="money-header">
-            <div class="money-title">🎯 Sistema Obiettivo</div>
-            <div class="money-subtitle">Raggiungi il tuo target in N giocate</div>
-          </div>
-          
-          <!-- INPUTS -->
-          <div class="money-grid-4">
-            <div class="money-input-group">
-              <label class="money-label">💰 Cassa Attuale</label>
-              <input type="number" class="money-input" id="bankrollInput" value="${money.bankroll.toFixed(2)}" min="1" step="10">
-            </div>
-            <div class="money-input-group">
-              <label class="money-label">🏆 Obiettivo</label>
-              <input type="number" class="money-input" id="targetInput" value="${money.target}" min="10" step="50">
-            </div>
-            <div class="money-input-group">
-              <label class="money-label">🎲 N° Giocate</label>
-              <input type="number" class="money-input" id="totalBetsInput" value="${money.totalBets}" min="1" max="50" step="1">
-            </div>
-            <div class="money-input-group">
-              <label class="money-label">📊 Quota</label>
-              <input type="number" class="money-input" id="oddsInput" value="${money.currentOdds}" min="1.01" step="0.05">
-            </div>
-          </div>
-          
-          <!-- PROGRESS BAR -->
-          <div class="progress-section">
-            <div class="progress-bar-container">
-              <div class="progress-bar-fill" style="width: ${money.progress}%"></div>
-              <div class="progress-bar-text">€${money.bankroll.toFixed(0)} / €${money.target} (${money.progress.toFixed(1)}%)</div>
-            </div>
-          </div>
-          
-          <!-- CALCOLO PUNTATA -->
-          <div class="stake-section ${money.reached ? 'reached' : ''} ${money.warning ? 'warning' : ''}">
-            <div class="stake-header">
-              <span class="stake-label">Giocata ${money.currentBet} di ${money.totalBets}</span>
-              <span class="stake-remaining">${money.remainingBets} rimaste</span>
-            </div>
-            ${money.reached ? `
-              <div class="stake-reached">🏆 OBIETTIVO RAGGIUNTO!</div>
-            ` : `
-              <div class="stake-value">
-                <div class="stake-amount">€${money.stake.toFixed(2)}</div>
-                <div class="stake-info">@ ${money.currentOdds} → Vincita €${money.potentialWin.toFixed(2)}</div>
-                ${money.warning ? `<div class="stake-warning">${money.warning}</div>` : ''}
-              </div>
-              <div class="stake-preview">
-                Se vinci: <strong>€${money.newBankroll.toFixed(2)}</strong>
-              </div>
-            `}
-            <div class="stake-buttons">
-              <button class="stake-btn win" id="betWin">✅ VINTO</button>
-              <button class="stake-btn loss" id="betLoss">❌ PERSO</button>
-              <button class="stake-btn reset" id="betReset">🔄 Reset</button>
-            </div>
-          </div>
-          
-          <!-- STATS -->
-          <div class="money-stats">
-            <div class="money-stat">
-              <div class="money-stat-label">Cassa</div>
-              <div class="money-stat-value green">€${money.bankroll.toFixed(0)}</div>
-            </div>
-            <div class="money-stat">
-              <div class="money-stat-label">Vinte</div>
-              <div class="money-stat-value cyan">${money.wins}</div>
-            </div>
-            <div class="money-stat">
-              <div class="money-stat-label">Perse</div>
-              <div class="money-stat-value yellow">${money.losses}</div>
-            </div>
-            <div class="money-stat">
-              <div class="money-stat-label">Win Rate</div>
-              <div class="money-stat-value purple">${money.winRate}%</div>
-            </div>
-          </div>
+        <!-- SELEZIONA CAMPIONATO - SPOSTATO IN ALTO -->
+        <div class="panel" style="margin-bottom: 16px;">
+          <div class="panel-title">📋 Seleziona Campionato (${state.matches.length} partite)</div>
+          ${state.leagues.length === 0 ? `<div class="empty"><div class="empty-icon">📭</div>Nessuna partita</div>` : `
+            <select class="select-field" id="leagueSelect">
+              <option value="">-- Scegli un campionato --</option>
+              ${state.leagues.map(l => `<option value="${l.id}">${esc(l.country)} - ${esc(l.name)} (${l.matchCount})</option>`).join('')}
+            </select>
+          `}
         </div>
         
         <!-- HOME SECTIONS - PICKS DEL GIORNO -->
@@ -4668,17 +4677,6 @@
             </div>
           </div>
           ` : ''}
-        </div>
-        
-        <!-- SELEZIONA CAMPIONATO -->
-        <div class="panel">
-          <div class="panel-title">📋 Seleziona Campionato (${state.matches.length} partite)</div>
-          ${state.leagues.length === 0 ? `<div class="empty"><div class="empty-icon">📭</div>Nessuna partita</div>` : `
-            <select class="select-field" id="leagueSelect">
-              <option value="">-- Scegli un campionato --</option>
-              ${state.leagues.map(l => `<option value="${l.id}">${esc(l.country)} - ${esc(l.name)} (${l.matchCount})</option>`).join('')}
-            </select>
-          `}
         </div>
       `}
       `;
@@ -5067,7 +5065,7 @@
           </div>
           
           <div class="analysis-card">
-            <div class="card-title"><div class="card-title-icon">📈</div><span>Forma Recente</span></div>
+            <div class="card-title"><div class="card-title-icon">📈</div><span>Forma + MG Consigliato</span></div>
             <div class="form-display">
               <div class="form-team">
                 <span class="form-team-name">${m.home.name.split(' ')[0]}</span>
@@ -5084,6 +5082,19 @@
                   c === 'D' ? '<span class="form-d">P</span>' : 
                   '<span class="form-l">S</span>'
                 ).join('') : 'N/A'}</span>
+              </div>
+            </div>
+            <!-- MG PIÙ PROBABILE -->
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <div class="mg-best-box" style="flex:1">
+                <div class="mg-best-label">🏠 MG ${m.home.name.split(' ')[0]}</div>
+                <div class="mg-best-value">${d.multigoalHome ? d.multigoalHome.reduce((best, mg) => mg.prob > best.prob ? mg : best, {range:'N/A', prob:0}).range : 'N/A'}</div>
+                <div class="mg-best-prob">${d.multigoalHome ? d.multigoalHome.reduce((best, mg) => mg.prob > best.prob ? mg : best, {range:'N/A', prob:0}).prob.toFixed(0) : 0}%</div>
+              </div>
+              <div class="mg-best-box" style="flex:1">
+                <div class="mg-best-label">✈️ MG ${m.away.name.split(' ')[0]}</div>
+                <div class="mg-best-value">${d.multigoalAway ? d.multigoalAway.reduce((best, mg) => mg.prob > best.prob ? mg : best, {range:'N/A', prob:0}).range : 'N/A'}</div>
+                <div class="mg-best-prob">${d.multigoalAway ? d.multigoalAway.reduce((best, mg) => mg.prob > best.prob ? mg : best, {range:'N/A', prob:0}).prob.toFixed(0) : 0}%</div>
               </div>
             </div>
           </div>
@@ -5373,12 +5384,26 @@
       await checkAPIStatus();
       
       await loadSlipFromFirebase();
+      
+      // Carica pronostici tracciati da Firebase
+      await loadTrackingFromFirebase();
+      
       render();
       await loadMatches(0);
       
       // Avvia monitoraggio LIVE in background
       startLiveBackgroundMonitoring();
       console.log('📡 LIVE background monitoring started');
+      
+      // Controlla risultati dei pronostici pendenti
+      await checkPendingResults();
+      console.log('📊 Pending results checked');
+      
+      // Controlla risultati ogni 10 minuti
+      setInterval(() => {
+        checkPendingResults();
+        console.log('🔄 Auto-check pending results');
+      }, 10 * 60 * 1000);
     }
 
     init();
