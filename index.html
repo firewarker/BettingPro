@@ -590,6 +590,78 @@
       color: var(--text-dark);
     }
     
+    /* WIN RATE PER SEGNO */
+    .winrate-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .winrate-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .winrate-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-white);
+      margin-bottom: 6px;
+    }
+    .winrate-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: var(--text-gray);
+      margin-bottom: 8px;
+    }
+    .winrate-won { color: var(--accent-green); }
+    .winrate-lost { color: var(--accent-red); }
+    .winrate-bar {
+      height: 8px;
+      background: var(--bg-dark);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .winrate-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    .winrate-bar-fill.good { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+    .winrate-bar-fill.bad { background: linear-gradient(90deg, var(--accent-red), var(--accent-yellow)); }
+    .winrate-percent {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-align: right;
+    }
+    .winrate-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 12px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .winrate-summary-item {
+      text-align: center;
+    }
+    .winrate-summary-item span {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--text-dark);
+      margin-bottom: 2px;
+    }
+    .winrate-summary-item strong {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    
     /* SETTINGS BUTTON */
     .settings-btn {
       background: var(--bg-input);
@@ -1117,13 +1189,15 @@
     .filtered-picks {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
+      max-height: 500px;
+      overflow-y: auto;
     }
     .filtered-pick-card {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
+      gap: 12px;
+      padding: 12px 16px;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -1134,6 +1208,19 @@
       border-color: var(--accent-cyan);
       transform: translateX(4px);
     }
+    .filtered-pick-rank {
+      width: 28px;
+      height: 28px;
+      background: var(--bg-input);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-gray);
+      flex-shrink: 0;
+    }
     .filtered-pick-left {
       flex: 1;
       min-width: 0;
@@ -1143,6 +1230,9 @@
       font-weight: 600;
       color: var(--text-white);
       margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .filtered-pick-league {
       font-size: 0.7rem;
@@ -1151,38 +1241,24 @@
     .filtered-pick-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex-shrink: 0;
     }
-    .filtered-pick-probs {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      text-align: right;
+    .filtered-pick-bet {
+      padding: 6px 14px;
+      background: var(--accent-purple);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: white;
     }
-    .filtered-pick-prob-item {
-      font-size: 0.7rem;
-      color: var(--text-gray);
-    }
-    .filtered-pick-prob-item strong {
-      color: var(--accent-cyan);
-    }
-    .filtered-pick-combined {
-      padding: 8px 16px;
-      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
-      border-radius: 10px;
-      text-align: center;
-      min-width: 70px;
-    }
-    .filtered-pick-combined-label {
-      font-size: 0.65rem;
-      color: rgba(255,255,255,0.8);
-      margin-bottom: 2px;
-    }
-    .filtered-pick-combined-value {
+    .filtered-pick-prob {
       font-family: 'JetBrains Mono', monospace;
       font-size: 1.1rem;
       font-weight: 800;
-      color: white;
+      color: var(--accent-green);
+      min-width: 55px;
+      text-align: right;
     }
     .picks-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .picks-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; }
@@ -1840,8 +1916,6 @@
     function calculateSmartFilters(filterType) {
       if (state.matches.length === 0) return [];
       const results = [];
-      // Usa soglie configurabili dall'utente
-      const minProb = state.settings?.thresholds?.[filterType] || 50;
 
       state.matches.forEach(match => {
         if (['1H','2H','HT','ET','P','LIVE','FT','AET','PEN'].includes(match.status)) return;
@@ -1887,54 +1961,51 @@
 
         const p1X2 = quickCalc1X2(homeXG, awayXG);
         const pGG = quickCalcBTTS(homeXG, awayXG);
+        const pNG = 100 - pGG; // No Goal = 100% - GG
         const pOver15 = quickCalcOver(homeXG, awayXG, 1.5);
         const pOver25 = quickCalcOver(homeXG, awayXG, 2.5);
+        const pUnder25 = 100 - pOver25; // Under = 100% - Over
 
-        let statProb = 0, statPick = '';
+        let prob = 0, pick = '';
 
         if (filterType === '1') {
-          statProb = p1X2.home;
-          statPick = '1';
+          prob = p1X2.home;
+          pick = '1';
         } else if (filterType === 'X') {
-          statProb = p1X2.draw;
-          statPick = 'X';
+          prob = p1X2.draw;
+          pick = 'X';
         } else if (filterType === '2') {
-          statProb = p1X2.away;
-          statPick = '2';
+          prob = p1X2.away;
+          pick = '2';
         } else if (filterType === 'GG') {
-          statProb = pGG;
-          statPick = 'GG';
+          prob = pGG;
+          pick = 'GG';
+        } else if (filterType === 'NG') {
+          prob = pNG;
+          pick = 'NG';
         } else if (filterType === 'Over 2.5') {
-          statProb = pOver25;
-          statPick = 'Over 2.5';
+          prob = pOver25;
+          pick = 'O 2.5';
+        } else if (filterType === 'Under 2.5') {
+          prob = pUnder25;
+          pick = 'U 2.5';
         } else if (filterType === 'Over 1.5') {
-          statProb = pOver15;
-          statPick = 'Over 1.5';
+          prob = pOver15;
+          pick = 'O 1.5';
         }
 
-        let aiProb = statProb;
-        const totXG = homeXG + awayXG;
-        if (filterType === 'Over 2.5' && totXG >= 2.8) aiProb = Math.min(statProb * 1.05, 95);
-        if (filterType === 'GG' && homeXG >= 1.2 && awayXG >= 1.0) aiProb = Math.min(statProb * 1.03, 90);
-        if (filterType === '1' && homeXG >= 1.8 && homeXG / awayXG >= 1.4) aiProb = Math.min(statProb * 1.05, 95);
-        if (filterType === '2' && awayXG >= 1.5 && awayXG / homeXG >= 1.3) aiProb = Math.min(statProb * 1.05, 95);
-
-        const combinedProb = (aiProb + statProb) / 2;
-
-        if (combinedProb >= minProb) {
-          results.push({
-            match,
-            pick: statPick,
-            aiProb: aiProb.toFixed(1),
-            statProb: statProb.toFixed(1),
-            combinedProb: combinedProb.toFixed(1),
-            time: formatTime(match.date),
-            league: `${match.league.country} - ${match.league.name}`
-          });
-        }
+        // Aggiungi TUTTE le partite (nessuna soglia)
+        results.push({
+          match,
+          pick,
+          prob: prob.toFixed(1),
+          time: formatTime(match.date),
+          league: `${match.league.country} - ${match.league.name}`
+        });
       });
 
-      return results.sort((a, b) => parseFloat(b.combinedProb) - parseFloat(a.combinedProb));
+      // Ordina per probabilità decrescente e prendi le prime 40
+      return results.sort((a, b) => parseFloat(b.prob) - parseFloat(a.prob)).slice(0, 40);
     }
 
     function setSmartFilter(type) {
@@ -4332,6 +4403,7 @@
     
     function renderSettingsPanel() {
       const s = state.settings;
+      const stats = getTrackingStats();
       return `
         <div class="settings-overlay ${state.settingsOpen ? 'open' : ''}" onclick="toggleSettingsPanel()"></div>
         <div class="settings-panel ${state.settingsOpen ? 'open' : ''}">
@@ -4341,37 +4413,8 @@
           </div>
           
           <div class="settings-section">
-            <div class="settings-section-title">📊 Soglie Filtri Top Picks</div>
-            <div class="settings-row">
-              <span class="settings-label">1 (Vittoria Casa)</span>
-              <input type="number" class="settings-input" value="${s.thresholds['1']}" 
-                onchange="updateThreshold('1', this.value)" min="30" max="80">
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">X (Pareggio)</span>
-              <input type="number" class="settings-input" value="${s.thresholds['X']}" 
-                onchange="updateThreshold('X', this.value)" min="20" max="50">
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">2 (Vittoria Ospite)</span>
-              <input type="number" class="settings-input" value="${s.thresholds['2']}" 
-                onchange="updateThreshold('2', this.value)" min="30" max="80">
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">GG (Entrambe Segnano)</span>
-              <input type="number" class="settings-input" value="${s.thresholds['GG']}" 
-                onchange="updateThreshold('GG', this.value)" min="40" max="75">
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Over 2.5</span>
-              <input type="number" class="settings-input" value="${s.thresholds['Over 2.5']}" 
-                onchange="updateThreshold('Over 2.5', this.value)" min="40" max="75">
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Over 1.5</span>
-              <input type="number" class="settings-input" value="${s.thresholds['Over 1.5']}" 
-                onchange="updateThreshold('Over 1.5', this.value)" min="50" max="85">
-            </div>
+            <div class="settings-section-title">📊 Win Rate per Segno</div>
+            ${renderWinRateByPick(stats)}
           </div>
           
           <div class="settings-section">
@@ -4394,7 +4437,7 @@
           </div>
           
           <div class="settings-section">
-            <div class="settings-section-title">📈 Storico Win Rate</div>
+            <div class="settings-section-title">📈 Storico Ultimi Pronostici</div>
             ${renderHistoryChart()}
           </div>
           
@@ -4402,6 +4445,55 @@
             <button class="btn btn-secondary" style="width:100%" onclick="resetAllData()">
               🗑️ Reset tutti i dati
             </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderWinRateByPick(stats) {
+      const picks = Object.entries(stats.byPick);
+      if (picks.length === 0) {
+        return '<div style="text-align:center; color:var(--text-dark); padding:20px;">Nessun pronostico tracciato</div>';
+      }
+      
+      // Ordina per numero di giocate
+      picks.sort((a, b) => b[1].total - a[1].total);
+      
+      return `
+        <div class="winrate-grid">
+          ${picks.map(([label, data]) => `
+            <div class="winrate-item">
+              <div class="winrate-label">${label}</div>
+              <div class="winrate-stats">
+                <span class="winrate-played">${data.total} giocate</span>
+                <span class="winrate-won">✅ ${data.won}</span>
+                <span class="winrate-lost">❌ ${data.lost}</span>
+              </div>
+              <div class="winrate-bar">
+                <div class="winrate-bar-fill ${parseFloat(data.winRate) >= 50 ? 'good' : 'bad'}" 
+                  style="width: ${data.winRate}%"></div>
+              </div>
+              <div class="winrate-percent">${data.winRate}%</div>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="winrate-summary">
+          <div class="winrate-summary-item">
+            <span>Totale</span>
+            <strong>${stats.total}</strong>
+          </div>
+          <div class="winrate-summary-item">
+            <span>Vinte</span>
+            <strong style="color: var(--accent-green)">${stats.won}</strong>
+          </div>
+          <div class="winrate-summary-item">
+            <span>Perse</span>
+            <strong style="color: var(--accent-red)">${stats.lost}</strong>
+          </div>
+          <div class="winrate-summary-item">
+            <span>Win Rate</span>
+            <strong style="color: var(--accent-cyan)">${stats.winRate}%</strong>
           </div>
         </div>
       `;
@@ -4498,35 +4590,32 @@
         </div>
 
         <div class="filter-buttons">
-          <div class="filter-btn ${state.smartFilters.active === '1' ? 'active' : ''}" onclick="setSmartFilter('1')">1 (≥50%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'X' ? 'active' : ''}" onclick="setSmartFilter('X')">X (≥28%)</div>
-          <div class="filter-btn ${state.smartFilters.active === '2' ? 'active' : ''}" onclick="setSmartFilter('2')">2 (≥50%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'GG' ? 'active' : ''}" onclick="setSmartFilter('GG')">GG (≥55%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'Over 2.5' ? 'active' : ''}" onclick="setSmartFilter('Over 2.5')">Over 2.5 (≥50%)</div>
-          <div class="filter-btn ${state.smartFilters.active === 'Over 1.5' ? 'active' : ''}" onclick="setSmartFilter('Over 1.5')">Over 1.5 (≥65%)</div>
+          <div class="filter-btn ${state.smartFilters.active === '1' ? 'active' : ''}" onclick="setSmartFilter('1')">1</div>
+          <div class="filter-btn ${state.smartFilters.active === 'X' ? 'active' : ''}" onclick="setSmartFilter('X')">X</div>
+          <div class="filter-btn ${state.smartFilters.active === '2' ? 'active' : ''}" onclick="setSmartFilter('2')">2</div>
+          <div class="filter-btn ${state.smartFilters.active === 'GG' ? 'active' : ''}" onclick="setSmartFilter('GG')">GG</div>
+          <div class="filter-btn ${state.smartFilters.active === 'NG' ? 'active' : ''}" onclick="setSmartFilter('NG')">NG</div>
+          <div class="filter-btn ${state.smartFilters.active === 'Over 2.5' ? 'active' : ''}" onclick="setSmartFilter('Over 2.5')">O 2.5</div>
+          <div class="filter-btn ${state.smartFilters.active === 'Under 2.5' ? 'active' : ''}" onclick="setSmartFilter('Under 2.5')">U 2.5</div>
+          <div class="filter-btn ${state.smartFilters.active === 'Over 1.5' ? 'active' : ''}" onclick="setSmartFilter('Over 1.5')">O 1.5</div>
         </div>
 
         <div class="filtered-picks">
           ${state.smartFilters.results.length === 0 ? `
             <div class="empty" style="padding: 20px;">
               <div style="font-size: 2rem; margin-bottom: 8px;">🔍</div>
-              <div>Nessuna partita trovata con questi criteri</div>
+              <div>Seleziona un segno per vedere le partite</div>
             </div>
-          ` : state.smartFilters.results.map(r => `
+          ` : state.smartFilters.results.map((r, idx) => `
             <div class="filtered-pick-card" onclick="selectMatch(${r.match.id})">
+              <div class="filtered-pick-rank">${idx + 1}</div>
               <div class="filtered-pick-left">
                 <div class="filtered-pick-match">${esc(r.match.home.name)} vs ${esc(r.match.away.name)}</div>
                 <div class="filtered-pick-league">${r.time} • ${esc(r.league)}</div>
               </div>
               <div class="filtered-pick-right">
-                <div class="filtered-pick-probs">
-                  <div class="filtered-pick-prob-item">AI: <strong>${r.aiProb}%</strong></div>
-                  <div class="filtered-pick-prob-item">Stat: <strong>${r.statProb}%</strong></div>
-                </div>
-                <div class="filtered-pick-combined">
-                  <div class="filtered-pick-combined-label">Combinata</div>
-                  <div class="filtered-pick-combined-value">${r.combinedProb}%</div>
-                </div>
+                <div class="filtered-pick-bet">${r.pick}</div>
+                <div class="filtered-pick-prob">${r.prob}%</div>
               </div>
             </div>
           `).join('')}
