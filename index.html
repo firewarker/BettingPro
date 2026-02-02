@@ -291,6 +291,96 @@
     .combo-prob { color: var(--accent-cyan); }
     .combo-odds { color: var(--accent-green); }
     
+    /* MULTIGOAL GRID */
+    .multigoal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+    }
+    .multigoal-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .multigoal-box.best {
+      border-color: var(--accent-green);
+      background: rgba(16,185,129,0.1);
+    }
+    .multigoal-range {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .multigoal-prob {
+      font-size: 0.9rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+    .multigoal-quota {
+      font-size: 0.75rem;
+      color: var(--accent-green);
+      margin-top: 2px;
+    }
+    
+    /* TEMPO GOL */
+    .tempo-highlight {
+      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.1));
+      border: 1px solid var(--accent-purple);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+    .tempo-highlight strong {
+      color: var(--accent-cyan);
+      margin: 0 6px;
+    }
+    .tempo-prob {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+    
+    /* FORM DISPLAY */
+    .form-display {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .form-team {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .form-team:last-child { border-bottom: none; }
+    .form-team-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .form-string {
+      display: flex;
+      gap: 4px;
+    }
+    .form-w, .form-d, .form-l {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .form-w { background: var(--accent-green); color: white; }
+    .form-d { background: var(--accent-yellow); color: #1a1a2e; }
+    .form-l { background: var(--accent-red); color: white; }
+    
     /* PRONOSTICI AI */
     .predictions-panel {
       background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
@@ -2401,6 +2491,26 @@
       // H2H info
       const h2hInfo = summarizeH2H(h2h, match.home.id);
       
+      // Multigoal analysis (tutti i range)
+      const multigoal = calcAllMultigol(homeXG, awayXG);
+      
+      // Distribuzione temporale gol
+      const temporalDistribution = calcTemporalDistribution(homeXG, awayXG);
+      
+      // Multigoal squadra
+      const multigoalHome = [
+        { range: '1+', prob: calcTeamMultigol(homeXG, 1, 6) },
+        { range: '2+', prob: calcTeamMultigol(homeXG, 2, 6) },
+        { range: '1-2', prob: calcTeamMultigol(homeXG, 1, 2) },
+        { range: '1-3', prob: calcTeamMultigol(homeXG, 1, 3) }
+      ];
+      const multigoalAway = [
+        { range: '1+', prob: calcTeamMultigol(awayXG, 1, 6) },
+        { range: '2+', prob: calcTeamMultigol(awayXG, 2, 6) },
+        { range: '1-2', prob: calcTeamMultigol(awayXG, 1, 2) },
+        { range: '1-3', prob: calcTeamMultigol(awayXG, 1, 3) }
+      ];
+      
       return {
         match,
         xG: { home: homeXG, away: awayXG, total: totXG },
@@ -2410,6 +2520,12 @@
         h2h: h2hInfo,
         predictions,
         combos,
+        multigoal,
+        temporalDistribution,
+        multigoalHome,
+        multigoalAway,
+        homeForm: homeForm || 'N/A',
+        awayForm: awayForm || 'N/A',
         quality: (homeStats || awayStats) ? 'enhanced' : 'base'
       };
     }
@@ -2703,6 +2819,65 @@
         }
       }
       return prob * 100;
+    }
+    
+    // Calcola TUTTI i range multigoal
+    function calcAllMultigol(homeXG, awayXG) {
+      const ranges = [
+        { name: '0-2', min: 0, max: 2 },
+        { name: '0-3', min: 0, max: 3 },
+        { name: '1-3', min: 1, max: 3 },
+        { name: '1-4', min: 1, max: 4 },
+        { name: '2-4', min: 2, max: 4 },
+        { name: '2-5', min: 2, max: 5 },
+        { name: '3-5', min: 3, max: 5 },
+        { name: '3-6', min: 3, max: 6 }
+      ];
+      
+      return ranges.map(r => ({
+        range: r.name,
+        prob: calcMultigol(homeXG, awayXG, r.min, r.max),
+        quota: (100 / calcMultigol(homeXG, awayXG, r.min, r.max)).toFixed(2)
+      })).sort((a, b) => b.prob - a.prob);
+    }
+    
+    // Calcola distribuzione gol per tempo
+    function calcTemporalDistribution(homeXG, awayXG) {
+      // Statisticamente: ~42% gol nel 1T, ~58% nel 2T
+      const homeXG_1T = homeXG * 0.42;
+      const homeXG_2T = homeXG * 0.58;
+      const awayXG_1T = awayXG * 0.42;
+      const awayXG_2T = awayXG * 0.58;
+      
+      const totXG_1T = homeXG_1T + awayXG_1T;
+      const totXG_2T = homeXG_2T + awayXG_2T;
+      
+      // Calcola over/under per tempo
+      const over05_1T = calcMultigol(homeXG_1T, awayXG_1T, 1, 6);
+      const over15_1T = calcMultigol(homeXG_1T, awayXG_1T, 2, 6);
+      const over05_2T = calcMultigol(homeXG_2T, awayXG_2T, 1, 6);
+      const over15_2T = calcMultigol(homeXG_2T, awayXG_2T, 2, 6);
+      
+      // Tempo con più gol
+      const piuGol1T = totXG_1T > totXG_2T;
+      const probPiuGol = piuGol1T ? 
+        (totXG_1T / (totXG_1T + totXG_2T)) * 100 :
+        (totXG_2T / (totXG_1T + totXG_2T)) * 100;
+      
+      return {
+        primoTempo: {
+          xG: totXG_1T,
+          over05: over05_1T,
+          over15: over15_1T
+        },
+        secondoTempo: {
+          xG: totXG_2T,
+          over05: over05_2T,
+          over15: over15_2T
+        },
+        tempoConPiuGol: piuGol1T ? '1° Tempo' : '2° Tempo',
+        probTempoConPiuGol: probPiuGol
+      };
     }
 
     function calcTeamMultigol(l, min, max) {
@@ -4240,6 +4415,90 @@
               <div class="stat-box"><div class="stat-box-label">Casa</div><div class="stat-box-value">${d.cards.home.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
               <div class="stat-box"><div class="stat-box-label">Tot</div><div class="stat-box-value">${d.cards.total.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
               <div class="stat-box"><div class="stat-box-label">Ospite</div><div class="stat-box-value">${d.cards.away.toFixed(1)}</div><div class="stat-box-sub">cart.</div></div>
+            </div>
+          </div>
+          
+          <!-- SEZIONE SCOMMESSE SPECIALI -->
+          <div class="analysis-card wide">
+            <div class="card-title"><div class="card-title-icon">🎰</div><span>Multigoal Range</span></div>
+            <div class="multigoal-grid">
+              ${d.multigoal ? d.multigoal.slice(0, 6).map((mg, i) => `
+                <div class="multigoal-box ${i === 0 ? 'best' : ''}">
+                  <div class="multigoal-range">${mg.range}</div>
+                  <div class="multigoal-prob">${mg.prob.toFixed(0)}%</div>
+                  <div class="multigoal-quota">@${mg.quota}</div>
+                </div>
+              `).join('') : '<div>N/A</div>'}
+            </div>
+          </div>
+          
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">⏱️</div><span>Gol per Tempo</span></div>
+            ${d.temporalDistribution ? `
+              <div class="prob-row">
+                <span class="prob-label">Over 0.5 1°T</span>
+                <div class="prob-bar-track"><div class="prob-bar-fill cyan" style="width:${d.temporalDistribution.primoTempo.over05}%"></div></div>
+                <span class="prob-value">${d.temporalDistribution.primoTempo.over05.toFixed(0)}%</span>
+              </div>
+              <div class="prob-row">
+                <span class="prob-label">Over 0.5 2°T</span>
+                <div class="prob-bar-track"><div class="prob-bar-fill green" style="width:${d.temporalDistribution.secondoTempo.over05}%"></div></div>
+                <span class="prob-value">${d.temporalDistribution.secondoTempo.over05.toFixed(0)}%</span>
+              </div>
+              <div class="prob-row">
+                <span class="prob-label">Over 1.5 1°T</span>
+                <div class="prob-bar-track"><div class="prob-bar-fill yellow" style="width:${d.temporalDistribution.primoTempo.over15}%"></div></div>
+                <span class="prob-value">${d.temporalDistribution.primoTempo.over15.toFixed(0)}%</span>
+              </div>
+              <div class="tempo-highlight">
+                <span>⚡ Tempo con più gol:</span>
+                <strong>${d.temporalDistribution.tempoConPiuGol}</strong>
+                <span class="tempo-prob">(${d.temporalDistribution.probTempoConPiuGol.toFixed(0)}%)</span>
+              </div>
+            ` : '<div>N/A</div>'}
+          </div>
+          
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">🏠</div><span>MG ${m.home.name.split(' ')[0]}</span></div>
+            ${d.multigoalHome ? d.multigoalHome.map(mg => `
+              <div class="prob-row">
+                <span class="prob-label">${mg.range} gol</span>
+                <div class="prob-bar-track"><div class="prob-bar-fill cyan" style="width:${mg.prob}%"></div></div>
+                <span class="prob-value">${mg.prob.toFixed(0)}%</span>
+              </div>
+            `).join('') : '<div>N/A</div>'}
+          </div>
+          
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">✈️</div><span>MG ${m.away.name.split(' ')[0]}</span></div>
+            ${d.multigoalAway ? d.multigoalAway.map(mg => `
+              <div class="prob-row">
+                <span class="prob-label">${mg.range} gol</span>
+                <div class="prob-bar-track"><div class="prob-bar-fill purple" style="width:${mg.prob}%"></div></div>
+                <span class="prob-value">${mg.prob.toFixed(0)}%</span>
+              </div>
+            `).join('') : '<div>N/A</div>'}
+          </div>
+          
+          <div class="analysis-card">
+            <div class="card-title"><div class="card-title-icon">📈</div><span>Forma Recente</span></div>
+            <div class="form-display">
+              <div class="form-team">
+                <span class="form-team-name">${m.home.name.split(' ')[0]}</span>
+                <span class="form-string">${d.homeForm ? d.homeForm.split('').map(c => 
+                  c === 'W' ? '<span class="form-w">V</span>' : 
+                  c === 'D' ? '<span class="form-d">P</span>' : 
+                  '<span class="form-l">S</span>'
+                ).join('') : 'N/A'}</span>
+              </div>
+              <div class="form-team">
+                <span class="form-team-name">${m.away.name.split(' ')[0]}</span>
+                <span class="form-string">${d.awayForm ? d.awayForm.split('').map(c => 
+                  c === 'W' ? '<span class="form-w">V</span>' : 
+                  c === 'D' ? '<span class="form-d">P</span>' : 
+                  '<span class="form-l">S</span>'
+                ).join('') : 'N/A'}</span>
+              </div>
             </div>
           </div>
           
