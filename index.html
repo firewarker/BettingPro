@@ -2932,20 +2932,8 @@
         else if (awayLosses >= 3) awayXG *= 0.92; // Pessima forma ospite
       }
       
-      // NUOVO: Motivation adjustment (classifica)
-      if (homePosition?.motivation === 'altissima') homeXG *= 1.10; // Lotta retrocessione
-      else if (homePosition?.motivation === 'alta') homeXG *= 1.05; // Champions/Europa
-      
-      if (awayPosition?.motivation === 'altissima') awayXG *= 1.08;
-      else if (awayPosition?.motivation === 'alta') awayXG *= 1.04;
-      
-      // NUOVO: Injury adjustment (infortunati)
-      if (homeInjuryImpact) {
-        homeXG *= homeInjuryImpact.attack;
-      }
-      if (awayInjuryImpact) {
-        awayXG *= awayInjuryImpact.attack;
-      }
+      // NOTA: Classifica e Infortuni sono mostrati come INFO ma NON modificano i calcoli
+      // per mantenere coerenza con i pronostici storici
       
       // Home advantage (casa gioca meglio, trasferta peggio)
       homeXG *= 1.10;  // +10% vantaggio casa
