@@ -3913,19 +3913,56 @@
       render();
       
       try {
-        // 3 call parallele: stats dettagliate + predictions + pre-match prior
-        const [statsData, predData] = await Promise.all([
+        // FASE 1: Call parallele - stats + predictions + events + fixture singola
+        const [statsData, predData, eventsData, fixtureData] = await Promise.all([
           callAPIFootball('/fixtures/statistics', { fixture: matchId }),
-          callAPIFootball('/predictions', { fixture: matchId })
+          callAPIFootball('/predictions', { fixture: matchId }),
+          callAPIFootball('/fixtures/events', { fixture: matchId }),
+          callAPIFootball('/fixtures', { id: matchId })
         ]);
         
-        // Estrai statistiche
-        const stats = extractLiveStats(statsData);
+        // FASE 2: Estrai stats con fallback multiplo
+        let stats = extractLiveStats(statsData);
+        
+        // Fallback 1: se stats vuote, prova dalla fixture singola (a volte include stats inline)
+        if (stats.shotsOnTotal === 0 && stats.cornersTotal === 0 && stats.possessionHome === 50) {
+          const fixtureStats = fixtureData?.response?.[0]?.statistics;
+          if (fixtureStats && fixtureStats.length >= 2) {
+            const inlineStats = extractLiveStats({ response: fixtureStats.map((s, i) => ({ statistics: fixtureStats[i]?.statistics || fixtureStats[i] })) });
+            if (inlineStats.shotsOnTotal > 0 || inlineStats.cornersTotal > 0) {
+              stats = inlineStats;
+              console.log('📊 Stats da fixture inline per', matchId);
+            }
+          }
+        }
+        
+        // Fallback 2: se ancora vuote, prova stats dal match object del poll live
+        if (stats.shotsOnTotal === 0 && stats.cornersTotal === 0 && stats.possessionHome === 50) {
+          if (match.stats && match.stats.length >= 2) {
+            const pollStats = extractLiveStatsFromInline(match.stats);
+            if (pollStats.shotsOnTotal > 0 || pollStats.cornersTotal > 0) {
+              stats = pollStats;
+              console.log('📊 Stats da poll live per', matchId);
+            }
+          }
+        }
+        
+        // Fallback 3: ultima risorsa - estrai quel che puoi dagli eventi
+        if (stats.shotsOnTotal === 0 && stats.cornersTotal === 0) {
+          const eventStats = extractStatsFromEvents(eventsData, match);
+          if (eventStats.hasData) {
+            stats = { ...stats, ...eventStats };
+            console.log('📊 Stats derivate da eventi per', matchId);
+          }
+        }
+        
+        // Segna se abbiamo dati live reali o no
+        stats.hasLiveData = (stats.shotsOnTotal > 0 || stats.cornersTotal > 0 || stats.possessionHome !== 50);
         
         // Estrai prior pre-match da predictions API
         const prior = extractPreMatchPrior(predData, match);
         
-        // Calcola momentum
+        // Calcola momentum (si adatta automaticamente se mancano dati live)
         const momentum = calculateMomentumScore(match, stats, prior);
         
         // Genera alert per mercati
@@ -3949,9 +3986,9 @@
         state.liveAnalyzed.set(matchId, {
           loading: false,
           match,
-          stats: {},
-          prior: {},
-          momentum: { score: 0, factors: {} },
+          stats: { hasLiveData: false },
+          prior: extractPreMatchPrior(null, match),
+          momentum: { score: 0, factors: {}, rawScore: 0, timeMultiplier: '1.00' },
           alerts: [],
           lastUpdate: Date.now(),
           error: true
@@ -4011,6 +4048,133 @@
       result.shotsTotal = result.shotsHome + result.shotsAway;
       result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
       result.cornersTotal = result.cornersHome + result.cornersAway;
+      
+      return result;
+    }
+    
+    // Fallback: estrai stats dal formato inline del poll /fixtures?live=all
+    function extractLiveStatsFromInline(inlineStats) {
+      const result = {
+        shotsHome: 0, shotsAway: 0,
+        shotsOnHome: 0, shotsOnAway: 0,
+        cornersHome: 0, cornersAway: 0,
+        possessionHome: 50, possessionAway: 50,
+        shotsInsideHome: 0, shotsInsideAway: 0,
+        savesHome: 0, savesAway: 0,
+        xgHome: null, xgAway: null
+      };
+      
+      if (!inlineStats || inlineStats.length < 2) return result;
+      
+      // Il formato inline può essere: 
+      // match.stats[0] = { statistics: [...] } oppure match.stats[0] = [{type, value}, ...]
+      const getStatsArray = (entry) => {
+        if (Array.isArray(entry)) return entry;
+        if (entry && entry.statistics && Array.isArray(entry.statistics)) return entry.statistics;
+        return [];
+      };
+      
+      const homeArr = getStatsArray(inlineStats[0]);
+      const awayArr = getStatsArray(inlineStats[1]);
+      
+      const getStat = (arr, type) => {
+        const s = arr.find(s => s.type === type);
+        if (!s || s.value === null) return 0;
+        if (typeof s.value === 'string') return parseInt(s.value.replace('%','')) || 0;
+        return parseInt(s.value) || 0;
+      };
+      
+      result.shotsHome = getStat(homeArr, 'Total Shots');
+      result.shotsAway = getStat(awayArr, 'Total Shots');
+      result.shotsOnHome = getStat(homeArr, 'Shots on Goal');
+      result.shotsOnAway = getStat(awayArr, 'Shots on Goal');
+      result.cornersHome = getStat(homeArr, 'Corner Kicks');
+      result.cornersAway = getStat(awayArr, 'Corner Kicks');
+      result.possessionHome = getStat(homeArr, 'Ball Possession') || 50;
+      result.possessionAway = getStat(awayArr, 'Ball Possession') || 50;
+      result.shotsInsideHome = getStat(homeArr, 'Shots insidebox');
+      result.shotsInsideAway = getStat(awayArr, 'Shots insidebox');
+      result.savesHome = getStat(homeArr, 'Goalkeeper Saves');
+      result.savesAway = getStat(awayArr, 'Goalkeeper Saves');
+      
+      result.shotsTotal = result.shotsHome + result.shotsAway;
+      result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
+      result.cornersTotal = result.cornersHome + result.cornersAway;
+      
+      return result;
+    }
+    
+    // Ultima risorsa: estrai stats approssimate dagli eventi partita
+    function extractStatsFromEvents(eventsData, match) {
+      const result = {
+        shotsHome: 0, shotsAway: 0,
+        shotsOnHome: 0, shotsOnAway: 0,
+        cornersHome: 0, cornersAway: 0,
+        possessionHome: 50, possessionAway: 50,
+        shotsInsideHome: 0, shotsInsideAway: 0,
+        savesHome: 0, savesAway: 0,
+        xgHome: null, xgAway: null,
+        shotsTotal: 0, shotsOnTotal: 0, cornersTotal: 0,
+        hasData: false,
+        fromEvents: true
+      };
+      
+      if (!eventsData || !eventsData.response || eventsData.response.length === 0) return result;
+      
+      const events = eventsData.response;
+      let homeGoalAttempts = 0, awayGoalAttempts = 0;
+      
+      events.forEach(ev => {
+        const isHome = ev.team?.id === match.home.id;
+        const type = (ev.type || '').toLowerCase();
+        const detail = (ev.detail || '').toLowerCase();
+        
+        // Gol = tiro in porta riuscito
+        if (type === 'goal') {
+          if (isHome) { result.shotsOnHome++; result.shotsHome++; }
+          else { result.shotsOnAway++; result.shotsAway++; }
+          result.hasData = true;
+        }
+        
+        // Cartellino = indica intensità
+        if (type === 'card') {
+          result.hasData = true;
+        }
+        
+        // Sostituzione = indica cambiamento tattico
+        if (type === 'subst') {
+          result.hasData = true;
+        }
+        
+        // Var = probabilmente un'azione importante
+        if (type === 'var') {
+          if (isHome) result.shotsOnHome++;
+          else result.shotsOnAway++;
+          result.hasData = true;
+        }
+      });
+      
+      // Stima tiri basata sui gol: statisticamente 1 gol ogni ~8-10 tiri
+      const totalGoals = match.goals.home + match.goals.away;
+      const elapsed = match.elapsed || 1;
+      
+      // Stima conservativa basata su media campionati
+      const estimatedShotsPerMin = 0.25; // ~12 tiri totali in 45 min
+      result.shotsHome = Math.max(result.shotsHome, Math.round(elapsed * estimatedShotsPerMin * 0.55));
+      result.shotsAway = Math.max(result.shotsAway, Math.round(elapsed * estimatedShotsPerMin * 0.45));
+      result.shotsOnHome = Math.max(result.shotsOnHome, Math.round(result.shotsHome * 0.35));
+      result.shotsOnAway = Math.max(result.shotsOnAway, Math.round(result.shotsAway * 0.35));
+      
+      // Stima corner
+      const estimatedCornersPerMin = 0.12; // ~5.5 corner per partita
+      result.cornersHome = Math.round(elapsed * estimatedCornersPerMin * 0.55);
+      result.cornersAway = Math.round(elapsed * estimatedCornersPerMin * 0.45);
+      
+      result.shotsTotal = result.shotsHome + result.shotsAway;
+      result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
+      result.cornersTotal = result.cornersHome + result.cornersAway;
+      result.hasData = true;
+      result.estimated = true;
       
       return result;
     }
@@ -4081,11 +4245,13 @@
     function calculateMomentumScore(match, stats, prior) {
       const elapsed = match.elapsed || 0;
       const totalGoals = match.goals.home + match.goals.away;
+      const hasRealLiveData = stats.hasLiveData && !stats.estimated;
       
-      // === FATTORI LIVE (max 65 punti) ===
+      // === FATTORI LIVE (max 65 punti con dati reali, max 30 con stime) ===
+      const liveMultiplier = hasRealLiveData ? 1.0 : 0.5; // Dimezza peso live se stimati
       
       // 1. Tiri in porta (max 25)
-      const shotsOnPts = Math.min(25, (stats.shotsOnTotal || 0) * 5.0);
+      const shotsOnPts = Math.min(25, (stats.shotsOnTotal || 0) * 5.0) * liveMultiplier;
       
       // 2. xG Live se disponibile (max 20)
       let xgLivePts = 0;
@@ -4095,49 +4261,49 @@
       }
       
       // 3. Corner (max 8)
-      const cornerPts = Math.min(8, (stats.cornersTotal || 0) * 1.6);
+      const cornerPts = Math.min(8, (stats.cornersTotal || 0) * 1.6) * liveMultiplier;
       
       // 4. Possesso sbilanciato (max 5)
       const maxPoss = Math.max(stats.possessionHome || 50, stats.possessionAway || 50);
-      const possessionPts = maxPoss >= 65 ? 5 : (maxPoss >= 60 ? 3 : 0);
+      const possessionPts = (hasRealLiveData && maxPoss >= 65) ? 5 : (hasRealLiveData && maxPoss >= 60) ? 3 : 0;
       
-      // 5. Game State boost (max 7)
+      // 5. Game State boost (max 7) - sempre valido, non dipende dalle stats
       let gameStatePts = 0;
       const isFavoriteHome = prior.homeWinChance > prior.awayWinChance + 10;
       const isFavoriteAway = prior.awayWinChance > prior.homeWinChance + 10;
       
       if (totalGoals === 0) {
-        // 0-0: pressione alta
         gameStatePts += 3;
         if (elapsed >= 60) gameStatePts += 2;
       }
       if ((isFavoriteHome && match.goals.home < match.goals.away) ||
           (isFavoriteAway && match.goals.away < match.goals.home)) {
-        // Favorita in svantaggio
         gameStatePts += 4;
       }
       if (match.goals.home === 1 && match.goals.away === 1) {
-        // 1-1 partita aperta
         gameStatePts += 3;
       }
       gameStatePts = Math.min(7, gameStatePts);
       
-      // === FATTORI PRE-MATCH (max 35 punti) ===
+      // === FATTORI PRE-MATCH (max 35 con dati live, max 55 senza) ===
+      const priorMultiplier = hasRealLiveData ? 1.0 : 1.6; // Aumenta peso prior se no dati live
       
-      // 6. Storico Over (max 15)
-      const overHistPts = Math.min(15, (prior.overHT / 100) * 15);
+      // 6. Storico Over (max 15, oppure max 24 senza dati live)
+      const overHistPts = Math.min(hasRealLiveData ? 15 : 24, (prior.overHT / 100) * (hasRealLiveData ? 15 : 24));
       
-      // 7. xG Pre-match (max 12)
+      // 7. xG Pre-match (max 12, oppure max 20 senza dati live)
+      const xgPreMax = hasRealLiveData ? 12 : 20;
       let xgPrePts = 0;
-      if (prior.xgPreMatch >= 3.5) xgPrePts = 12;
-      else if (prior.xgPreMatch >= 3.0) xgPrePts = 10;
-      else if (prior.xgPreMatch >= 2.5) xgPrePts = 8;
-      else if (prior.xgPreMatch >= 2.0) xgPrePts = 5;
+      if (prior.xgPreMatch >= 3.5) xgPrePts = xgPreMax;
+      else if (prior.xgPreMatch >= 3.0) xgPrePts = Math.round(xgPreMax * 0.83);
+      else if (prior.xgPreMatch >= 2.5) xgPrePts = Math.round(xgPreMax * 0.67);
+      else if (prior.xgPreMatch >= 2.0) xgPrePts = Math.round(xgPreMax * 0.42);
       
-      // 8. Forma recente (max 8)
+      // 8. Forma recente (max 8, oppure max 12 senza dati live)
       const homeWins = (prior.homeForm.match(/W/g) || []).length;
       const awayWins = (prior.awayForm.match(/W/g) || []).length;
-      const formPts = Math.min(8, (homeWins + awayWins) * 1.6);
+      const formMax = hasRealLiveData ? 8 : 12;
+      const formPts = Math.min(formMax, (homeWins + awayWins) * (hasRealLiveData ? 1.6 : 2.4));
       
       // === SOMMA BASE ===
       const rawScore = shotsOnPts + xgLivePts + cornerPts + possessionPts + gameStatePts + overHistPts + xgPrePts + formPts;
@@ -4158,10 +4324,12 @@
         score: finalScore,
         rawScore: Math.round(rawScore),
         timeMultiplier: timeMultiplier.toFixed(2),
+        hasRealLiveData,
+        estimated: !!stats.estimated,
         factors: {
-          shotsOn: { pts: Math.round(shotsOnPts * 10) / 10, val: stats.shotsOnTotal || 0 },
+          shotsOn: { pts: Math.round(shotsOnPts * 10) / 10, val: (stats.shotsOnTotal || 0) + (stats.estimated ? '*' : '') },
           xgLive: { pts: Math.round(xgLivePts * 10) / 10, val: (stats.xgHome !== null && stats.xgAway !== null) ? (stats.xgHome + stats.xgAway).toFixed(2) : 'n/d' },
-          corners: { pts: Math.round(cornerPts * 10) / 10, val: stats.cornersTotal || 0 },
+          corners: { pts: Math.round(cornerPts * 10) / 10, val: (stats.cornersTotal || 0) + (stats.estimated ? '*' : '') },
           possession: { pts: possessionPts, val: `${stats.possessionHome || 50}%-${stats.possessionAway || 50}%` },
           gameState: { pts: gameStatePts, val: `${match.goals.home}-${match.goals.away}` },
           overHist: { pts: Math.round(overHistPts * 10) / 10, val: `${Math.round(prior.overHT)}%` },
@@ -4285,8 +4453,34 @@
         }
         
         try {
-          const statsData = await callAPIFootball('/fixtures/statistics', { fixture: matchId });
-          const stats = extractLiveStats(statsData);
+          // Stesse fonti della prima analisi
+          const [statsData, eventsData] = await Promise.all([
+            callAPIFootball('/fixtures/statistics', { fixture: matchId }),
+            callAPIFootball('/fixtures/events', { fixture: matchId })
+          ]);
+          
+          let stats = extractLiveStats(statsData);
+          
+          // Fallback: inline stats dal match live
+          if (stats.shotsOnTotal === 0 && stats.cornersTotal === 0 && stats.possessionHome === 50) {
+            if (match.stats && match.stats.length >= 2) {
+              const pollStats = extractLiveStatsFromInline(match.stats);
+              if (pollStats.shotsOnTotal > 0 || pollStats.cornersTotal > 0) {
+                stats = pollStats;
+              }
+            }
+          }
+          
+          // Fallback: eventi
+          if (stats.shotsOnTotal === 0 && stats.cornersTotal === 0) {
+            const eventStats = extractStatsFromEvents(eventsData, match);
+            if (eventStats.hasData) {
+              stats = { ...stats, ...eventStats };
+            }
+          }
+          
+          stats.hasLiveData = (stats.shotsOnTotal > 0 || stats.cornersTotal > 0 || stats.possessionHome !== 50);
+          
           const momentum = calculateMomentumScore(match, stats, existing.prior);
           const alerts = generateMomentumAlerts(match, stats, existing.prior, momentum);
           
@@ -5171,6 +5365,7 @@
                 </div>
                 
                 <div class="momentum-factors">
+                  ${!mom.hasRealLiveData ? '<div style="grid-column:1/-1;text-align:center;font-size:0.7rem;color:var(--accent-yellow);padding:4px 8px;background:rgba(251,191,36,0.1);border-radius:6px;margin-bottom:4px;">⚠️ Stats live non disponibili per questa lega — analisi basata su prior pre-match${mom.estimated ? " + stime" : ""}</div>' : ''}
                   <div class="momentum-factor"><span class="momentum-factor-label">Tiri in porta</span><span class="momentum-factor-val">${mom.factors.shotsOn.val} (+${mom.factors.shotsOn.pts})</span></div>
                   <div class="momentum-factor"><span class="momentum-factor-label">xG live</span><span class="momentum-factor-val">${mom.factors.xgLive.val} (+${mom.factors.xgLive.pts})</span></div>
                   <div class="momentum-factor"><span class="momentum-factor-label">Corner</span><span class="momentum-factor-val">${mom.factors.corners.val} (+${mom.factors.corners.pts})</span></div>
