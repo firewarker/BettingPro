@@ -1227,6 +1227,85 @@
     }
     .momentum-stop-btn:hover { background: rgba(239,68,68,0.1); }
     
+    /* Manual Stats Editor */
+    .momentum-edit-btn {
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--accent-yellow);
+      background: rgba(251,191,36,0.1);
+      color: var(--accent-yellow);
+      font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    .momentum-edit-btn:hover { background: rgba(251,191,36,0.2); }
+    .momentum-edit-form {
+      background: var(--bg-card-light);
+      border: 1px solid var(--accent-yellow);
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .edit-form-title {
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--accent-yellow);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .edit-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .edit-form-group { display: flex; flex-direction: column; gap: 3px; }
+    .edit-form-label { font-size: 0.7rem; color: var(--text-dark); }
+    .edit-form-row {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .edit-form-input {
+      width: 100%;
+      padding: 7px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-white);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    .edit-form-input:focus { outline: none; border-color: var(--accent-cyan); }
+    .edit-form-input::placeholder { color: var(--text-dark); }
+    .edit-form-vs { font-size: 0.7rem; color: var(--text-dark); flex-shrink: 0; }
+    .edit-form-actions {
+      display: flex; gap: 8px;
+    }
+    .edit-form-submit {
+      flex: 1; padding: 8px;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      border: none; border-radius: 8px;
+      color: white; font-weight: 700;
+      font-size: 0.8rem; cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    .edit-form-submit:hover { transform: scale(1.02); }
+    .edit-form-cancel {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-gray);
+      font-size: 0.8rem; cursor: pointer;
+      font-family: 'Inter', sans-serif;
+    }
+    .manual-badge {
+      font-size: 0.6rem; padding: 2px 6px;
+      background: rgba(251,191,36,0.2);
+      color: var(--accent-yellow);
+      border-radius: 4px; font-weight: 600;
+      margin-left: 6px;
+    }
+    
     .ai-alt-chip span { color: var(--accent-green); margin-left: 6px; }
 
     /* DUAL ADVICE LAYOUT */
@@ -1999,6 +2078,7 @@
       // Momentum Engine - On-Demand
       liveAnalyzed: new Map(), // matchId -> { momentum, stats, prior, alerts, lastUpdate }
       liveMatchIntervals: new Map(), // matchId -> intervalId for per-match refresh
+      liveEditingMatch: null, // matchId currently being edited
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
       // NUOVO: Cache Classifica e Infortunati
@@ -4453,6 +4533,24 @@
         }
         
         try {
+          // Se i dati sono manuali, non sovrascriverli con l'API
+          const existing2 = state.liveAnalyzed.get(matchId);
+          if (existing2 && existing2.stats && existing2.stats.manual) {
+            // Solo aggiorna match info (minuto, gol) e ricalcola momentum
+            const updatedMomentum = calculateMomentumScore(match, existing2.stats, existing2.prior);
+            const updatedAlerts = generateMomentumAlerts(match, existing2.stats, existing2.prior, updatedMomentum);
+            state.liveAnalyzed.set(matchId, {
+              ...existing2,
+              match,
+              momentum: updatedMomentum,
+              alerts: updatedAlerts,
+              lastUpdate: Date.now()
+            });
+            rebuildGlobalAlerts();
+            render();
+            return;
+          }
+          
           // Stesse fonti della prima analisi
           const [statsData, eventsData] = await Promise.all([
             callAPIFootball('/fixtures/statistics', { fixture: matchId }),
@@ -4510,7 +4608,65 @@
         state.liveMatchIntervals.delete(matchId);
       }
       state.liveAnalyzed.delete(matchId);
+      if (state.liveEditingMatch === matchId) state.liveEditingMatch = null;
       rebuildGlobalAlerts();
+    }
+    
+    // === MANUAL STATS EDITING ===
+    
+    function toggleManualEdit(matchId) {
+      state.liveEditingMatch = (state.liveEditingMatch === matchId) ? null : matchId;
+      render();
+    }
+    
+    function applyManualStats(matchId) {
+      const data = state.liveAnalyzed.get(matchId);
+      if (!data) return;
+      
+      const match = data.match;
+      
+      // Leggi i valori dal form
+      const getVal = (id) => parseInt(document.getElementById(id)?.value) || 0;
+      
+      const manualStats = {
+        shotsHome: getVal('ms_shots_h_' + matchId),
+        shotsAway: getVal('ms_shots_a_' + matchId),
+        shotsOnHome: getVal('ms_shotson_h_' + matchId),
+        shotsOnAway: getVal('ms_shotson_a_' + matchId),
+        cornersHome: getVal('ms_corners_h_' + matchId),
+        cornersAway: getVal('ms_corners_a_' + matchId),
+        possessionHome: getVal('ms_poss_h_' + matchId) || 50,
+        possessionAway: getVal('ms_poss_a_' + matchId) || 50,
+        shotsInsideHome: 0, shotsInsideAway: 0,
+        savesHome: 0, savesAway: 0,
+        xgHome: null, xgAway: null,
+        shotsTotal: 0, shotsOnTotal: 0, cornersTotal: 0,
+        hasLiveData: true,
+        manual: true,
+        estimated: false
+      };
+      
+      manualStats.shotsTotal = manualStats.shotsHome + manualStats.shotsAway;
+      manualStats.shotsOnTotal = manualStats.shotsOnHome + manualStats.shotsOnAway;
+      manualStats.cornersTotal = manualStats.cornersHome + manualStats.cornersAway;
+      
+      // Ricalcola momentum con dati manuali
+      const momentum = calculateMomentumScore(match, manualStats, data.prior);
+      const alerts = generateMomentumAlerts(match, manualStats, data.prior, momentum);
+      
+      state.liveAnalyzed.set(matchId, {
+        ...data,
+        stats: manualStats,
+        momentum,
+        alerts,
+        lastUpdate: Date.now()
+      });
+      
+      state.liveEditingMatch = null;
+      rebuildGlobalAlerts();
+      render();
+      
+      console.log('📝 Stats manuali applicate per', matchId, '→ Momentum:', momentum.score);
     }
     
     // Legacy compatibility - now just delegates
@@ -5397,7 +5553,58 @@
                   </div>
                 `}
                 
-                <div class="momentum-refresh-info">⟳ Prossimo aggiornamento: ~${nextRefresh}s</div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+                  <button class="momentum-edit-btn" onclick="toggleManualEdit(${matchId})">
+                    ${state.liveEditingMatch === matchId ? '✕ Chiudi' : '✏️ Modifica stats (da bet365)'}
+                  </button>
+                  ${data.stats.manual ? '<span class="manual-badge">DATI MANUALI</span>' : ''}
+                  <span class="momentum-refresh-info" style="margin:0;flex:1;">⟳ ~${nextRefresh}s</span>
+                </div>
+                
+                ${state.liveEditingMatch === matchId ? `
+                  <div class="momentum-edit-form">
+                    <div class="edit-form-title">✏️ Inserisci stats da bet365</div>
+                    <div class="edit-form-grid">
+                      <div class="edit-form-group">
+                        <div class="edit-form-label">Tiri in porta</div>
+                        <div class="edit-form-row">
+                          <input class="edit-form-input" id="ms_shotson_h_${matchId}" type="number" min="0" max="30" placeholder="H" value="${stats.shotsOnHome || ''}">
+                          <span class="edit-form-vs">-</span>
+                          <input class="edit-form-input" id="ms_shotson_a_${matchId}" type="number" min="0" max="30" placeholder="A" value="${stats.shotsOnAway || ''}">
+                        </div>
+                      </div>
+                      <div class="edit-form-group">
+                        <div class="edit-form-label">Tiri totali</div>
+                        <div class="edit-form-row">
+                          <input class="edit-form-input" id="ms_shots_h_${matchId}" type="number" min="0" max="40" placeholder="H" value="${stats.shotsHome || ''}">
+                          <span class="edit-form-vs">-</span>
+                          <input class="edit-form-input" id="ms_shots_a_${matchId}" type="number" min="0" max="40" placeholder="A" value="${stats.shotsAway || ''}">
+                        </div>
+                      </div>
+                      <div class="edit-form-group">
+                        <div class="edit-form-label">Corner</div>
+                        <div class="edit-form-row">
+                          <input class="edit-form-input" id="ms_corners_h_${matchId}" type="number" min="0" max="20" placeholder="H" value="${stats.cornersHome || ''}">
+                          <span class="edit-form-vs">-</span>
+                          <input class="edit-form-input" id="ms_corners_a_${matchId}" type="number" min="0" max="20" placeholder="A" value="${stats.cornersAway || ''}">
+                        </div>
+                      </div>
+                      <div class="edit-form-group">
+                        <div class="edit-form-label">Possesso %</div>
+                        <div class="edit-form-row">
+                          <input class="edit-form-input" id="ms_poss_h_${matchId}" type="number" min="0" max="100" placeholder="H" value="${stats.possessionHome || ''}">
+                          <span class="edit-form-vs">-</span>
+                          <input class="edit-form-input" id="ms_poss_a_${matchId}" type="number" min="0" max="100" placeholder="A" value="${stats.possessionAway || ''}">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="edit-form-actions">
+                      <button class="edit-form-submit" onclick="applyManualStats(${matchId})">⚡ Ricalcola Momentum</button>
+                      <button class="edit-form-cancel" onclick="toggleManualEdit(${matchId})">Annulla</button>
+                    </div>
+                  </div>
+                ` : ''}
+                
                 <button class="momentum-stop-btn" onclick="stopMatchAnalysis(${matchId});render();">✕ Ferma analisi</button>
               </div>
             </div>
