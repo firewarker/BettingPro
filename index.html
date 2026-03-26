@@ -4123,11 +4123,14 @@
       result.savesAway = getStat(awayStats, 'Goalkeeper Saves');
       result.xgHome = getStatFloat(homeStats, 'expected_goals');
       result.xgAway = getStatFloat(awayStats, 'expected_goals');
+      result.dangerousHome = getStat(homeStats, 'Dangerous Attacks') || 0;
+      result.dangerousAway = getStat(awayStats, 'Dangerous Attacks') || 0;
       
       // Totali
       result.shotsTotal = result.shotsHome + result.shotsAway;
       result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
       result.cornersTotal = result.cornersHome + result.cornersAway;
+      result.dangerousTotal = result.dangerousHome + result.dangerousAway;
       
       return result;
     }
@@ -4141,7 +4144,8 @@
         possessionHome: 50, possessionAway: 50,
         shotsInsideHome: 0, shotsInsideAway: 0,
         savesHome: 0, savesAway: 0,
-        xgHome: null, xgAway: null
+        xgHome: null, xgAway: null,
+        dangerousHome: 0, dangerousAway: 0
       };
       
       if (!inlineStats || inlineStats.length < 2) return result;
@@ -4176,10 +4180,13 @@
       result.shotsInsideAway = getStat(awayArr, 'Shots insidebox');
       result.savesHome = getStat(homeArr, 'Goalkeeper Saves');
       result.savesAway = getStat(awayArr, 'Goalkeeper Saves');
+      result.dangerousHome = getStat(homeArr, 'Dangerous Attacks') || 0;
+      result.dangerousAway = getStat(awayArr, 'Dangerous Attacks') || 0;
       
       result.shotsTotal = result.shotsHome + result.shotsAway;
       result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
       result.cornersTotal = result.cornersHome + result.cornersAway;
+      result.dangerousTotal = result.dangerousHome + result.dangerousAway;
       
       return result;
     }
@@ -4325,33 +4332,45 @@
     function calculateMomentumScore(match, stats, prior) {
       const elapsed = match.elapsed || 0;
       const totalGoals = match.goals.home + match.goals.away;
-      const hasRealLiveData = stats.hasLiveData && !stats.estimated;
+      const hasRealLiveData = (stats.hasLiveData && !stats.estimated) || !!stats.manual;
       
-      // === FATTORI LIVE (max 65 punti con dati reali, max 30 con stime) ===
-      const liveMultiplier = hasRealLiveData ? 1.0 : 0.5; // Dimezza peso live se stimati
+      // === FATTORI LIVE (max 70 pt con dati reali/manuali, max 30 con stime) ===
+      const liveMultiplier = hasRealLiveData ? 1.0 : 0.5;
       
-      // 1. Tiri in porta (max 25)
-      const shotsOnPts = Math.min(25, (stats.shotsOnTotal || 0) * 5.0) * liveMultiplier;
+      // 1. Tiri in porta (max 20)
+      const shotsOnPts = Math.min(20, (stats.shotsOnTotal || 0) * 4.0) * liveMultiplier;
       
-      // 2. xG Live se disponibile (max 20)
+      // 2. Tiri totali (max 8) — pressione generale
+      const shotsTotalPts = Math.min(8, (stats.shotsTotal || 0) * 0.8) * liveMultiplier;
+      
+      // 3. Attacchi pericolosi (max 12) — pressing offensivo
+      const dangerousPts = Math.min(12, (stats.dangerousTotal || 0) * 0.4) * liveMultiplier;
+      
+      // 4. xG Live se disponibile (max 16)
       let xgLivePts = 0;
       if (stats.xgHome !== null && stats.xgAway !== null) {
         const xgTotal = stats.xgHome + stats.xgAway;
-        xgLivePts = Math.min(20, xgTotal * 16.0);
+        xgLivePts = Math.min(16, xgTotal * 14.0);
       }
       
-      // 3. Corner (max 8)
-      const cornerPts = Math.min(8, (stats.cornersTotal || 0) * 1.6) * liveMultiplier;
+      // 5. Corner (max 8)
+      const cornerPts = Math.min(8, (stats.cornersTotal || 0) * 1.5) * liveMultiplier;
       
-      // 4. Possesso sbilanciato (max 5)
+      // 6. Possesso — graduale, non binario (max 6)
       const maxPoss = Math.max(stats.possessionHome || 50, stats.possessionAway || 50);
-      const possessionPts = (hasRealLiveData && maxPoss >= 65) ? 5 : (hasRealLiveData && maxPoss >= 60) ? 3 : 0;
+      let possessionPts = 0;
+      if (hasRealLiveData) {
+        if (maxPoss >= 65) possessionPts = 6;
+        else if (maxPoss >= 62) possessionPts = 5;
+        else if (maxPoss >= 59) possessionPts = 4;
+        else if (maxPoss >= 56) possessionPts = 3;
+        else if (maxPoss >= 53) possessionPts = 2;
+      }
       
-      // 5. Game State boost (max 7) - sempre valido, non dipende dalle stats
+      // 7. Game State boost (max 7)
       let gameStatePts = 0;
       const isFavoriteHome = prior.homeWinChance > prior.awayWinChance + 10;
       const isFavoriteAway = prior.awayWinChance > prior.homeWinChance + 10;
-      
       if (totalGoals === 0) {
         gameStatePts += 3;
         if (elapsed >= 60) gameStatePts += 2;
@@ -4366,12 +4385,9 @@
       gameStatePts = Math.min(7, gameStatePts);
       
       // === FATTORI PRE-MATCH (max 35 con dati live, max 55 senza) ===
-      const priorMultiplier = hasRealLiveData ? 1.0 : 1.6; // Aumenta peso prior se no dati live
+      const overHistMax = hasRealLiveData ? 15 : 24;
+      const overHistPts = Math.min(overHistMax, (prior.overHT / 100) * overHistMax);
       
-      // 6. Storico Over (max 15, oppure max 24 senza dati live)
-      const overHistPts = Math.min(hasRealLiveData ? 15 : 24, (prior.overHT / 100) * (hasRealLiveData ? 15 : 24));
-      
-      // 7. xG Pre-match (max 12, oppure max 20 senza dati live)
       const xgPreMax = hasRealLiveData ? 12 : 20;
       let xgPrePts = 0;
       if (prior.xgPreMatch >= 3.5) xgPrePts = xgPreMax;
@@ -4379,16 +4395,14 @@
       else if (prior.xgPreMatch >= 2.5) xgPrePts = Math.round(xgPreMax * 0.67);
       else if (prior.xgPreMatch >= 2.0) xgPrePts = Math.round(xgPreMax * 0.42);
       
-      // 8. Forma recente (max 8, oppure max 12 senza dati live)
       const homeWins = (prior.homeForm.match(/W/g) || []).length;
       const awayWins = (prior.awayForm.match(/W/g) || []).length;
       const formMax = hasRealLiveData ? 8 : 12;
       const formPts = Math.min(formMax, (homeWins + awayWins) * (hasRealLiveData ? 1.6 : 2.4));
       
-      // === SOMMA BASE ===
-      const rawScore = shotsOnPts + xgLivePts + cornerPts + possessionPts + gameStatePts + overHistPts + xgPrePts + formPts;
+      // === SOMMA E TEMPO ===
+      const rawScore = shotsOnPts + shotsTotalPts + dangerousPts + xgLivePts + cornerPts + possessionPts + gameStatePts + overHistPts + xgPrePts + formPts;
       
-      // === MOLTIPLICATORE TEMPORALE ===
       let timeMultiplier = 1.0;
       if (match.status === '1H' && elapsed >= 20) {
         timeMultiplier = 1 + (elapsed - 20) * 0.015;
@@ -4408,6 +4422,8 @@
         estimated: !!stats.estimated,
         factors: {
           shotsOn: { pts: Math.round(shotsOnPts * 10) / 10, val: (stats.shotsOnTotal || 0) + (stats.estimated ? '*' : '') },
+          shotsTotal: { pts: Math.round(shotsTotalPts * 10) / 10, val: (stats.shotsTotal || 0) + (stats.estimated ? '*' : '') },
+          dangerous: { pts: Math.round(dangerousPts * 10) / 10, val: stats.dangerousTotal || 0 },
           xgLive: { pts: Math.round(xgLivePts * 10) / 10, val: (stats.xgHome !== null && stats.xgAway !== null) ? (stats.xgHome + stats.xgAway).toFixed(2) : 'n/d' },
           corners: { pts: Math.round(cornerPts * 10) / 10, val: (stats.cornersTotal || 0) + (stats.estimated ? '*' : '') },
           possession: { pts: possessionPts, val: `${stats.possessionHome || 50}%-${stats.possessionAway || 50}%` },
@@ -4418,7 +4434,7 @@
         }
       };
     }
-    
+
     function generateMomentumAlerts(match, stats, prior, momentum) {
       const alerts = [];
       const elapsed = match.elapsed || 0;
@@ -4635,12 +4651,14 @@
         shotsOnAway: getVal('ms_shotson_a_' + matchId),
         cornersHome: getVal('ms_corners_h_' + matchId),
         cornersAway: getVal('ms_corners_a_' + matchId),
+        dangerousHome: getVal('ms_danger_h_' + matchId),
+        dangerousAway: getVal('ms_danger_a_' + matchId),
         possessionHome: getVal('ms_poss_h_' + matchId) || 50,
         possessionAway: getVal('ms_poss_a_' + matchId) || 50,
         shotsInsideHome: 0, shotsInsideAway: 0,
         savesHome: 0, savesAway: 0,
         xgHome: null, xgAway: null,
-        shotsTotal: 0, shotsOnTotal: 0, cornersTotal: 0,
+        shotsTotal: 0, shotsOnTotal: 0, cornersTotal: 0, dangerousTotal: 0,
         hasLiveData: true,
         manual: true,
         estimated: false
@@ -4649,6 +4667,7 @@
       manualStats.shotsTotal = manualStats.shotsHome + manualStats.shotsAway;
       manualStats.shotsOnTotal = manualStats.shotsOnHome + manualStats.shotsOnAway;
       manualStats.cornersTotal = manualStats.cornersHome + manualStats.cornersAway;
+      manualStats.dangerousTotal = manualStats.dangerousHome + manualStats.dangerousAway;
       
       // Ricalcola momentum con dati manuali
       const momentum = calculateMomentumScore(match, manualStats, data.prior);
@@ -5523,6 +5542,8 @@
                 <div class="momentum-factors">
                   ${!mom.hasRealLiveData ? '<div style="grid-column:1/-1;text-align:center;font-size:0.7rem;color:var(--accent-yellow);padding:4px 8px;background:rgba(251,191,36,0.1);border-radius:6px;margin-bottom:4px;">⚠️ Stats live non disponibili per questa lega — analisi basata su prior pre-match${mom.estimated ? " + stime" : ""}</div>' : ''}
                   <div class="momentum-factor"><span class="momentum-factor-label">Tiri in porta</span><span class="momentum-factor-val">${mom.factors.shotsOn.val} (+${mom.factors.shotsOn.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Tiri totali</span><span class="momentum-factor-val">${mom.factors.shotsTotal.val} (+${mom.factors.shotsTotal.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Att. pericolosi</span><span class="momentum-factor-val">${mom.factors.dangerous.val} (+${mom.factors.dangerous.pts})</span></div>
                   <div class="momentum-factor"><span class="momentum-factor-label">xG live</span><span class="momentum-factor-val">${mom.factors.xgLive.val} (+${mom.factors.xgLive.pts})</span></div>
                   <div class="momentum-factor"><span class="momentum-factor-label">Corner</span><span class="momentum-factor-val">${mom.factors.corners.val} (+${mom.factors.corners.pts})</span></div>
                   <div class="momentum-factor"><span class="momentum-factor-label">Possesso</span><span class="momentum-factor-val">${mom.factors.possession.val} (+${mom.factors.possession.pts})</span></div>
@@ -5579,6 +5600,14 @@
                           <input class="edit-form-input" id="ms_shots_h_${matchId}" type="number" min="0" max="40" placeholder="H" value="${stats.shotsHome || ''}">
                           <span class="edit-form-vs">-</span>
                           <input class="edit-form-input" id="ms_shots_a_${matchId}" type="number" min="0" max="40" placeholder="A" value="${stats.shotsAway || ''}">
+                        </div>
+                      </div>
+                      <div class="edit-form-group">
+                        <div class="edit-form-label">Attacchi pericolosi</div>
+                        <div class="edit-form-row">
+                          <input class="edit-form-input" id="ms_danger_h_${matchId}" type="number" min="0" max="80" placeholder="H" value="${stats.dangerousHome || ''}">
+                          <span class="edit-form-vs">-</span>
+                          <input class="edit-form-input" id="ms_danger_a_${matchId}" type="number" min="0" max="80" placeholder="A" value="${stats.dangerousAway || ''}">
                         </div>
                       </div>
                       <div class="edit-form-group">
