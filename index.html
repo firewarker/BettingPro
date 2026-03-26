@@ -1089,6 +1089,144 @@
       font-family: 'JetBrains Mono', monospace;
       color: var(--accent-cyan);
     }
+    
+    /* MOMENTUM ENGINE - Live On-Demand */
+    .live-match-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .live-match-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg-card-light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .live-match-row:hover { border-color: rgba(34,211,238,0.3); }
+    .live-match-row.analyzed { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.05); }
+    .live-match-minute {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--accent-red);
+      min-width: 36px; text-align: center;
+    }
+    .live-match-minute.ht { color: var(--accent-yellow); }
+    .live-match-league {
+      font-size: 0.65rem; color: var(--text-dark);
+      min-width: 70px; max-width: 90px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .live-match-teams { flex: 1; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .live-match-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem; font-weight: 700;
+      color: var(--accent-cyan);
+      min-width: 40px; text-align: center;
+    }
+    .live-analyze-btn {
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--accent-cyan);
+      background: rgba(34,211,238,0.1);
+      color: var(--accent-cyan);
+      font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      white-space: nowrap; font-family: 'Inter', sans-serif;
+    }
+    .live-analyze-btn:hover { background: rgba(34,211,238,0.2); }
+    .live-analyze-btn.loading { opacity: 0.6; pointer-events: none; }
+    .live-analyze-btn.active { background: var(--accent-green); border-color: var(--accent-green); color: var(--bg-dark); }
+    .live-analyze-btn.stop { background: rgba(239,68,68,0.15); border-color: var(--accent-red); color: var(--accent-red); }
+    
+    .momentum-cards { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+    .momentum-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+    }
+    .momentum-card.high { border-color: var(--accent-red); }
+    .momentum-card.medium { border-color: var(--accent-yellow); }
+    .momentum-card.low { border-color: var(--accent-cyan); }
+    .momentum-card-header {
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .momentum-card.high .momentum-card-header { background: rgba(239,68,68,0.12); }
+    .momentum-card.medium .momentum-card-header { background: rgba(251,191,36,0.12); }
+    .momentum-card.low .momentum-card-header { background: rgba(34,211,238,0.12); }
+    .momentum-match-info { display: flex; align-items: center; gap: 10px; }
+    .momentum-match-name { font-weight: 600; font-size: 0.9rem; }
+    .momentum-match-time {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      color: var(--accent-red); font-weight: 600;
+    }
+    .momentum-badge {
+      padding: 4px 12px; border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; font-weight: 700;
+    }
+    .momentum-card.high .momentum-badge { background: var(--accent-red); color: white; }
+    .momentum-card.medium .momentum-badge { background: var(--accent-yellow); color: var(--bg-dark); }
+    .momentum-card.low .momentum-badge { background: var(--accent-cyan); color: var(--bg-dark); }
+    .momentum-card-body { padding: 16px; }
+    .momentum-score-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+    .momentum-big-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem; font-weight: 800;
+      min-width: 60px;
+    }
+    .momentum-card.high .momentum-big-score { color: var(--accent-red); }
+    .momentum-card.medium .momentum-big-score { color: var(--accent-yellow); }
+    .momentum-card.low .momentum-big-score { color: var(--accent-cyan); }
+    .momentum-bar-track {
+      flex: 1; height: 10px; background: var(--bg-input);
+      border-radius: 5px; overflow: hidden; position: relative;
+    }
+    .momentum-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s; }
+    .momentum-bar-fill.red { background: linear-gradient(90deg, var(--accent-yellow), var(--accent-red)); }
+    .momentum-bar-fill.yellow { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-yellow)); }
+    .momentum-bar-fill.cyan { background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); }
+    .momentum-bar-threshold {
+      position: absolute; top: -4px; bottom: -4px; width: 2px;
+      background: var(--text-white); opacity: 0.6;
+    }
+    .momentum-factors {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      margin-bottom: 14px;
+    }
+    .momentum-factor {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; padding: 5px 8px;
+      background: var(--bg-card-light); border-radius: 6px;
+    }
+    .momentum-factor-label { color: var(--text-gray); }
+    .momentum-factor-val { font-weight: 600; font-family: 'JetBrains Mono', monospace; color: var(--text-white); }
+    .momentum-alert-box {
+      background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.12));
+      border: 1px solid var(--accent-green);
+      border-radius: 12px; padding: 14px; text-align: center;
+    }
+    .momentum-alert-title { font-size: 0.7rem; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .momentum-alert-pick { font-size: 1.3rem; font-weight: 800; color: var(--accent-green); }
+    .momentum-alert-details { display: flex; justify-content: center; gap: 16px; margin-top: 6px; font-size: 0.85rem; }
+    .momentum-alert-reason { font-size: 0.78rem; color: var(--text-gray); margin-top: 8px; font-style: italic; }
+    .momentum-no-alert {
+      text-align: center; padding: 10px;
+      font-size: 0.8rem; color: var(--text-dark);
+      background: var(--bg-card-light); border-radius: 10px;
+    }
+    .momentum-refresh-info {
+      font-size: 0.7rem; color: var(--text-dark);
+      text-align: right; margin-top: 8px;
+    }
+    .momentum-stop-btn {
+      margin-top: 10px; width: 100%;
+      padding: 8px; border-radius: 8px;
+      background: transparent; border: 1px solid var(--accent-red);
+      color: var(--accent-red); font-size: 0.8rem;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+    }
+    .momentum-stop-btn:hover { background: rgba(239,68,68,0.1); }
+    
     .ai-alt-chip span { color: var(--accent-green); margin-left: 6px; }
 
     /* DUAL ADVICE LAYOUT */
@@ -1849,7 +1987,7 @@
         currentOdds: parseFloat(localStorage.getItem('bp_odds')) || 1.80,
         history: JSON.parse(localStorage.getItem('bp_history') || '[]')
       },
-      // LIVE Betting
+      // LIVE Betting - Momentum Engine
       liveMode: false,
       liveMatches: [],
       liveAlerts: [],
@@ -1857,7 +1995,10 @@
       liveInterval: null,
       liveBackgroundInterval: null,
       countdownInterval: null,
-      liveCountdown: 60,
+      liveCountdown: 90,
+      // Momentum Engine - On-Demand
+      liveAnalyzed: new Map(), // matchId -> { momentum, stats, prior, alerts, lastUpdate }
+      liveMatchIntervals: new Map(), // matchId -> intervalId for per-match refresh
       // Tracking Pronostici
       trackedBets: JSON.parse(localStorage.getItem('bp_tracked') || '[]'),
       // NUOVO: Cache Classifica e Infortunati
@@ -3707,7 +3848,6 @@
       render();
       
       try {
-        // Usa la stessa API già configurata
         const data = await callAPIFootball('/fixtures', { live: 'all' });
         
         if (data && data.response) {
@@ -3727,8 +3867,8 @@
             stats: f.statistics || []
           }));
           
-          // Calcola gli alert
-          calculateLiveAlerts();
+          // Aggiorna dati per partite già analizzate
+          updateAnalyzedMatches();
         }
       } catch (e) {
         console.error('Live load error:', e);
@@ -3738,308 +3878,458 @@
       render();
     }
     
-    function calculateLiveAlerts() {
+    // Aggiorna lo stato delle partite analizzate con dati freschi dal poll generale
+    function updateAnalyzedMatches() {
+      state.liveAnalyzed.forEach((analysis, matchId) => {
+        const liveMatch = state.liveMatches.find(m => m.id === matchId);
+        if (liveMatch) {
+          analysis.match = liveMatch;
+          // Se la partita è finita, rimuovi il refresh
+          if (['FT','AET','PEN'].includes(liveMatch.status)) {
+            stopMatchAnalysis(matchId);
+          }
+        } else {
+          // Partita non più live, rimuovi
+          stopMatchAnalysis(matchId);
+        }
+      });
+    }
+    
+    // === MOMENTUM ENGINE - On-Demand Analysis ===
+    
+    async function analyzeMatchLive(matchId) {
+      const match = state.liveMatches.find(m => m.id === matchId);
+      if (!match) return;
+      
+      // Se già analizzata, ferma il refresh
+      if (state.liveAnalyzed.has(matchId)) {
+        stopMatchAnalysis(matchId);
+        render();
+        return;
+      }
+      
+      // Segna come in caricamento
+      state.liveAnalyzed.set(matchId, { loading: true, match });
+      render();
+      
+      try {
+        // 3 call parallele: stats dettagliate + predictions + pre-match prior
+        const [statsData, predData] = await Promise.all([
+          callAPIFootball('/fixtures/statistics', { fixture: matchId }),
+          callAPIFootball('/predictions', { fixture: matchId })
+        ]);
+        
+        // Estrai statistiche
+        const stats = extractLiveStats(statsData);
+        
+        // Estrai prior pre-match da predictions API
+        const prior = extractPreMatchPrior(predData, match);
+        
+        // Calcola momentum
+        const momentum = calculateMomentumScore(match, stats, prior);
+        
+        // Genera alert per mercati
+        const alerts = generateMomentumAlerts(match, stats, prior, momentum);
+        
+        state.liveAnalyzed.set(matchId, {
+          loading: false,
+          match,
+          stats,
+          prior,
+          momentum,
+          alerts,
+          lastUpdate: Date.now()
+        });
+        
+        // Avvia auto-refresh ogni 120s per questa partita
+        startMatchRefresh(matchId);
+        
+      } catch (e) {
+        console.error('Momentum analysis error:', e);
+        state.liveAnalyzed.set(matchId, {
+          loading: false,
+          match,
+          stats: {},
+          prior: {},
+          momentum: { score: 0, factors: {} },
+          alerts: [],
+          lastUpdate: Date.now(),
+          error: true
+        });
+      }
+      
+      // Aggiorna liveAlerts globali
+      rebuildGlobalAlerts();
+      render();
+    }
+    
+    function extractLiveStats(statsData) {
+      const result = {
+        shotsHome: 0, shotsAway: 0,
+        shotsOnHome: 0, shotsOnAway: 0,
+        cornersHome: 0, cornersAway: 0,
+        possessionHome: 50, possessionAway: 50,
+        shotsInsideHome: 0, shotsInsideAway: 0,
+        savesHome: 0, savesAway: 0,
+        xgHome: null, xgAway: null
+      };
+      
+      if (!statsData || !statsData.response || statsData.response.length < 2) return result;
+      
+      const homeStats = statsData.response[0]?.statistics || [];
+      const awayStats = statsData.response[1]?.statistics || [];
+      
+      const getStat = (arr, type) => {
+        const s = arr.find(s => s.type === type);
+        if (!s || s.value === null) return 0;
+        if (typeof s.value === 'string') return parseInt(s.value.replace('%','')) || 0;
+        return parseInt(s.value) || 0;
+      };
+      
+      const getStatFloat = (arr, type) => {
+        const s = arr.find(s => s.type === type);
+        if (!s || s.value === null) return null;
+        return parseFloat(s.value) || null;
+      };
+      
+      result.shotsHome = getStat(homeStats, 'Total Shots');
+      result.shotsAway = getStat(awayStats, 'Total Shots');
+      result.shotsOnHome = getStat(homeStats, 'Shots on Goal');
+      result.shotsOnAway = getStat(awayStats, 'Shots on Goal');
+      result.cornersHome = getStat(homeStats, 'Corner Kicks');
+      result.cornersAway = getStat(awayStats, 'Corner Kicks');
+      result.possessionHome = getStat(homeStats, 'Ball Possession');
+      result.possessionAway = getStat(awayStats, 'Ball Possession');
+      result.shotsInsideHome = getStat(homeStats, 'Shots insidebox');
+      result.shotsInsideAway = getStat(awayStats, 'Shots insidebox');
+      result.savesHome = getStat(homeStats, 'Goalkeeper Saves');
+      result.savesAway = getStat(awayStats, 'Goalkeeper Saves');
+      result.xgHome = getStatFloat(homeStats, 'expected_goals');
+      result.xgAway = getStatFloat(awayStats, 'expected_goals');
+      
+      // Totali
+      result.shotsTotal = result.shotsHome + result.shotsAway;
+      result.shotsOnTotal = result.shotsOnHome + result.shotsOnAway;
+      result.cornersTotal = result.cornersHome + result.cornersAway;
+      
+      return result;
+    }
+    
+    function extractPreMatchPrior(predData, match) {
+      const prior = {
+        homeWinChance: 40,
+        awayWinChance: 30,
+        drawChance: 30,
+        overHT: 55,
+        over25: 50,
+        btts: 50,
+        homeGoalsAvg: 1.3,
+        awayGoalsAvg: 1.0,
+        homeForm: 'DDD',
+        awayForm: 'DDD',
+        advice: '',
+        xgPreMatch: 2.4
+      };
+      
+      if (!predData || !predData.response || !predData.response[0]) return prior;
+      
+      const pred = predData.response[0];
+      
+      // Probabilità 1X2
+      if (pred.predictions?.percent) {
+        prior.homeWinChance = parseInt(pred.predictions.percent.home) || 40;
+        prior.awayWinChance = parseInt(pred.predictions.percent.away) || 30;
+        prior.drawChance = parseInt(pred.predictions.percent.draw) || 30;
+      }
+      
+      // Consiglio API
+      if (pred.predictions?.advice) {
+        prior.advice = pred.predictions.advice;
+      }
+      
+      // Statistiche squadre
+      if (pred.teams?.home) {
+        const hl = pred.teams.home.last_5;
+        if (hl) {
+          prior.homeGoalsAvg = parseFloat(hl.goals?.for?.average) || 1.3;
+          prior.homeForm = hl.form || 'DDD';
+        }
+        if (pred.teams.home.league?.goals?.for?.average?.total) {
+          prior.homeGoalsAvg = parseFloat(pred.teams.home.league.goals.for.average.total) || 1.3;
+        }
+      }
+      if (pred.teams?.away) {
+        const al = pred.teams.away.last_5;
+        if (al) {
+          prior.awayGoalsAvg = parseFloat(al.goals?.for?.average) || 1.0;
+          prior.awayForm = al.form || 'DDD';
+        }
+        if (pred.teams.away.league?.goals?.for?.average?.total) {
+          prior.awayGoalsAvg = parseFloat(pred.teams.away.league.goals.for.average.total) || 1.0;
+        }
+      }
+      
+      // Stima xG pre-match e probabilità derivate
+      prior.xgPreMatch = prior.homeGoalsAvg + prior.awayGoalsAvg;
+      prior.overHT = clamp(30, quickCalcOver(prior.homeGoalsAvg * 0.45, prior.awayGoalsAvg * 0.45, 0.5), 85);
+      prior.over25 = clamp(20, quickCalcOver(prior.homeGoalsAvg, prior.awayGoalsAvg, 2.5), 85);
+      prior.btts = clamp(20, quickCalcBTTS(prior.homeGoalsAvg, prior.awayGoalsAvg), 80);
+      
+      return prior;
+    }
+    
+    function calculateMomentumScore(match, stats, prior) {
+      const elapsed = match.elapsed || 0;
+      const totalGoals = match.goals.home + match.goals.away;
+      
+      // === FATTORI LIVE (max 65 punti) ===
+      
+      // 1. Tiri in porta (max 25)
+      const shotsOnPts = Math.min(25, (stats.shotsOnTotal || 0) * 5.0);
+      
+      // 2. xG Live se disponibile (max 20)
+      let xgLivePts = 0;
+      if (stats.xgHome !== null && stats.xgAway !== null) {
+        const xgTotal = stats.xgHome + stats.xgAway;
+        xgLivePts = Math.min(20, xgTotal * 16.0);
+      }
+      
+      // 3. Corner (max 8)
+      const cornerPts = Math.min(8, (stats.cornersTotal || 0) * 1.6);
+      
+      // 4. Possesso sbilanciato (max 5)
+      const maxPoss = Math.max(stats.possessionHome || 50, stats.possessionAway || 50);
+      const possessionPts = maxPoss >= 65 ? 5 : (maxPoss >= 60 ? 3 : 0);
+      
+      // 5. Game State boost (max 7)
+      let gameStatePts = 0;
+      const isFavoriteHome = prior.homeWinChance > prior.awayWinChance + 10;
+      const isFavoriteAway = prior.awayWinChance > prior.homeWinChance + 10;
+      
+      if (totalGoals === 0) {
+        // 0-0: pressione alta
+        gameStatePts += 3;
+        if (elapsed >= 60) gameStatePts += 2;
+      }
+      if ((isFavoriteHome && match.goals.home < match.goals.away) ||
+          (isFavoriteAway && match.goals.away < match.goals.home)) {
+        // Favorita in svantaggio
+        gameStatePts += 4;
+      }
+      if (match.goals.home === 1 && match.goals.away === 1) {
+        // 1-1 partita aperta
+        gameStatePts += 3;
+      }
+      gameStatePts = Math.min(7, gameStatePts);
+      
+      // === FATTORI PRE-MATCH (max 35 punti) ===
+      
+      // 6. Storico Over (max 15)
+      const overHistPts = Math.min(15, (prior.overHT / 100) * 15);
+      
+      // 7. xG Pre-match (max 12)
+      let xgPrePts = 0;
+      if (prior.xgPreMatch >= 3.5) xgPrePts = 12;
+      else if (prior.xgPreMatch >= 3.0) xgPrePts = 10;
+      else if (prior.xgPreMatch >= 2.5) xgPrePts = 8;
+      else if (prior.xgPreMatch >= 2.0) xgPrePts = 5;
+      
+      // 8. Forma recente (max 8)
+      const homeWins = (prior.homeForm.match(/W/g) || []).length;
+      const awayWins = (prior.awayForm.match(/W/g) || []).length;
+      const formPts = Math.min(8, (homeWins + awayWins) * 1.6);
+      
+      // === SOMMA BASE ===
+      const rawScore = shotsOnPts + xgLivePts + cornerPts + possessionPts + gameStatePts + overHistPts + xgPrePts + formPts;
+      
+      // === MOLTIPLICATORE TEMPORALE ===
+      let timeMultiplier = 1.0;
+      if (match.status === '1H' && elapsed >= 20) {
+        timeMultiplier = 1 + (elapsed - 20) * 0.015;
+      } else if (match.status === '2H' && elapsed >= 50) {
+        timeMultiplier = 1 + (elapsed - 50) * 0.012;
+      } else if (match.status === 'HT') {
+        timeMultiplier = 1.1;
+      }
+      
+      const finalScore = Math.min(100, Math.round(rawScore * timeMultiplier));
+      
+      return {
+        score: finalScore,
+        rawScore: Math.round(rawScore),
+        timeMultiplier: timeMultiplier.toFixed(2),
+        factors: {
+          shotsOn: { pts: Math.round(shotsOnPts * 10) / 10, val: stats.shotsOnTotal || 0 },
+          xgLive: { pts: Math.round(xgLivePts * 10) / 10, val: (stats.xgHome !== null && stats.xgAway !== null) ? (stats.xgHome + stats.xgAway).toFixed(2) : 'n/d' },
+          corners: { pts: Math.round(cornerPts * 10) / 10, val: stats.cornersTotal || 0 },
+          possession: { pts: possessionPts, val: `${stats.possessionHome || 50}%-${stats.possessionAway || 50}%` },
+          gameState: { pts: gameStatePts, val: `${match.goals.home}-${match.goals.away}` },
+          overHist: { pts: Math.round(overHistPts * 10) / 10, val: `${Math.round(prior.overHT)}%` },
+          xgPre: { pts: xgPrePts, val: prior.xgPreMatch.toFixed(1) },
+          form: { pts: Math.round(formPts * 10) / 10, val: `${prior.homeForm.slice(0,5)}/${prior.awayForm.slice(0,5)}` }
+        }
+      };
+    }
+    
+    function generateMomentumAlerts(match, stats, prior, momentum) {
       const alerts = [];
+      const elapsed = match.elapsed || 0;
+      const totalGoals = match.goals.home + match.goals.away;
+      const score = momentum.score;
       
-      state.liveMatches.forEach(match => {
-        const elapsed = match.elapsed;
-        const homeGoals = match.goals.home;
-        const awayGoals = match.goals.away;
-        const totalGoals = homeGoals + awayGoals;
+      // Over 0.5 HT: 20'-40', status 1H, 0-0, soglia 65
+      if (totalGoals === 0 && elapsed >= 20 && elapsed <= 43 && match.status === '1H' && score >= 65) {
+        alerts.push({
+          type: 'over05_ht',
+          pick: 'Over 0.5 1°T',
+          level: score >= 80 ? 'high' : score >= 70 ? 'medium' : 'low',
+          score,
+          reason: `Momentum ${score}/100 — ${stats.shotsOnTotal} tiri in porta, ${stats.cornersTotal} corner in ${elapsed}'`
+        });
+      }
+      
+      // Over 0.5 FT: 50'-75', status 2H, 0-0, soglia 60
+      if (totalGoals === 0 && elapsed >= 50 && elapsed <= 78 && match.status === '2H' && score >= 60) {
+        alerts.push({
+          type: 'over05_ft',
+          pick: 'Over 0.5',
+          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low',
+          score,
+          reason: `0-0 al ${elapsed}' con ${stats.shotsOnTotal} tiri in porta — il gol arriverà`
+        });
+      }
+      
+      // Over 1.5 FT: 55'-80', totGoals<=1, soglia 60
+      if (totalGoals <= 1 && elapsed >= 55 && elapsed <= 82 && score >= 60 && (stats.shotsTotal || 0) >= 10) {
+        alerts.push({
+          type: 'over15_ft',
+          pick: totalGoals === 0 ? 'Over 0.5' : 'Over 1.5',
+          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low',
+          score,
+          reason: `${stats.shotsTotal} tiri totali, ${stats.shotsOnTotal} in porta — pressione ${totalGoals === 0 ? 'massima' : 'alta'}`
+        });
+      }
+      
+      // Over 2.5 FT: 50'-85', già 1-1 o 2-1, soglia 55
+      if (totalGoals >= 2 && totalGoals <= 3 && elapsed >= 50 && elapsed <= 85 && score >= 55) {
+        alerts.push({
+          type: 'over25_ft',
+          pick: totalGoals === 2 ? 'Over 2.5' : 'Over 3.5',
+          level: score >= 70 ? 'high' : score >= 60 ? 'medium' : 'low',
+          score,
+          reason: `Partita viva (${match.goals.home}-${match.goals.away}), ${stats.shotsOnTotal} tiri in porta`
+        });
+      }
+      
+      // Squadra Segna: dominio evidente, 0-0 o in svantaggio
+      if (totalGoals <= 1 && elapsed >= 15 && elapsed <= 82) {
+        const homeDominates = (stats.shotsOnHome || 0) >= 3 && (stats.possessionHome || 50) >= 55 && (stats.shotsOnHome || 0) > (stats.shotsOnAway || 0) + 2;
+        const awayDominates = (stats.shotsOnAway || 0) >= 3 && (stats.possessionAway || 50) >= 55 && (stats.shotsOnAway || 0) > (stats.shotsOnHome || 0) + 2;
         
-        // Estrai statistiche se disponibili
-        let stats = { shots: 0, shotsOn: 0, corners: 0, possession: 50 };
-        if (match.stats && match.stats.length >= 2) {
-          const homeStats = match.stats[0]?.statistics || [];
-          const awayStats = match.stats[1]?.statistics || [];
-          
-          const getStat = (arr, type) => {
-            const s = arr.find(s => s.type === type);
-            return s ? (parseInt(s.value) || 0) : 0;
-          };
-          
-          stats = {
-            shotsHome: getStat(homeStats, 'Total Shots'),
-            shotsAway: getStat(awayStats, 'Total Shots'),
-            shotsOnHome: getStat(homeStats, 'Shots on Goal'),
-            shotsOnAway: getStat(awayStats, 'Shots on Goal'),
-            cornersHome: getStat(homeStats, 'Corner Kicks'),
-            cornersAway: getStat(awayStats, 'Corner Kicks'),
-            possessionHome: getStat(homeStats, 'Ball Possession'),
-            possessionAway: getStat(awayStats, 'Ball Possession')
-          };
-          stats.shots = stats.shotsHome + stats.shotsAway;
-          stats.shotsOn = stats.shotsOnHome + stats.shotsOnAway;
-          stats.corners = stats.cornersHome + stats.cornersAway;
+        if (homeDominates && score >= 60) {
+          alerts.push({
+            type: 'home_scores',
+            pick: `${match.home.name.substring(0,15)} Segna`,
+            level: score >= 72 ? 'high' : 'medium',
+            score,
+            reason: `Dominio casa: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`
+          });
+        } else if (awayDominates && score >= 60) {
+          alerts.push({
+            type: 'away_scores',
+            pick: `${match.away.name.substring(0,15)} Segna`,
+            level: score >= 70 ? 'high' : 'medium',
+            score,
+            reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`
+          });
         }
-        
-        // === LOGICA ALERT OTTIMIZZATA ===
-        
-        // ALERT 1: 0-0 con tanti tiri (Over 0.5) - Dal 45' al 85'
-        if (totalGoals === 0 && elapsed >= 45 && elapsed <= 85) {
-          const pressure = stats.shotsOn * 2 + stats.corners * 0.5;
-          let prob = 50 + (elapsed - 40) * 0.6 + pressure * 2;
-          prob = Math.min(95, prob);
-          
-          if (prob >= 60 && stats.shotsOn >= 3) {
-            const quotaStimata = (100 / prob).toFixed(2);
-            alerts.push({
-              match,
-              type: 'over05',
-              level: prob >= 75 ? 'high' : 'medium',
-              pick: 'Over 0.5',
-              prob: prob.toFixed(0),
-              quota: quotaStimata,
-              reason: `${stats.shotsOn} tiri in porta, ${stats.corners} corner - il gol arriverà!`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 2: 0-0 o 1-0 tardi (Over 1.5) - Soglia tiri abbassata
-        if (totalGoals <= 1 && elapsed >= 55 && elapsed <= 85) {
-          const pressure = stats.shotsOn * 1.5 + stats.corners * 0.3;
-          let prob = 40 + pressure * 1.8;
-          
-          if (totalGoals === 0) prob += 15;
-          if (elapsed >= 65) prob += 8;
-          if (elapsed >= 75) prob += 5;
-          prob = Math.min(88, prob);
-          
-          if (prob >= 58 && stats.shots >= 10) {
-            const quotaStimata = (100 / prob).toFixed(2);
-            alerts.push({
-              match,
-              type: 'over15',
-              level: prob >= 70 ? 'high' : 'medium',
-              pick: 'Over 1.5',
-              prob: prob.toFixed(0),
-              quota: quotaStimata,
-              reason: `${stats.shots} tiri totali, partita sbloccata in arrivo`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 3: 1-1 partita aperta (Over 2.5)
-        if (homeGoals === 1 && awayGoals === 1 && elapsed >= 50 && elapsed <= 85) {
-          let prob = 55 + (stats.shotsOn * 1.5);
-          if (elapsed >= 60) prob += 8;
-          if (elapsed >= 70) prob += 5;
-          prob = Math.min(82, prob);
-          
-          if (prob >= 55) {
-            const quotaStimata = (100 / prob).toFixed(2);
-            alerts.push({
-              match,
-              type: 'over25',
-              level: prob >= 68 ? 'high' : 'medium',
-              pick: 'Over 2.5',
-              prob: prob.toFixed(0),
-              quota: quotaStimata,
-              reason: `Partita aperta, entrambe hanno già segnato`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 3b: 2-1 o 1-2 (Over 3.5 possibile)
-        if ((homeGoals === 2 && awayGoals === 1) || (homeGoals === 1 && awayGoals === 2)) {
-          if (elapsed >= 55 && elapsed <= 80) {
-            let prob = 50 + stats.shotsOn * 1.5;
-            if (elapsed >= 65) prob += 5;
-            prob = Math.min(75, prob);
-            
-            if (prob >= 55 && stats.shotsOn >= 4) {
-              alerts.push({
-                match,
-                type: 'over35',
-                level: prob >= 65 ? 'high' : 'medium',
-                pick: 'Over 3.5',
-                prob: prob.toFixed(0),
-                quota: (100 / prob).toFixed(2),
-                reason: `Partita vivace (${homeGoals}-${awayGoals}), ${stats.shotsOn} tiri in porta`,
-                stats
-              });
-            }
-          }
-        }
-        
-        // ALERT 4: Squadra domina ma non segna - Soglie abbassate
-        if (totalGoals === 0 && elapsed >= 35 && elapsed <= 80) {
-          const homeDominating = stats.shotsOnHome >= 3 && stats.possessionHome >= 55;
-          const awayDominating = stats.shotsOnAway >= 3 && stats.possessionAway >= 55;
-          
-          if (homeDominating && stats.shotsOnHome > stats.shotsOnAway + 1) {
-            let prob = 55 + stats.shotsOnHome * 4;
-            prob = Math.min(88, prob);
-            alerts.push({
-              match,
-              type: 'homeScores',
-              level: prob >= 72 ? 'high' : 'medium',
-              pick: `${match.home.name.substring(0,15)} Segna`,
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `Dominio: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
-              stats
-            });
-          } else if (awayDominating && stats.shotsOnAway > stats.shotsOnHome + 1) {
-            let prob = 50 + stats.shotsOnAway * 4;
-            prob = Math.min(85, prob);
-            alerts.push({
-              match,
-              type: 'awayScores',
-              level: prob >= 70 ? 'high' : 'medium',
-              pick: `${match.away.name.substring(0,15)} Segna`,
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 5: Intervallo con tanti tiri (Gol 2° Tempo) - Soglia abbassata
-        if (match.status === 'HT' && totalGoals <= 2) {
-          let prob = 50 + stats.shotsOn * 2.5;
-          prob = Math.min(88, prob);
-          
-          if (prob >= 60 && stats.shotsOn >= 3) {
-            alerts.push({
-              match,
-              type: 'goal2T',
-              level: prob >= 72 ? 'high' : 'medium',
-              pick: 'Gol 2° Tempo',
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `${stats.shotsOn} tiri in porta nel 1° tempo - gol in arrivo!`,
-              stats
-            });
-          }
-        }
-        
-        // === ALERT PRIMO TEMPO ===
-        
-        // ALERT 6: Over 0.5 Primo Tempo (0-0 tra 20' e 45')
-        if (totalGoals === 0 && elapsed >= 20 && elapsed <= 45 && match.status === '1H') {
-          const pressure = stats.shotsOn * 2.5 + stats.corners * 0.5;
-          let prob = 35 + (elapsed - 15) * 0.8 + pressure * 2;
-          prob = Math.min(90, prob);
-          
-          if (prob >= 60 && stats.shotsOn >= 3) {
-            alerts.push({
-              match,
-              type: 'over05_1T',
-              level: prob >= 72 ? 'high' : 'medium',
-              pick: 'Over 0.5 1°T',
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `${stats.shotsOn} tiri in porta in ${elapsed}' - gol in arrivo!`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 7: Squadra Segna nel 1° Tempo (dominio evidente 15'-40')
-        if (totalGoals === 0 && elapsed >= 15 && elapsed <= 40 && match.status === '1H') {
-          const homeDominating = stats.shotsOnHome >= 3 && stats.possessionHome >= 55;
-          const awayDominating = stats.shotsOnAway >= 3 && stats.possessionAway >= 55;
-          
-          if (homeDominating && stats.shotsOnHome > stats.shotsOnAway + 1) {
-            let prob = 50 + stats.shotsOnHome * 5;
-            prob = Math.min(85, prob);
-            if (prob >= 60) {
-              alerts.push({
-                match,
-                type: 'homeScores1T',
-                level: prob >= 72 ? 'high' : 'medium',
-                pick: `${match.home.name.substring(0,12)} Segna 1°T`,
-                prob: prob.toFixed(0),
-                quota: (100 / prob).toFixed(2),
-                reason: `Dominio: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`,
-                stats
-              });
-            }
-          } else if (awayDominating && stats.shotsOnAway > stats.shotsOnHome + 1) {
-            let prob = 45 + stats.shotsOnAway * 5;
-            prob = Math.min(82, prob);
-            if (prob >= 60) {
-              alerts.push({
-                match,
-                type: 'awayScores1T',
-                level: prob >= 70 ? 'high' : 'medium',
-                pick: `${match.away.name.substring(0,12)} Segna 1°T`,
-                prob: prob.toFixed(0),
-                quota: (100 / prob).toFixed(2),
-                reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`,
-                stats
-              });
-            }
-          }
-        }
-        
-        // ALERT 8: Over 1.5 Primo Tempo (1-0 o 0-1 tra 25' e 45')
-        if (totalGoals === 1 && elapsed >= 25 && elapsed <= 45 && match.status === '1H') {
-          let prob = 40 + stats.shotsOn * 2.5;
-          if (stats.shotsOn >= 5) prob += 10;
-          prob = Math.min(82, prob);
-          
-          if (prob >= 55 && stats.shotsOn >= 4) {
-            alerts.push({
-              match,
-              type: 'over15_1T',
-              level: prob >= 68 ? 'high' : 'medium',
-              pick: 'Over 1.5 1°T',
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `Già 1 gol + ${stats.shotsOn} tiri in porta - altro gol probabile!`,
-              stats
-            });
-          }
-        }
-        
-        // ALERT 9: Gol nei primi minuti di ripresa (50'-60')
-        if (totalGoals <= 1 && elapsed >= 50 && elapsed <= 65 && match.status === '2H') {
-          let prob = 45 + stats.shotsOn * 2;
-          if (totalGoals === 0) prob += 10;
-          prob = Math.min(80, prob);
-          
-          if (prob >= 58 && stats.shotsOn >= 4) {
-            alerts.push({
-              match,
-              type: 'earlyGoal2T',
-              level: prob >= 68 ? 'high' : 'medium',
-              pick: totalGoals === 0 ? 'Over 0.5' : 'Over 1.5',
-              prob: prob.toFixed(0),
-              quota: (100 / prob).toFixed(2),
-              reason: `Inizio 2°T con ${stats.shotsOn} tiri - pressione alta!`,
-              stats
-            });
-          }
+      }
+      
+      // Gol 2° Tempo: all'intervallo con tanti tiri
+      if (match.status === 'HT' && totalGoals <= 2 && (stats.shotsOnTotal || 0) >= 3 && score >= 55) {
+        alerts.push({
+          type: 'goal_2t',
+          pick: 'Gol 2° Tempo',
+          level: score >= 70 ? 'high' : 'medium',
+          score,
+          reason: `${stats.shotsOnTotal} tiri in porta nel 1°T — aspettati gol nella ripresa`
+        });
+      }
+      
+      return alerts.sort((a, b) => b.score - a.score);
+    }
+    
+    // Ricostruisce gli alert globali da tutte le partite analizzate
+    function rebuildGlobalAlerts() {
+      const allAlerts = [];
+      state.liveAnalyzed.forEach((data, matchId) => {
+        if (data.alerts && data.alerts.length > 0) {
+          data.alerts.forEach(a => allAlerts.push({ ...a, matchId, match: data.match }));
         }
       });
+      state.liveAlerts = allAlerts.sort((a, b) => b.score - a.score);
+    }
+    
+    // Auto-refresh per singola partita analizzata
+    function startMatchRefresh(matchId) {
+      if (state.liveMatchIntervals.has(matchId)) return;
       
-      // Ordina per livello e probabilità
-      alerts.sort((a, b) => {
-        const levelOrder = { high: 0, medium: 1, low: 2 };
-        if (levelOrder[a.level] !== levelOrder[b.level]) {
-          return levelOrder[a.level] - levelOrder[b.level];
+      const intervalId = setInterval(async () => {
+        const existing = state.liveAnalyzed.get(matchId);
+        if (!existing || existing.loading) return;
+        
+        const match = state.liveMatches.find(m => m.id === matchId);
+        if (!match || ['FT','AET','PEN'].includes(match.status)) {
+          stopMatchAnalysis(matchId);
+          return;
         }
-        return parseFloat(b.prob) - parseFloat(a.prob);
-      });
+        
+        try {
+          const statsData = await callAPIFootball('/fixtures/statistics', { fixture: matchId });
+          const stats = extractLiveStats(statsData);
+          const momentum = calculateMomentumScore(match, stats, existing.prior);
+          const alerts = generateMomentumAlerts(match, stats, existing.prior, momentum);
+          
+          state.liveAnalyzed.set(matchId, {
+            ...existing,
+            match,
+            stats,
+            momentum,
+            alerts,
+            lastUpdate: Date.now()
+          });
+          
+          rebuildGlobalAlerts();
+          render();
+        } catch (e) {
+          console.warn('Match refresh error:', matchId, e);
+        }
+      }, 120000); // 120 secondi
       
-      state.liveAlerts = alerts;
+      state.liveMatchIntervals.set(matchId, intervalId);
+    }
+    
+    function stopMatchAnalysis(matchId) {
+      const intervalId = state.liveMatchIntervals.get(matchId);
+      if (intervalId) {
+        clearInterval(intervalId);
+        state.liveMatchIntervals.delete(matchId);
+      }
+      state.liveAnalyzed.delete(matchId);
+      rebuildGlobalAlerts();
+    }
+    
+    // Legacy compatibility - now just delegates
+    function calculateLiveAlerts() {
+      rebuildGlobalAlerts();
     }
     
     // === LIVE BACKGROUND MONITORING ===
     function startLiveBackgroundMonitoring() {
-      // Carica subito i dati LIVE
       loadLiveMatchesBackground();
-      
-      // Poi ogni 90 secondi in background
       state.liveBackgroundInterval = setInterval(() => {
         loadLiveMatchesBackground();
-      }, 90000); // 90 secondi in background
+      }, 90000); // 90 secondi
     }
     
     async function loadLiveMatchesBackground() {
@@ -4063,23 +4353,21 @@
             stats: f.statistics || []
           }));
           
-          // Calcola gli alert
-          calculateLiveAlerts();
-          
-          // Aggiorna solo il badge senza re-renderizzare tutto
+          updateAnalyzedMatches();
           updateLiveBadge();
         }
       } catch (e) {
         console.warn('Live background load error:', e);
       }
     }
-    
     function updateLiveBadge() {
       const badge = document.querySelector('#liveTab');
       if (badge) {
         const alertCount = state.liveAlerts.length;
+        const analyzed = state.liveAnalyzed.size;
         const dot = '<span class="live-dot"></span>';
-        const countBadge = alertCount > 0 ? `<span class="live-badge-count">${alertCount}</span>` : '';
+        const countBadge = alertCount > 0 ? `<span class="live-badge-count">${alertCount}</span>` : 
+                           (analyzed > 0 ? `<span class="live-badge-count" style="background:var(--accent-cyan);color:var(--bg-dark);">${analyzed}</span>` : '');
         badge.innerHTML = `${dot} LIVE ${countBadge}`;
       }
     }
@@ -4087,8 +4375,7 @@
     function startLiveAutoRefresh() {
       if (state.liveInterval) return;
       
-      // Countdown visivo
-      state.liveCountdown = 60;
+      state.liveCountdown = 90;
       state.countdownInterval = setInterval(() => {
         state.liveCountdown--;
         const countdownEl = document.querySelector('.live-countdown');
@@ -4096,17 +4383,17 @@
           countdownEl.textContent = state.liveCountdown + 's';
         }
         if (state.liveCountdown <= 0) {
-          state.liveCountdown = 60;
+          state.liveCountdown = 90;
         }
       }, 1000);
       
-      // Refresh dati ogni 60 secondi quando nella sezione LIVE
+      // Refresh lista partite ogni 90 secondi
       state.liveInterval = setInterval(() => {
         if (state.liveMode) {
           loadLiveMatches();
-          state.liveCountdown = 60;
+          state.liveCountdown = 90;
         }
-      }, 60000);
+      }, 90000);
     }
     
     function stopLiveAutoRefresh() {
@@ -4127,6 +4414,7 @@
         startLiveAutoRefresh();
       } else {
         stopLiveAutoRefresh();
+        // NON fermiamo le analisi individuali - continuano in background
       }
       render();
     }
@@ -4764,80 +5052,162 @@
         return `
           <div class="live-section">
             <div class="live-header">
-              <div class="live-title"><span class="live-dot"></span> LIVE Alerts</div>
+              <div class="live-title"><span class="live-dot"></span> LIVE Momentum Engine</div>
             </div>
             <div class="loading"><div class="spinner"></div><div class="loading-text">Caricamento partite live...</div></div>
           </div>
         `;
       }
       
-      const alerts = state.liveAlerts;
+      const matches = state.liveMatches;
+      const analyzedIds = new Set(state.liveAnalyzed.keys());
       
       return `
         <div class="live-section">
           <div class="live-header">
-            <div class="live-title"><span class="live-dot"></span> LIVE Alerts</div>
+            <div class="live-title"><span class="live-dot"></span> LIVE Momentum Engine</div>
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div class="live-auto-refresh">🔄 Auto-refresh <span class="live-countdown">${state.liveCountdown}s</span></div>
+              <div class="live-auto-refresh">🔄 Lista refresh <span class="live-countdown">${state.liveCountdown}s</span></div>
               <button class="live-refresh-btn" id="refreshLive">⟳ Aggiorna</button>
             </div>
           </div>
           
-          ${alerts.length === 0 ? `
+          ${matches.length === 0 ? `
             <div class="live-empty">
               <div class="live-empty-icon">📡</div>
-              <div>Nessun alert al momento</div>
+              <div>Nessuna partita live al momento</div>
               <div style="font-size: 0.8rem; margin-top: 8px; color: var(--text-dark);">
-                ${state.liveMatches.length} partite live monitorate
+                La lista si aggiorna automaticamente ogni 90 secondi
               </div>
             </div>
           ` : `
-            <div class="live-alerts-grid">
-              ${alerts.map(alert => `
-                <div class="live-alert-card ${alert.level}">
-                  <div class="live-alert-header">
-                    <div class="live-alert-level">${alert.level === 'high' ? '🚨 ALERT ALTO' : alert.level === 'medium' ? '⚠️ ALERT MEDIO' : '🔵 INFO'}</div>
-                    <div class="live-alert-time"><span class="live-dot"></span> ${alert.match.elapsed}'</div>
+            <div style="font-size: 0.8rem; color: var(--text-dark); margin-bottom: 10px;">
+              ${matches.length} partite live — clicca <strong style="color:var(--accent-cyan);">Analizza</strong> sulle partite che ti interessano
+            </div>
+            <div class="live-match-list">
+              ${matches.map(m => {
+                const isAnalyzed = analyzedIds.has(m.id);
+                const analysis = state.liveAnalyzed.get(m.id);
+                const isLoading = analysis && analysis.loading;
+                const minuteClass = m.status === 'HT' ? 'ht' : '';
+                const minuteText = m.status === 'HT' ? 'HT' : (m.status === '1H' || m.status === '2H' ? m.elapsed + "'" : m.status);
+                return `
+                  <div class="live-match-row ${isAnalyzed && !isLoading ? 'analyzed' : ''}">
+                    <span class="live-match-minute ${minuteClass}">${minuteText}</span>
+                    <span class="live-match-league">${esc(m.league.country)}</span>
+                    <span class="live-match-teams">${esc(m.home.name)} vs ${esc(m.away.name)}</span>
+                    <span class="live-match-score">${m.goals.home} - ${m.goals.away}</span>
+                    <button class="live-analyze-btn ${isLoading ? 'loading' : ''} ${isAnalyzed && !isLoading ? 'stop' : ''}" 
+                            onclick="analyzeMatchLive(${m.id})">
+                      ${isLoading ? '⏳...' : (isAnalyzed ? '✕ Stop' : '⚡ Analizza')}
+                    </button>
                   </div>
-                  <div class="live-alert-body">
-                    <div class="live-alert-match">
-                      <div class="live-alert-teams">${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}</div>
-                      <div class="live-alert-score">${alert.match.goals.home} - ${alert.match.goals.away}</div>
-                    </div>
-                    <div class="live-alert-stats">
-                      <div class="live-stat">🎯 Tiri in porta: <strong>${alert.stats.shotsOnHome || 0}-${alert.stats.shotsOnAway || 0}</strong></div>
-                      <div class="live-stat">⚽ Tiri totali: <strong>${alert.stats.shotsHome || 0}-${alert.stats.shotsAway || 0}</strong></div>
-                      <div class="live-stat">🚩 Corner: <strong>${alert.stats.cornersHome || 0}-${alert.stats.cornersAway || 0}</strong></div>
-                      <div class="live-stat">📊 Possesso: <strong>${alert.stats.possessionHome || 50}%-${alert.stats.possessionAway || 50}%</strong></div>
-                    </div>
-                    <div class="live-alert-pick">
-                      <div class="live-pick-label">CONSIGLIO LIVE</div>
-                      <div class="live-pick-value">${alert.pick}</div>
-                      <div class="live-pick-details">
-                        <span class="live-pick-prob">📈 ${alert.prob}% prob</span>
-                        <span style="color: var(--accent-yellow);">💰 ~@${alert.quota}</span>
-                      </div>
-                      <div class="live-pick-reason">💡 ${alert.reason}</div>
-                      <button class="live-track-btn ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'tracked' : ''}"
-                              onclick="trackLiveBet(${alert.match.id}, '${esc(alert.match.home.name)} vs ${esc(alert.match.away.name)}', '${esc(alert.pick)}', ${alert.prob}, ${alert.quota}, event)"
-                              ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? 'disabled' : ''}>
-                        ${state.trackedBets.some(b => b.matchId === alert.match.id && b.isLive) ? '✅ Tracciato' : '🎯 GIOCATO'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           `}
           
+          ${renderMomentumCards()}
+          
           <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-            <div style="font-size: 0.8rem; color: var(--text-dark); margin-bottom: 8px;">📊 Statistiche Monitorate</div>
             <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-gray);">
-              <span>🔴 Partite LIVE: <strong style="color: var(--text-white);">${state.liveMatches.length}</strong></span>
-              <span>🚨 Alert Alti: <strong style="color: var(--accent-red);">${alerts.filter(a => a.level === 'high').length}</strong></span>
-              <span>⚠️ Alert Medi: <strong style="color: var(--accent-yellow);">${alerts.filter(a => a.level === 'medium').length}</strong></span>
+              <span>🔴 Partite LIVE: <strong style="color: var(--text-white);">${matches.length}</strong></span>
+              <span>📊 Analizzate: <strong style="color: var(--accent-cyan);">${analyzedIds.size}</strong></span>
+              <span>🚨 Alert attivi: <strong style="color: var(--accent-red);">${state.liveAlerts.length}</strong></span>
             </div>
           </div>
+        </div>
+      `;
+    }
+    
+    function renderMomentumCards() {
+      const analyzed = Array.from(state.liveAnalyzed.entries()).filter(([id, d]) => !d.loading && d.momentum);
+      if (analyzed.length === 0) return '';
+      
+      // Ordina per momentum score decrescente
+      analyzed.sort((a, b) => (b[1].momentum?.score || 0) - (a[1].momentum?.score || 0));
+      
+      return `
+        <div class="momentum-cards">
+          ${analyzed.map(([matchId, data]) => {
+            const m = data.match;
+            const mom = data.momentum;
+            const stats = data.stats;
+            const alerts = data.alerts || [];
+            const score = mom.score;
+            const level = score >= 70 ? 'high' : score >= 55 ? 'medium' : 'low';
+            const barColor = score >= 70 ? 'red' : score >= 55 ? 'yellow' : 'cyan';
+            const threshold = alerts.length > 0 ? (alerts[0].type.includes('ht') ? 65 : alerts[0].type.includes('25') ? 55 : 60) : 65;
+            const elapsed = m.elapsed || 0;
+            const timeSinceUpdate = Math.round((Date.now() - data.lastUpdate) / 1000);
+            const nextRefresh = Math.max(0, 120 - timeSinceUpdate);
+            
+            return `
+            <div class="momentum-card ${level}">
+              <div class="momentum-card-header">
+                <div class="momentum-match-info">
+                  <span class="momentum-match-name">${esc(m.home.name)} vs ${esc(m.away.name)}</span>
+                  <span class="momentum-match-time">${m.status === 'HT' ? 'HT' : elapsed + "'"} (${m.goals.home}-${m.goals.away})</span>
+                </div>
+                <span class="momentum-badge">${score}/100</span>
+              </div>
+              <div class="momentum-card-body">
+                <div class="momentum-score-row">
+                  <div>
+                    <div class="momentum-big-score">${score}</div>
+                    <div style="font-size:0.7rem;color:var(--text-dark);">Momentum</div>
+                  </div>
+                  <div style="flex:1;">
+                    <div class="momentum-bar-track">
+                      <div class="momentum-bar-fill ${barColor}" style="width:${score}%"></div>
+                      <div class="momentum-bar-threshold" style="left:${threshold}%"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                      <span style="font-size:0.65rem;color:var(--text-dark);">0</span>
+                      <span style="font-size:0.65rem;color:var(--text-dark);">Soglia: ${threshold}</span>
+                      <span style="font-size:0.65rem;color:var(--text-dark);">100</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="momentum-factors">
+                  <div class="momentum-factor"><span class="momentum-factor-label">Tiri in porta</span><span class="momentum-factor-val">${mom.factors.shotsOn.val} (+${mom.factors.shotsOn.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">xG live</span><span class="momentum-factor-val">${mom.factors.xgLive.val} (+${mom.factors.xgLive.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Corner</span><span class="momentum-factor-val">${mom.factors.corners.val} (+${mom.factors.corners.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Possesso</span><span class="momentum-factor-val">${mom.factors.possession.val} (+${mom.factors.possession.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Game State</span><span class="momentum-factor-val">${mom.factors.gameState.val} (+${mom.factors.gameState.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">%Over storico</span><span class="momentum-factor-val">${mom.factors.overHist.val} (+${mom.factors.overHist.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">xG pre-match</span><span class="momentum-factor-val">${mom.factors.xgPre.val} (+${mom.factors.xgPre.pts})</span></div>
+                  <div class="momentum-factor"><span class="momentum-factor-label">Tempo ×</span><span class="momentum-factor-val">×${mom.timeMultiplier}</span></div>
+                </div>
+                
+                ${alerts.length > 0 ? alerts.map(a => `
+                  <div class="momentum-alert-box" style="margin-bottom:8px;${a.level === 'high' ? 'border-color:var(--accent-red);background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(251,191,36,0.12));' : ''}">
+                    <div class="momentum-alert-title">CONSIGLIO LIVE</div>
+                    <div class="momentum-alert-pick">${a.pick}</div>
+                    <div class="momentum-alert-details">
+                      <span style="color:var(--accent-cyan);">📈 Score: ${a.score}/100</span>
+                      <span style="color:var(--accent-yellow);">💰 ~@${(100 / Math.max(50, a.score)).toFixed(2)}</span>
+                    </div>
+                    <div class="momentum-alert-reason">💡 ${a.reason}</div>
+                    <button class="live-track-btn ${state.trackedBets.some(b => b.matchId === m.id && b.pick === a.pick) ? 'tracked' : ''}"
+                            onclick="trackLiveBet(${m.id}, '${esc(m.home.name)} vs ${esc(m.away.name)}', '${esc(a.pick)}', ${a.score}, ${(100 / Math.max(50, a.score)).toFixed(2)}, event)"
+                            ${state.trackedBets.some(b => b.matchId === m.id && b.pick === a.pick) ? 'disabled' : ''}>
+                      ${state.trackedBets.some(b => b.matchId === m.id && b.pick === a.pick) ? '✅ Tracciato' : '🎯 GIOCATO'}
+                    </button>
+                  </div>
+                `).join('') : `
+                  <div class="momentum-no-alert">
+                    📊 Momentum ${score}/100 — ${score < 55 ? 'sotto soglia, nessun consiglio' : 'in crescita, monitorando...'}
+                  </div>
+                `}
+                
+                <div class="momentum-refresh-info">⟳ Prossimo aggiornamento: ~${nextRefresh}s</div>
+                <button class="momentum-stop-btn" onclick="stopMatchAnalysis(${matchId});render();">✕ Ferma analisi</button>
+              </div>
+            </div>
+            `;
+          }).join('')}
         </div>
       `;
     }
