@@ -1854,6 +1854,22 @@
       .stat-grid { grid-template-columns: repeat(3, 1fr); }
       .combo-grid { grid-template-columns: repeat(2, 1fr); }
       .slip-floating { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
+      /* LIVE MOMENTUM - Mobile */
+      .live-match-row { padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
+      .live-match-minute { min-width: 30px; font-size: 0.75rem; }
+      .live-match-league { display: none; }
+      .live-match-teams { font-size: 0.78rem; min-width: 0; }
+      .live-match-score { font-size: 0.9rem; min-width: 34px; }
+      .live-analyze-btn { padding: 5px 10px; font-size: 0.7rem; }
+      .momentum-card-header { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
+      .momentum-match-name { font-size: 0.8rem; }
+      .momentum-card-body { padding: 12px; }
+      .momentum-big-score { font-size: 1.8rem; }
+      .momentum-factors { grid-template-columns: 1fr; gap: 4px; }
+      .momentum-factor { font-size: 0.72rem; padding: 4px 6px; }
+      .edit-form-grid { grid-template-columns: 1fr; gap: 6px; }
+      .edit-form-input { padding: 8px 6px; font-size: 0.85rem; }
+      .momentum-score-row { gap: 10px; }
     }
     
     /* TRACKING & STATS */
@@ -4441,82 +4457,140 @@
       const totalGoals = match.goals.home + match.goals.away;
       const score = momentum.score;
       
-      // Over 0.5 HT: 20'-40', status 1H, 0-0, soglia 65
+      // === PRIMO TEMPO ===
+      
+      // Over 0.5 HT: 20'-43', status 1H, 0-0, soglia 65
       if (totalGoals === 0 && elapsed >= 20 && elapsed <= 43 && match.status === '1H' && score >= 65) {
         alerts.push({
-          type: 'over05_ht',
-          pick: 'Over 0.5 1°T',
-          level: score >= 80 ? 'high' : score >= 70 ? 'medium' : 'low',
-          score,
-          reason: `Momentum ${score}/100 — ${stats.shotsOnTotal} tiri in porta, ${stats.cornersTotal} corner in ${elapsed}'`
+          type: 'over05_ht', pick: 'Over 0.5 1°T',
+          level: score >= 80 ? 'high' : score >= 70 ? 'medium' : 'low', score,
+          reason: `Momentum ${score}/100 — ${stats.shotsOnTotal || 0} tiri in porta, ${stats.cornersTotal || 0} corner in ${elapsed}'`
         });
       }
       
-      // Over 0.5 FT: 50'-75', status 2H, 0-0, soglia 60
-      if (totalGoals === 0 && elapsed >= 50 && elapsed <= 78 && match.status === '2H' && score >= 60) {
+      // Over 1.5 HT: 25'-43', status 1H, già 1 gol, soglia 60
+      if (totalGoals >= 1 && totalGoals <= 1 && elapsed >= 25 && elapsed <= 43 && match.status === '1H' && score >= 60) {
         alerts.push({
-          type: 'over05_ft',
-          pick: 'Over 0.5',
-          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low',
-          score,
-          reason: `0-0 al ${elapsed}' con ${stats.shotsOnTotal} tiri in porta — il gol arriverà`
+          type: 'over15_ht', pick: 'Over 1.5 1°T',
+          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low', score,
+          reason: `Già ${totalGoals} gol + momentum ${score}/100 — altro gol probabile nel 1°T`
         });
       }
       
-      // Over 1.5 FT: 55'-80', totGoals<=1, soglia 60
-      if (totalGoals <= 1 && elapsed >= 55 && elapsed <= 82 && score >= 60 && (stats.shotsTotal || 0) >= 10) {
+      // Over 2.5 HT: 15'-43', status 1H, già 2+ gol, soglia 55
+      if (totalGoals >= 2 && elapsed >= 15 && elapsed <= 43 && match.status === '1H' && score >= 55) {
         alerts.push({
-          type: 'over15_ft',
-          pick: totalGoals === 0 ? 'Over 0.5' : 'Over 1.5',
-          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low',
-          score,
-          reason: `${stats.shotsTotal} tiri totali, ${stats.shotsOnTotal} in porta — pressione ${totalGoals === 0 ? 'massima' : 'alta'}`
+          type: 'over25_ht', pick: `Over ${totalGoals + 0.5} 1°T`,
+          level: score >= 70 ? 'high' : score >= 60 ? 'medium' : 'low', score,
+          reason: `Partita esplosiva: ${match.goals.home}-${match.goals.away} al ${elapsed}' — ritmo altissimo`
         });
       }
       
-      // Over 2.5 FT: 50'-85', già 1-1 o 2-1, soglia 55
-      if (totalGoals >= 2 && totalGoals <= 3 && elapsed >= 50 && elapsed <= 85 && score >= 55) {
+      // Over 3.5/4.5 FT dal primo tempo: già 3+ gol nel 1°T, soglia 50
+      if (totalGoals >= 3 && match.status === '1H' && score >= 50) {
+        const nextLine = totalGoals + 0.5;
         alerts.push({
-          type: 'over25_ft',
-          pick: totalGoals === 2 ? 'Over 2.5' : 'Over 3.5',
-          level: score >= 70 ? 'high' : score >= 60 ? 'medium' : 'low',
-          score,
-          reason: `Partita viva (${match.goals.home}-${match.goals.away}), ${stats.shotsOnTotal} tiri in porta`
+          type: 'over_ft_from_ht', pick: `Over ${nextLine} FT`,
+          level: score >= 65 ? 'high' : score >= 55 ? 'medium' : 'low', score,
+          reason: `${totalGoals} gol nel 1°T (${match.goals.home}-${match.goals.away}) — ritmo da Over ${nextLine}`
         });
       }
       
-      // Squadra Segna: dominio evidente, 0-0 o in svantaggio
-      if (totalGoals <= 1 && elapsed >= 15 && elapsed <= 82) {
-        const homeDominates = (stats.shotsOnHome || 0) >= 3 && (stats.possessionHome || 50) >= 55 && (stats.shotsOnHome || 0) > (stats.shotsOnAway || 0) + 2;
-        const awayDominates = (stats.shotsOnAway || 0) >= 3 && (stats.possessionAway || 50) >= 55 && (stats.shotsOnAway || 0) > (stats.shotsOnHome || 0) + 2;
-        
-        if (homeDominates && score >= 60) {
+      // Squadra Segna 1°T: dominio evidente 15'-40', 0-0
+      if (totalGoals === 0 && elapsed >= 15 && elapsed <= 40 && match.status === '1H' && score >= 60) {
+        const homeDom = (stats.shotsOnHome || 0) >= 3 && (stats.possessionHome || 50) >= 55 && (stats.shotsOnHome || 0) > (stats.shotsOnAway || 0) + 2;
+        const awayDom = (stats.shotsOnAway || 0) >= 3 && (stats.possessionAway || 50) >= 55 && (stats.shotsOnAway || 0) > (stats.shotsOnHome || 0) + 2;
+        if (homeDom) {
           alerts.push({
-            type: 'home_scores',
-            pick: `${match.home.name.substring(0,15)} Segna`,
-            level: score >= 72 ? 'high' : 'medium',
-            score,
+            type: 'home_scores_ht', pick: `${match.home.name.substring(0,15)} Segna 1°T`,
+            level: score >= 72 ? 'high' : 'medium', score,
             reason: `Dominio casa: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`
           });
-        } else if (awayDominates && score >= 60) {
+        } else if (awayDom) {
           alerts.push({
-            type: 'away_scores',
-            pick: `${match.away.name.substring(0,15)} Segna`,
-            level: score >= 70 ? 'high' : 'medium',
-            score,
+            type: 'away_scores_ht', pick: `${match.away.name.substring(0,15)} Segna 1°T`,
+            level: score >= 70 ? 'high' : 'medium', score,
             reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`
           });
         }
       }
       
-      // Gol 2° Tempo: all'intervallo con tanti tiri
-      if (match.status === 'HT' && totalGoals <= 2 && (stats.shotsOnTotal || 0) >= 3 && score >= 55) {
+      // === INTERVALLO ===
+      
+      // Gol 2° Tempo: all'intervallo con tanti tiri o gol
+      if (match.status === 'HT' && (stats.shotsOnTotal || 0) >= 3 && score >= 55) {
+        const nextFtLine = totalGoals + 0.5;
         alerts.push({
-          type: 'goal_2t',
-          pick: 'Gol 2° Tempo',
-          level: score >= 70 ? 'high' : 'medium',
-          score,
-          reason: `${stats.shotsOnTotal} tiri in porta nel 1°T — aspettati gol nella ripresa`
+          type: 'goal_2t', pick: totalGoals === 0 ? 'Over 0.5 2°T' : `Over ${nextFtLine} FT`,
+          level: score >= 70 ? 'high' : 'medium', score,
+          reason: `${stats.shotsOnTotal} tiri in porta nel 1°T${totalGoals > 0 ? `, già ${totalGoals} gol` : ''} — gol in arrivo`
+        });
+      }
+      
+      // === SECONDO TEMPO ===
+      
+      // Over 0.5 FT: 50'-78', status 2H, 0-0, soglia 60
+      if (totalGoals === 0 && elapsed >= 50 && elapsed <= 78 && match.status === '2H' && score >= 60) {
+        alerts.push({
+          type: 'over05_ft', pick: 'Over 0.5',
+          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low', score,
+          reason: `0-0 al ${elapsed}' con ${stats.shotsOnTotal || 0} tiri in porta — il gol arriverà`
+        });
+      }
+      
+      // Over 1.5 FT: 55'-82', totGoals<=1, soglia 60
+      if (totalGoals <= 1 && elapsed >= 55 && elapsed <= 82 && match.status === '2H' && score >= 60 && (stats.shotsTotal || 0) >= 8) {
+        alerts.push({
+          type: 'over15_ft', pick: totalGoals === 0 ? 'Over 0.5' : 'Over 1.5',
+          level: score >= 75 ? 'high' : score >= 65 ? 'medium' : 'low', score,
+          reason: `${stats.shotsTotal || 0} tiri totali, ${stats.shotsOnTotal || 0} in porta — pressione ${totalGoals === 0 ? 'massima' : 'alta'}`
+        });
+      }
+      
+      // Over 2.5 FT: 50'-85', già 2-3 gol, soglia 55
+      if (totalGoals >= 2 && totalGoals <= 4 && elapsed >= 50 && elapsed <= 85 && match.status === '2H' && score >= 55) {
+        const nextLine = totalGoals + 0.5;
+        alerts.push({
+          type: 'over25_ft', pick: `Over ${nextLine > 4.5 ? 4.5 : nextLine}`,
+          level: score >= 70 ? 'high' : score >= 60 ? 'medium' : 'low', score,
+          reason: `Partita viva (${match.goals.home}-${match.goals.away}), ${stats.shotsOnTotal || 0} tiri in porta`
+        });
+      }
+      
+      // Squadra Segna FT: dominio evidente, 0-0 o pochi gol
+      if (totalGoals <= 1 && elapsed >= 50 && elapsed <= 82 && match.status === '2H' && score >= 60) {
+        const homeDom = (stats.shotsOnHome || 0) >= 3 && (stats.possessionHome || 50) >= 55 && (stats.shotsOnHome || 0) > (stats.shotsOnAway || 0) + 2;
+        const awayDom = (stats.shotsOnAway || 0) >= 3 && (stats.possessionAway || 50) >= 55 && (stats.shotsOnAway || 0) > (stats.shotsOnHome || 0) + 2;
+        if (homeDom) {
+          alerts.push({
+            type: 'home_scores', pick: `${match.home.name.substring(0,15)} Segna`,
+            level: score >= 72 ? 'high' : 'medium', score,
+            reason: `Dominio casa: ${stats.shotsOnHome} tiri in porta, ${stats.possessionHome}% possesso`
+          });
+        } else if (awayDom) {
+          alerts.push({
+            type: 'away_scores', pick: `${match.away.name.substring(0,15)} Segna`,
+            level: score >= 70 ? 'high' : 'medium', score,
+            reason: `Dominio ospite: ${stats.shotsOnAway} tiri in porta, ${stats.possessionAway}% possesso`
+          });
+        }
+      }
+      
+      // === FAVORITA IN SVANTAGGIO (qualsiasi momento) ===
+      const isFavHome = prior.homeWinChance > prior.awayWinChance + 15;
+      const isFavAway = prior.awayWinChance > prior.homeWinChance + 15;
+      if (isFavHome && match.goals.home < match.goals.away && elapsed >= 30 && elapsed <= 82 && score >= 55) {
+        alerts.push({
+          type: 'fav_behind', pick: `${match.home.name.substring(0,15)} Segna (rimonta)`,
+          level: score >= 70 ? 'high' : 'medium', score,
+          reason: `Favorita (${prior.homeWinChance}%) sotto di ${match.goals.away - match.goals.home} — pressione per rimontare`
+        });
+      }
+      if (isFavAway && match.goals.away < match.goals.home && elapsed >= 30 && elapsed <= 82 && score >= 55) {
+        alerts.push({
+          type: 'fav_behind', pick: `${match.away.name.substring(0,15)} Segna (rimonta)`,
+          level: score >= 70 ? 'high' : 'medium', score,
+          reason: `Favorita (${prior.awayWinChance}%) sotto di ${match.goals.home - match.goals.away} — pressione per rimontare`
         });
       }
       
@@ -4541,6 +4615,9 @@
       const intervalId = setInterval(async () => {
         const existing = state.liveAnalyzed.get(matchId);
         if (!existing || existing.loading) return;
+        
+        // Pausa refresh se l'utente sta editando questa partita
+        if (state.liveEditingMatch === matchId) return;
         
         const match = state.liveMatches.find(m => m.id === matchId);
         if (!match || ['FT','AET','PEN'].includes(match.status)) {
@@ -4746,6 +4823,7 @@
       
       state.liveCountdown = 90;
       state.countdownInterval = setInterval(() => {
+        if (state.liveEditingMatch) return; // Pausa countdown durante editing
         state.liveCountdown--;
         const countdownEl = document.querySelector('.live-countdown');
         if (countdownEl) {
@@ -4756,9 +4834,9 @@
         }
       }, 1000);
       
-      // Refresh lista partite ogni 90 secondi
+      // Refresh lista partite ogni 90 secondi (pausa durante editing manuale)
       state.liveInterval = setInterval(() => {
-        if (state.liveMode) {
+        if (state.liveMode && !state.liveEditingMatch) {
           loadLiveMatches();
           state.liveCountdown = 90;
         }
@@ -5584,49 +5662,54 @@
                 
                 ${state.liveEditingMatch === matchId ? `
                   <div class="momentum-edit-form">
-                    <div class="edit-form-title">✏️ Inserisci stats da bet365</div>
+                    <div class="edit-form-title">✏️ Stats da bet365 (H = casa, A = ospite)</div>
                     <div class="edit-form-grid">
                       <div class="edit-form-group">
-                        <div class="edit-form-label">Tiri in porta</div>
+                        <div class="edit-form-label">🎯 Tiri in porta</div>
                         <div class="edit-form-row">
-                          <input class="edit-form-input" id="ms_shotson_h_${matchId}" type="number" min="0" max="30" placeholder="H" value="${stats.shotsOnHome || ''}">
+                          <input class="edit-form-input" id="ms_shotson_h_${matchId}" type="number" inputmode="numeric" min="0" max="30" placeholder="H" value="${stats.manual ? stats.shotsOnHome : ''}">
                           <span class="edit-form-vs">-</span>
-                          <input class="edit-form-input" id="ms_shotson_a_${matchId}" type="number" min="0" max="30" placeholder="A" value="${stats.shotsOnAway || ''}">
+                          <input class="edit-form-input" id="ms_shotson_a_${matchId}" type="number" inputmode="numeric" min="0" max="30" placeholder="A" value="${stats.manual ? stats.shotsOnAway : ''}">
                         </div>
                       </div>
                       <div class="edit-form-group">
-                        <div class="edit-form-label">Tiri totali</div>
+                        <div class="edit-form-label">⚽ Tiri totali</div>
                         <div class="edit-form-row">
-                          <input class="edit-form-input" id="ms_shots_h_${matchId}" type="number" min="0" max="40" placeholder="H" value="${stats.shotsHome || ''}">
+                          <input class="edit-form-input" id="ms_shots_h_${matchId}" type="number" inputmode="numeric" min="0" max="40" placeholder="H" value="${stats.manual ? stats.shotsHome : ''}">
                           <span class="edit-form-vs">-</span>
-                          <input class="edit-form-input" id="ms_shots_a_${matchId}" type="number" min="0" max="40" placeholder="A" value="${stats.shotsAway || ''}">
+                          <input class="edit-form-input" id="ms_shots_a_${matchId}" type="number" inputmode="numeric" min="0" max="40" placeholder="A" value="${stats.manual ? stats.shotsAway : ''}">
                         </div>
                       </div>
                       <div class="edit-form-group">
-                        <div class="edit-form-label">Attacchi pericolosi</div>
+                        <div class="edit-form-label">🔥 Att. pericolosi</div>
                         <div class="edit-form-row">
-                          <input class="edit-form-input" id="ms_danger_h_${matchId}" type="number" min="0" max="80" placeholder="H" value="${stats.dangerousHome || ''}">
+                          <input class="edit-form-input" id="ms_danger_h_${matchId}" type="number" inputmode="numeric" min="0" max="80" placeholder="H" value="${stats.manual ? stats.dangerousHome : ''}">
                           <span class="edit-form-vs">-</span>
-                          <input class="edit-form-input" id="ms_danger_a_${matchId}" type="number" min="0" max="80" placeholder="A" value="${stats.dangerousAway || ''}">
+                          <input class="edit-form-input" id="ms_danger_a_${matchId}" type="number" inputmode="numeric" min="0" max="80" placeholder="A" value="${stats.manual ? stats.dangerousAway : ''}">
                         </div>
                       </div>
                       <div class="edit-form-group">
-                        <div class="edit-form-label">Corner</div>
+                        <div class="edit-form-label">🚩 Corner</div>
                         <div class="edit-form-row">
-                          <input class="edit-form-input" id="ms_corners_h_${matchId}" type="number" min="0" max="20" placeholder="H" value="${stats.cornersHome || ''}">
+                          <input class="edit-form-input" id="ms_corners_h_${matchId}" type="number" inputmode="numeric" min="0" max="20" placeholder="H" value="${stats.manual ? stats.cornersHome : ''}">
                           <span class="edit-form-vs">-</span>
-                          <input class="edit-form-input" id="ms_corners_a_${matchId}" type="number" min="0" max="20" placeholder="A" value="${stats.cornersAway || ''}">
+                          <input class="edit-form-input" id="ms_corners_a_${matchId}" type="number" inputmode="numeric" min="0" max="20" placeholder="A" value="${stats.manual ? stats.cornersAway : ''}">
                         </div>
                       </div>
-                      <div class="edit-form-group">
-                        <div class="edit-form-label">Possesso %</div>
+                      <div class="edit-form-group" style="grid-column: 1 / -1;">
+                        <div class="edit-form-label">📊 Possesso %</div>
                         <div class="edit-form-row">
-                          <input class="edit-form-input" id="ms_poss_h_${matchId}" type="number" min="0" max="100" placeholder="H" value="${stats.possessionHome || ''}">
+                          <input class="edit-form-input" id="ms_poss_h_${matchId}" type="number" inputmode="numeric" min="0" max="100" placeholder="Casa %" value="${stats.manual ? stats.possessionHome : ''}">
                           <span class="edit-form-vs">-</span>
-                          <input class="edit-form-input" id="ms_poss_a_${matchId}" type="number" min="0" max="100" placeholder="A" value="${stats.possessionAway || ''}">
+                          <input class="edit-form-input" id="ms_poss_a_${matchId}" type="number" inputmode="numeric" min="0" max="100" placeholder="Ospite %" value="${stats.manual ? stats.possessionAway : ''}">
                         </div>
                       </div>
                     </div>
+                    <div class="edit-form-actions">
+                      <button class="edit-form-submit" onclick="applyManualStats(${matchId})">⚡ Ricalcola</button>
+                      <button class="edit-form-cancel" onclick="toggleManualEdit(${matchId})">Annulla</button>
+                    </div>
+                  </div>
                     <div class="edit-form-actions">
                       <button class="edit-form-submit" onclick="applyManualStats(${matchId})">⚡ Ricalcola Momentum</button>
                       <button class="edit-form-cancel" onclick="toggleManualEdit(${matchId})">Annulla</button>
