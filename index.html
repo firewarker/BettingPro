@@ -1837,6 +1837,7 @@
     .loading { display: flex; flex-direction: column; align-items: center; padding: 40px; }
     .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
     .loading-text { color: var(--text-gray); font-size: 0.9rem; }
     .empty { text-align: center; padding: 40px; color: var(--text-dark); }
     .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
@@ -2073,6 +2074,10 @@
       slipModal: false,
       // Picks del giorno
       dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [] },
+      // v7: Odds Lab + Value Bets + Reverse xG
+      oddsLab: null,
+      valueBets: null,
+      reverseXG: null,
       // Money Management - Sistema Obiettivo
       money: {
         bankroll: parseFloat(localStorage.getItem('bp_bankroll')) || 100,
@@ -2385,18 +2390,25 @@
           picks.pareggi.push({ ...matchInfo, bet: 'X', prob: p1X2.draw });
         }
         
-        // OVER 1° TEMPO - Per partite con xG MOLTO alto
-        // Circa 45% dei gol avviene nel primo tempo
-        const pOver05_1T = quickCalcOver(homeXG * 0.45, awayXG * 0.45, 0.5);
-        const pOver15_1T = quickCalcOver(homeXG * 0.45, awayXG * 0.45, 1.5);
+        // OVER PRIMO TEMPO — Poisson con fattore 42% (dato storico)
+        const homeXG_1T = homeXG * 0.42;
+        const awayXG_1T = awayXG * 0.42;
+        const totXG_1T = homeXG_1T + awayXG_1T;
+        // P(Over 0.5 1T) = 1 - P(0 gol 1T)
+        const pOver05_1T = Math.round(Math.min(95, Math.max(10, (1 - Math.exp(-totXG_1T)) * 100)));
+        // P(Over 1.5 1T) = 1 - P(0-0) - P(1-0) - P(0-1)
+        const p0_1T = Math.exp(-homeXG_1T) * Math.exp(-awayXG_1T);
+        const p10_1T = homeXG_1T * Math.exp(-homeXG_1T) * Math.exp(-awayXG_1T);
+        const p01_1T = Math.exp(-homeXG_1T) * awayXG_1T * Math.exp(-awayXG_1T);
+        const pOver15_1T = Math.round(Math.min(90, Math.max(5, (1 - p0_1T - p10_1T - p01_1T) * 100)));
         
-        // Over 0.5 1T (almeno 1 gol nel primo tempo) - xG >= 3.0
-        if (pOver05_1T >= 75 && totXG >= 3.0) {
-          picks.over1T.push({ ...matchInfo, bet: 'Over 0.5 1T', prob: pOver05_1T, xgTotal: totXG.toFixed(2) });
+        // Over 0.5 1T — soglia 58% (non più 75%+xG>=3.0)
+        if (pOver05_1T >= 58) {
+          picks.over1T.push({ ...matchInfo, bet: 'Over 0.5 1T', prob: pOver05_1T, probOver15: pOver15_1T, xg1T: totXG_1T.toFixed(2), xgTotal: totXG.toFixed(2), confidence: pOver05_1T >= 75 ? 'high' : pOver05_1T >= 65 ? 'medium' : 'low' });
         }
-        // Over 1.5 1T (almeno 2 gol nel primo tempo) - xG >= 3.8
-        if (pOver15_1T >= 55 && totXG >= 3.8) {
-          picks.over1T.push({ ...matchInfo, bet: 'Over 1.5 1T', prob: pOver15_1T, xgTotal: totXG.toFixed(2) });
+        // Over 1.5 1T — solo se prob >= 35% (partite offensive)
+        if (pOver15_1T >= 35 && totXG >= 2.5) {
+          picks.over1T.push({ ...matchInfo, bet: 'Over 1.5 1T', prob: pOver15_1T, xg1T: totXG_1T.toFixed(2), xgTotal: totXG.toFixed(2), confidence: pOver15_1T >= 50 ? 'high' : pOver15_1T >= 40 ? 'medium' : 'low' });
         }
       });
       
@@ -3176,7 +3188,23 @@
         homePosition, awayPosition, homeInjuries, awayInjuries, homeInjuryImpact, awayInjuryImpact
       });
       state.loading = false;
+      state.oddsLab = null;
+      state.valueBets = null;
+      state.reverseXG = null;
       render();
+      
+      // v7: Fetch Odds Lab in background (non-blocking)
+      (async () => {
+        try {
+          const oddsLab = await fetchOddsLab(match.id);
+          state.oddsLab = oddsLab;
+          if (oddsLab && state.analysis) {
+            state.valueBets = calculateValueBets(state.analysis, oddsLab);
+            state.reverseXG = calculateReverseXG(oddsLab, state.analysis.xG.home, state.analysis.xG.away);
+          }
+          render(); // Re-render con Odds Lab + Value Bets + Reverse xG
+        } catch(e) { console.warn('Odds Lab background fetch failed:', e.message); }
+      })();
     }
     
     // Calcola form reale dalle ultime partite
@@ -3802,6 +3830,430 @@
         confidence,
         alternatives
       };
+    }
+
+    // ═══ ODDS LAB — Multi-Bookmaker Analysis ═══
+    async function fetchOddsLab(fixtureId) {
+      try {
+        const data = await callAPIFootball('/odds', { fixture: fixtureId });
+        if (!data?.response?.[0]?.bookmakers?.length) return null;
+        const bookmakers = data.response[0].bookmakers;
+        const result = { bookmakers: [], consensus: { home: 0, draw: 0, away: 0 }, bestOdds: { home: 0, draw: 0, away: 0 }, steamMoves: [], ouConsensus: { over: 0, under: 0, line: 2.5 }, ggConsensus: { gg: 0, ng: 0 } };
+        const sharpBooks = ['Pinnacle', 'Bet365', 'Unibet', 'Betfair', 'William Hill', '1xBet'];
+        let hProbs = [], dProbs = [], aProbs = [], ouOver = [], ouUnder = [], ggProbs = [], ngProbs = [];
+
+        bookmakers.forEach(bk => {
+          const isSharp = sharpBooks.some(s => bk.name.includes(s));
+          const bets = bk.bets || [];
+          // 1X2
+          const m1X2 = bets.find(b => b.name === 'Match Winner' || b.name === '1X2' || b.name === 'Home/Draw/Away');
+          if (m1X2?.values?.length >= 3) {
+            const hO = parseFloat(m1X2.values.find(v => v.value === 'Home')?.odd || 0);
+            const dO = parseFloat(m1X2.values.find(v => v.value === 'Draw')?.odd || 0);
+            const aO = parseFloat(m1X2.values.find(v => v.value === 'Away')?.odd || 0);
+            if (hO > 1 && dO > 1 && aO > 1) {
+              const tot = 1/hO + 1/dO + 1/aO;
+              const hP = (1/hO/tot)*100, dP = (1/dO/tot)*100, aP = (1/aO/tot)*100;
+              const margin = ((tot - 1) * 100).toFixed(1);
+              result.bookmakers.push({ name: bk.name, home: hO, draw: dO, away: aO, homeProb: hP, drawProb: dP, awayProb: aP, margin, isSharp });
+              hProbs.push(hP); dProbs.push(dP); aProbs.push(aP);
+              if (hO > result.bestOdds.home) result.bestOdds.home = hO;
+              if (dO > result.bestOdds.draw) result.bestOdds.draw = dO;
+              if (aO > result.bestOdds.away) result.bestOdds.away = aO;
+            }
+          }
+          // O/U 2.5
+          const mOU = bets.find(b => b.name === 'Over/Under' || b.name === 'Goals Over/Under');
+          if (mOU) {
+            const ov = mOU.values?.find(v => v.value === 'Over 2.5');
+            const un = mOU.values?.find(v => v.value === 'Under 2.5');
+            if (ov && un) { ouOver.push(parseFloat(ov.odd)); ouUnder.push(parseFloat(un.odd)); }
+          }
+          // GG/NG
+          const mGG = bets.find(b => b.name === 'Both Teams Score' || b.name === 'Both Teams to Score');
+          if (mGG) {
+            const gg = mGG.values?.find(v => v.value === 'Yes');
+            const ng = mGG.values?.find(v => v.value === 'No');
+            if (gg && ng) { ggProbs.push(parseFloat(gg.odd)); ngProbs.push(parseFloat(ng.odd)); }
+          }
+        });
+
+        if (hProbs.length > 0) {
+          result.consensus.home = hProbs.reduce((s,v)=>s+v,0) / hProbs.length;
+          result.consensus.draw = dProbs.reduce((s,v)=>s+v,0) / dProbs.length;
+          result.consensus.away = aProbs.reduce((s,v)=>s+v,0) / aProbs.length;
+        }
+        if (ouOver.length > 0) {
+          const avgO = ouOver.reduce((s,v)=>s+v,0) / ouOver.length;
+          const avgU = ouUnder.reduce((s,v)=>s+v,0) / ouUnder.length;
+          const totOU = 1/avgO + 1/avgU;
+          result.ouConsensus = { over: (1/avgO/totOU*100), under: (1/avgU/totOU*100), overOdd: avgO.toFixed(2), underOdd: avgU.toFixed(2) };
+        }
+        if (ggProbs.length > 0) {
+          const avgGG = ggProbs.reduce((s,v)=>s+v,0) / ggProbs.length;
+          const avgNG = ngProbs.reduce((s,v)=>s+v,0) / ngProbs.length;
+          const totGG = 1/avgGG + 1/avgNG;
+          result.ggConsensus = { gg: (1/avgGG/totGG*100), ng: (1/avgNG/totGG*100), ggOdd: avgGG.toFixed(2), ngOdd: avgNG.toFixed(2) };
+        }
+        // Steam moves: sharp vs soft divergence
+        const sharps = result.bookmakers.filter(b => b.isSharp);
+        const softs = result.bookmakers.filter(b => !b.isSharp);
+        if (sharps.length > 0 && softs.length > 0) {
+          const sharpH = sharps.reduce((s,b)=>s+b.homeProb,0)/sharps.length;
+          const softH = softs.reduce((s,b)=>s+b.homeProb,0)/softs.length;
+          const diff = Math.abs(sharpH - softH);
+          if (diff > 3) {
+            result.steamMoves.push({ dir: sharpH > softH ? 'home' : 'away', diff: diff.toFixed(1), type: 'bullish' });
+          }
+        }
+        console.log('✅ Odds Lab:', result.bookmakers.length, 'bookmakers');
+        return result;
+      } catch(e) { console.warn('Odds Lab error:', e.message); return null; }
+    }
+
+    // ═══ VALUE BET ENGINE + KELLY CRITERION ═══
+    function calculateValueBets(analysis, oddsLab) {
+      if (!oddsLab || !analysis) return null;
+      const valueBets = [];
+      const p = analysis.p1X2 || { home: 33, draw: 33, away: 33 };
+      const pOU = analysis.pOU;
+      const pBTTS = analysis.pBTTS || 50;
+
+      // 1X2 Markets
+      const markets = [
+        { market: '1X2', pick: '1', label: 'Casa', modelProb: p.home, odds: oddsLab.bestOdds.home },
+        { market: '1X2', pick: 'X', label: 'Pareggio', modelProb: p.draw, odds: oddsLab.bestOdds.draw },
+        { market: '1X2', pick: '2', label: 'Ospite', modelProb: p.away, odds: oddsLab.bestOdds.away },
+      ];
+      // O/U 2.5
+      if (pOU && pOU[2.5]) {
+        markets.push({ market: 'O/U 2.5', pick: 'Over 2.5', label: 'Over 2.5', modelProb: pOU[2.5].over, odds: parseFloat(oddsLab.ouConsensus.overOdd || 0) });
+        markets.push({ market: 'O/U 2.5', pick: 'Under 2.5', label: 'Under 2.5', modelProb: pOU[2.5].under, odds: parseFloat(oddsLab.ouConsensus.underOdd || 0) });
+      }
+      // GG/NG
+      markets.push({ market: 'GG/NG', pick: 'GG', label: 'GG', modelProb: pBTTS, odds: parseFloat(oddsLab.ggConsensus.ggOdd || 0) });
+      markets.push({ market: 'GG/NG', pick: 'NG', label: 'NG', modelProb: 100 - pBTTS, odds: parseFloat(oddsLab.ggConsensus.ngOdd || 0) });
+
+      markets.forEach(m => {
+        if (m.odds <= 1 || m.modelProb <= 0) return;
+        const bookProb = (1 / m.odds) * 100;
+        const edge = ((m.modelProb / 100) * m.odds - 1) * 100;
+        // Kelly frazionario 25%
+        const kellyFull = ((m.modelProb/100) * m.odds - 1) / (m.odds - 1);
+        const kelly = Math.max(0, kellyFull * 0.25) * 100;
+        valueBets.push({ ...m, bookProb: bookProb.toFixed(1), edge: edge.toFixed(1), kelly: kelly.toFixed(1), isValue: edge > 0 });
+      });
+
+      valueBets.sort((a, b) => parseFloat(b.edge) - parseFloat(a.edge));
+      return { bets: valueBets, totalValue: valueBets.filter(v => v.isValue).length };
+    }
+
+    // ═══ GAP ANALYSER — True Spread ═══
+    function renderGAPAnalyser(match, d) {
+      if (!d || !d.xG) return '';
+      const homeXG = d.xG.home, awayXG = d.xG.away, totXG = d.xG.total;
+      const gap = homeXG - awayXG;
+      const absGap = Math.abs(gap);
+
+      // True Spread: converte gap xG in handicap asiatico
+      let spreadLabel, spreadColor, spreadIcon, spreadPick;
+      if (absGap >= 0.75) {
+        spreadLabel = 'VALORE'; spreadColor = '#10b981'; spreadIcon = '💎';
+        spreadPick = gap > 0 ? `${match.home.name} -1.5` : `${match.away.name} -1.5`;
+      } else if (absGap >= 0.40) {
+        spreadLabel = 'MODERATO'; spreadColor = '#f59e0b'; spreadIcon = '📊';
+        spreadPick = gap > 0 ? `${match.home.name} -0.5` : `${match.away.name} -0.5`;
+      } else {
+        spreadLabel = 'NEUTRO'; spreadColor = '#94a3b8'; spreadIcon = '⚖️';
+        spreadPick = 'Partita equilibrata (Pick: X)';
+      }
+
+      // xG primo/secondo tempo
+      const xg1T = totXG * 0.42, xg2T = totXG * 0.58;
+      // Risultato esatto più probabile
+      const bestScore = d.exactScores?.[0];
+
+      return `
+        <div style="margin-top:16px;background:rgba(0,212,255,0.04);border:1.5px solid rgba(0,212,255,0.15);border-radius:14px;padding:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div style="font-size:0.85rem;font-weight:800;color:#00d4ff;">📐 GAP ANALYSER — TRUE SPREAD</div>
+              <div style="font-size:0.62rem;color:var(--text-dark);">Handicap reale basato su Expected Goals differenziali</div>
+            </div>
+            <span style="font-size:0.6rem;background:rgba(0,212,255,0.15);color:#00d4ff;padding:2px 8px;border-radius:8px;font-weight:700;">Affidabilità ${totXG > 2.0 ? 'Alta' : 'Media'}</span>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <div style="flex:1;background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:0.6rem;color:var(--text-dark);">${match.home.name}</div>
+              <div style="font-size:1.5rem;font-weight:900;color:#00d4ff;">${homeXG.toFixed(2)}</div>
+              <div style="font-size:0.55rem;color:var(--text-dark);">xG attesi</div>
+            </div>
+            <div style="flex:1;background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:0.6rem;color:var(--text-dark);">GAP</div>
+              <div style="font-size:1.5rem;font-weight:900;color:${gap > 0.3 ? '#10b981' : gap < -0.3 ? '#a78bfa' : '#f59e0b'};">${gap > 0 ? '+' : ''}${gap.toFixed(2)}</div>
+              <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:6px;overflow:hidden;">
+                <div style="height:100%;width:${Math.min(100, 50 + gap * 30)}%;background:${gap > 0 ? '#00d4ff' : '#a78bfa'};border-radius:2px;"></div>
+              </div>
+            </div>
+            <div style="flex:1;background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:0.6rem;color:var(--text-dark);">${match.away.name}</div>
+              <div style="font-size:1.5rem;font-weight:900;color:#a78bfa;">${awayXG.toFixed(2)}</div>
+              <div style="font-size:0.55rem;color:var(--text-dark);">xG attesi</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.15);border:1px solid ${spreadColor}30;border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:0.65rem;color:var(--text-dark);text-transform:uppercase;letter-spacing:0.5px;">TRUE SPREAD</div>
+            <div style="font-size:0.95rem;font-weight:800;color:white;margin:4px 0;">${spreadPick}</div>
+            <div style="font-size:0.65rem;color:var(--text-dark);">Nessun vantaggio netto — ${absGap < 0.4 ? 'considera il Pareggio' : 'vantaggio chiaro'}</div>
+            <span style="float:right;margin-top:-30px;font-size:0.6rem;background:${spreadColor}20;color:${spreadColor};padding:3px 10px;border-radius:20px;font-weight:700;">${spreadIcon} ${spreadLabel}</span>
+          </div>
+
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;background:rgba(0,0,0,0.1);border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:0.55rem;color:var(--text-dark);">xG Totale</div>
+              <div style="font-size:1.1rem;font-weight:800;color:white;">${totXG.toFixed(2)}</div>
+              <div style="font-size:0.5rem;color:var(--text-dark);">${totXG >= 2.7 ? 'Zona gol' : totXG < 2.2 ? 'Zona chiusa' : 'Zona grigia — 50/50'}</div>
+            </div>
+            <div style="flex:1;background:rgba(0,0,0,0.1);border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:0.55rem;color:var(--text-dark);">xG 1° Tempo</div>
+              <div style="font-size:1.1rem;font-weight:800;color:#00d4ff;">${xg1T.toFixed(2)}</div>
+              <div style="font-size:0.5rem;color:var(--text-dark);">${xg1T >= 1.2 ? 'Primo tempo aperto' : 'Primo tempo chiuso'}</div>
+            </div>
+            <div style="flex:1;background:rgba(0,0,0,0.1);border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:0.55rem;color:var(--text-dark);">xG 2° Tempo</div>
+              <div style="font-size:1.1rem;font-weight:800;color:#10b981;">${xg2T.toFixed(2)}</div>
+              <div style="font-size:0.5rem;color:var(--text-dark);">${xg2T >= 1.5 ? 'Ritmo moderato' : 'Ritmo basso'}</div>
+            </div>
+            ${bestScore ? `<div style="flex:1;background:rgba(0,0,0,0.1);border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:0.55rem;color:var(--text-dark);">Risultato Esatto</div>
+              <div style="font-size:1.1rem;font-weight:800;color:#f59e0b;">${bestScore.h} - ${bestScore.a}</div>
+              <div style="font-size:0.5rem;color:var(--text-dark);">${bestScore.p.toFixed(1)}% probabilità</div>
+            </div>` : ''}
+          </div>
+
+          <div style="margin-top:10px;font-size:0.55rem;color:var(--text-dark);line-height:1.5;">
+            ℹ️ Il GAP Analyser calcola il True Spread basandosi sugli Expected Goals differenziali. Un GAP >0.75 indica vantaggio netto della squadra di casa; < -0.75 dell'ospite. Usa sempre in combinazione con il Super Algoritmo Oracle per la decisione finale.
+          </div>
+        </div>`;
+    }
+
+    // ═══ RENDER ODDS LAB ═══
+    function renderOddsLabPanel(oddsLab) {
+      if (!oddsLab || !oddsLab.bookmakers.length) return '<div style="padding:14px;color:var(--text-dark);font-size:0.72rem;">Odds Lab non disponibile</div>';
+      const c = oddsLab.consensus;
+      const maxP = Math.max(c.home, c.draw, c.away);
+      const bkPick = c.home === maxP ? '1' : (c.away === maxP ? '2' : 'X');
+      let html = `<div style="margin-top:16px;background:rgba(245,158,11,0.04);border:1.5px solid rgba(245,158,11,0.15);border-radius:14px;padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:0.85rem;font-weight:800;color:#f59e0b;">💰 Odds Lab — Multi-Bookmaker</div>
+          <span style="font-size:0.6rem;background:rgba(245,158,11,0.12);color:#f59e0b;padding:2px 8px;border-radius:8px;font-weight:700;">${oddsLab.bookmakers.length} book${oddsLab.steamMoves.length > 0 ? ' • 🔥' + oddsLab.steamMoves.length + ' steam' : ''}</span>
+        </div>
+        <div style="display:flex;gap:0;margin-bottom:12px;border-radius:8px;overflow:hidden;height:24px;">
+          <div style="width:${c.home.toFixed(0)}%;background:#00d4ff;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:white;">1 ${c.home.toFixed(0)}%</div>
+          <div style="width:${c.draw.toFixed(0)}%;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:white;">X ${c.draw.toFixed(0)}%</div>
+          <div style="width:${c.away.toFixed(0)}%;background:#a78bfa;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:white;">2 ${c.away.toFixed(0)}%</div>
+        </div>`;
+      // Bookmaker grid
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:12px;">';
+      oddsLab.bookmakers.slice(0, 8).forEach(b => {
+        html += `<div style="background:rgba(0,0,0,0.15);border:1px solid ${b.isSharp ? 'rgba(245,158,11,0.3)' : 'var(--border)'};border-radius:10px;padding:10px;">
+          <div style="font-size:0.65rem;color:var(--text-dark);margin-bottom:6px;">${b.name}${b.isSharp ? ' ⭐' : ''} <span style="font-size:0.5rem;">M: ${b.margin}%</span></div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:rgba(0,212,255,0.1);border-radius:6px;padding:6px;text-align:center;"><div style="font-weight:700;color:white;font-size:0.9rem;">${b.home.toFixed(2)}</div><div style="font-size:0.5rem;color:var(--text-dark);">${b.homeProb.toFixed(0)}%</div></div>
+            <div style="flex:1;background:rgba(245,158,11,0.1);border-radius:6px;padding:6px;text-align:center;"><div style="font-weight:700;color:white;font-size:0.9rem;">${b.draw.toFixed(2)}</div><div style="font-size:0.5rem;color:var(--text-dark);">${b.drawProb.toFixed(0)}%</div></div>
+            <div style="flex:1;background:rgba(167,139,250,0.1);border-radius:6px;padding:6px;text-align:center;"><div style="font-weight:700;color:white;font-size:0.9rem;">${b.away.toFixed(2)}</div><div style="font-size:0.5rem;color:var(--text-dark);">${b.awayProb.toFixed(0)}%</div></div>
+          </div>
+          ${b.ouOver ? '<div style="font-size:0.5rem;color:var(--text-dark);margin-top:4px;">O2.5 '+b.ouOver+' | U2.5 '+b.ouUnder+'</div>' : ''}
+        </div>`;
+      });
+      html += '</div>';
+      // O/U e GG consensus
+      if (oddsLab.ouConsensus.overOdd) html += `<div style="font-size:0.7rem;color:var(--text-gray);margin-bottom:4px;">📊 O/U 2.5 media: Over @${oddsLab.ouConsensus.overOdd} (${oddsLab.ouConsensus.over.toFixed(1)}%) | Under @${oddsLab.ouConsensus.underOdd} (${oddsLab.ouConsensus.under.toFixed(1)}%)</div>`;
+      if (oddsLab.ggConsensus.ggOdd) html += `<div style="font-size:0.7rem;color:var(--text-gray);">⚽ GG/NG media: GG @${oddsLab.ggConsensus.ggOdd} (${oddsLab.ggConsensus.gg.toFixed(1)}%) | NG @${oddsLab.ggConsensus.ngOdd} (${oddsLab.ggConsensus.ng.toFixed(1)}%)</div>`;
+      html += '</div>';
+      return html;
+    }
+
+    // ═══ RENDER VALUE BETS ═══
+    function renderValueBetsPanel(valueBets) {
+      if (!valueBets || !valueBets.bets.length) return '';
+      const vb = valueBets;
+      let html = `<div style="margin-top:16px;background:rgba(239,68,68,0.04);border:1.5px solid rgba(239,68,68,0.15);border-radius:14px;padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:0.85rem;font-weight:800;color:#ef4444;">🎯 Value Bet Engine + Kelly</div>
+          <span style="font-size:0.6rem;background:${vb.totalValue > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'};color:${vb.totalValue > 0 ? '#10b981' : '#ef4444'};padding:2px 8px;border-radius:8px;font-weight:700;">${vb.totalValue > 0 ? '🎯 ' + vb.totalValue + ' VALUE' : '⛔ 0 VALUE'}</span>
+        </div>
+        ${vb.totalValue > 0 ? '<div style="font-size:0.65rem;color:var(--text-gray);margin-bottom:10px;">🎯 Edge positivo = il nostro modello vede un vantaggio rispetto al mercato.</div>' : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+      vb.bets.forEach(b => {
+        const edgeN = parseFloat(b.edge);
+        const isVal = edgeN > 0;
+        html += `<div style="flex:1;min-width:120px;background:rgba(0,0,0,0.15);border:1px solid ${isVal ? 'rgba(16,185,129,0.3)' : 'var(--border)'};border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:0.55rem;color:var(--text-dark);">${b.market}</div>
+          <div style="font-size:0.9rem;font-weight:800;color:${isVal ? '#10b981' : 'var(--text-gray)'};">${b.label}</div>
+          ${isVal ? '<div style="font-size:0.5rem;background:rgba(16,185,129,0.15);color:#10b981;padding:1px 6px;border-radius:4px;display:inline-block;font-weight:700;">VALUE</div>' : ''}
+          <div style="font-size:0.6rem;color:var(--text-dark);margin-top:4px;">Noi: ${b.modelProb.toFixed(1)}% Book: ${b.bookProb}%</div>
+          <div style="font-size:0.85rem;font-weight:800;color:${isVal ? '#10b981' : '#ef4444'};margin-top:2px;">@${b.odds.toFixed(2)}</div>
+          <div style="font-size:0.6rem;color:${isVal ? '#10b981' : '#ef4444'};font-weight:700;">Edge: ${edgeN > 0 ? '+' : ''}${b.edge}%</div>
+          ${isVal ? '<div style="font-size:0.55rem;color:var(--text-dark);">Kelly: ' + b.kelly + '% del bankroll</div>' : ''}
+        </div>`;
+      });
+      html += '</div>';
+      html += '<div style="margin-top:8px;font-size:0.55rem;color:var(--text-dark);">Kelly = % bankroll consigliata (frazionario 25%: prob × quota − 100%).</div>';
+      html += '</div>';
+      return html;
+    }
+
+    // ═══ REVERSE xG PROTOCOL — Newton-Raphson ═══
+    function calculateReverseXG(oddsLab, homeXG, awayXG) {
+      if (!oddsLab || !oddsLab.bookmakers.length) return null;
+      const bk = oddsLab.bookmakers[0]; // primo bookmaker
+      const rawH = 1/bk.home, rawD = 1/bk.draw, rawA = 1/bk.away;
+      const overround = rawH + rawD + rawA;
+      const realHomeProb = Math.min(0.95, Math.max(0.02, rawH / overround));
+      const realAwayProb = Math.min(0.95, Math.max(0.02, rawA / overround));
+
+      // Poisson PMF
+      function pmf(l, k) { if (l <= 0) return k === 0 ? 1 : 0; let r = 1; for (let i = 1; i <= k; i++) r *= l / i; return r * Math.exp(-l); }
+      function pWin(lH, lA) { let w = 0; for (let h = 0; h <= 7; h++) for (let a = 0; a <= 7; a++) { if (h > a) w += pmf(lH, h) * pmf(lA, a); } return w; }
+      // Newton-Raphson: trova lambda dato P(win) e lambda avversario
+      function invert(target, opp) {
+        let l = 1.3;
+        for (let i = 0; i < 20; i++) {
+          const p = pWin(l, opp), err = p - target;
+          if (Math.abs(err) < 0.001) break;
+          const d = (pWin(l + 0.05, opp) - p) / 0.05;
+          if (Math.abs(d) < 0.0001) break;
+          l -= err / d;
+          l = Math.max(0.1, Math.min(4.0, l));
+        }
+        return l;
+      }
+
+      const bookieHomeXG = invert(realHomeProb, awayXG);
+      const bookieAwayXG = invert(realAwayProb, homeXG);
+      const homeDelta = homeXG - bookieHomeXG;
+      const awayDelta = awayXG - bookieAwayXG;
+
+      let status = 'neutro', msg = 'Quote allineate. Δ Casa: ' + homeDelta.toFixed(2) + ' | Δ Ospite: ' + awayDelta.toFixed(2);
+      let color = 'rgba(148,163,184,0.1)', textColor = '#94a3b8', icon = '⚖️';
+
+      if (bk.home < 2.0 && homeDelta < -0.30) {
+        status = 'trappola'; icon = '🚨'; textColor = '#f87171'; color = 'rgba(248,113,113,0.15)';
+        msg = `TRAPPOLA CASA: Bookie stima xG ${bookieHomeXG.toFixed(2)} ma nostro modello ${homeXG.toFixed(2)} (Δ${homeDelta.toFixed(2)}). Quota @${bk.home} gonfiata.`;
+      } else if (bk.away < 2.0 && awayDelta < -0.30) {
+        status = 'trappola'; icon = '🚨'; textColor = '#f87171'; color = 'rgba(248,113,113,0.15)';
+        msg = `TRAPPOLA OSPITE: Bookie stima xG ${bookieAwayXG.toFixed(2)} ma nostro ${awayXG.toFixed(2)} (Δ${awayDelta.toFixed(2)}). Quota @${bk.away} gonfiata.`;
+      } else if (homeDelta > 0.35) {
+        status = 'valore'; icon = '💎'; textColor = '#00e5a0'; color = 'rgba(0,229,160,0.15)';
+        msg = `VALUE CASA: Modello ${homeXG.toFixed(2)} xG vs Bookie ${bookieHomeXG.toFixed(2)} (Δ+${homeDelta.toFixed(2)}). Quota @${bk.home} interessante.`;
+      } else if (awayDelta > 0.35) {
+        status = 'valore'; icon = '💎'; textColor = '#00e5a0'; color = 'rgba(0,229,160,0.15)';
+        msg = `VALUE OSPITE: Modello ${awayXG.toFixed(2)} xG vs Bookie ${bookieAwayXG.toFixed(2)} (Δ+${awayDelta.toFixed(2)}). Quota @${bk.away} interessante.`;
+      }
+      return { bookieHomeXG: bookieHomeXG.toFixed(2), bookieAwayXG: bookieAwayXG.toFixed(2), homeDelta: homeDelta.toFixed(2), awayDelta: awayDelta.toFixed(2), margin: ((overround-1)*100).toFixed(1), status, msg, color, textColor, icon, homeOdd: bk.home, drawOdd: bk.draw, awayOdd: bk.away };
+    }
+
+    // ═══ RENDER REVERSE xG ═══
+    function renderReverseXGPanel(rxg) {
+      if (!rxg) return '';
+      return `<div style="margin-top:16px;background:${rxg.color};border:1.5px solid ${rxg.textColor}40;border-radius:14px;padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:0.85rem;font-weight:800;color:${rxg.textColor};">${rxg.icon} Reverse xG Protocol</div>
+          <span style="font-size:0.55rem;color:var(--text-dark);">Margine: ${rxg.margin}%</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;background:rgba(0,0,0,0.2);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.6rem;color:var(--text-dark);">Quota 1</div><div style="font-weight:700;color:white;font-size:1rem;">${rxg.homeOdd.toFixed(2)}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.2);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.6rem;color:var(--text-dark);">Quota X</div><div style="font-weight:700;color:white;font-size:1rem;">${rxg.drawOdd.toFixed(2)}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.2);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.6rem;color:var(--text-dark);">Quota 2</div><div style="font-weight:700;color:white;font-size:1rem;">${rxg.awayOdd.toFixed(2)}</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">xG Nostro Casa</div><div style="font-weight:700;color:#60a5fa;font-size:0.9rem;">${state.analysis?.xG?.home?.toFixed(2)||'?'}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">xG Bookie Casa</div><div style="font-weight:700;color:#f59e0b;font-size:0.9rem;">${rxg.bookieHomeXG}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">Δ Casa</div><div style="font-weight:800;color:${parseFloat(rxg.homeDelta)>0.1?'#00e5a0':parseFloat(rxg.homeDelta)<-0.1?'#f87171':'#94a3b8'};font-size:0.9rem;">${parseFloat(rxg.homeDelta)>0?'+':''}${rxg.homeDelta}</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">xG Nostro Ospite</div><div style="font-weight:700;color:#a78bfa;font-size:0.9rem;">${state.analysis?.xG?.away?.toFixed(2)||'?'}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">xG Bookie Ospite</div><div style="font-weight:700;color:#f59e0b;font-size:0.9rem;">${rxg.bookieAwayXG}</div></div>
+          <div style="flex:1;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;text-align:center;"><div style="font-size:0.5rem;color:var(--text-dark);">Δ Ospite</div><div style="font-weight:800;color:${parseFloat(rxg.awayDelta)>0.1?'#00e5a0':parseFloat(rxg.awayDelta)<-0.1?'#f87171':'#94a3b8'};font-size:0.9rem;">${parseFloat(rxg.awayDelta)>0?'+':''}${rxg.awayDelta}</div></div>
+        </div>
+        <div style="font-size:0.78rem;color:${rxg.textColor};line-height:1.5;background:rgba(0,0,0,0.15);padding:10px;border-radius:8px;">${rxg.msg}</div>
+      </div>`;
+    }
+
+    // ═══ CONVERGENCE INDICATOR — Segnale Forte ═══
+    function renderConvergenceIndicator(match, d) {
+      if (!d || !d.xG || !state.oddsLab) return '';
+      const homeXG = d.xG.home, awayXG = d.xG.away;
+      const gap = homeXG - awayXG;
+      const vb = state.valueBets;
+      const rxg = state.reverseXG;
+
+      // 1. GAP side
+      let gapSide = null;
+      if (gap >= 0.40) gapSide = 'home';
+      else if (gap <= -0.40) gapSide = 'away';
+
+      // 2. Value Bet side (miglior edge positivo su 1X2)
+      let valueSide = null, valueEdge = '0';
+      if (vb && vb.bets) {
+        const v1 = vb.bets.find(b => (b.pick === '1' || b.label === 'Casa') && b.isValue);
+        const v2 = vb.bets.find(b => (b.pick === '2' || b.label === 'Ospite') && b.isValue);
+        if (v1) { valueSide = 'home'; valueEdge = v1.edge; }
+        if (v2 && (!v1 || parseFloat(v2.edge) > parseFloat(v1.edge))) { valueSide = 'away'; valueEdge = v2.edge; }
+      }
+
+      // 3. Reverse xG side (bookie sottostima)
+      let rxgSide = null;
+      if (rxg) {
+        if (parseFloat(rxg.homeDelta) > 0.30) rxgSide = 'home';
+        else if (parseFloat(rxg.awayDelta) > 0.30) rxgSide = 'away';
+      }
+
+      // === CONVERGENZA: almeno 2 su 3 concordano ===
+      let convergence = 0;
+      let convSide = null;
+      const sides = [gapSide, valueSide, rxgSide].filter(Boolean);
+      if (sides.length >= 2) {
+        const homeCount = sides.filter(s => s === 'home').length;
+        const awayCount = sides.filter(s => s === 'away').length;
+        if (homeCount >= 2) { convergence = homeCount; convSide = 'home'; }
+        else if (awayCount >= 2) { convergence = awayCount; convSide = 'away'; }
+      }
+
+      if (!convSide) return '';
+
+      const teamName = convSide === 'home' ? match.home.name : match.away.name;
+      const pick = convSide === 'home' ? '1' : '2';
+      const isTriple = convergence === 3;
+      const bgColor = isTriple ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.10)';
+      const borderColor = isTriple ? '#10b981' : '#f59e0b';
+      const label = isTriple ? '🔥 TRIPLA CONVERGENZA' : '⚡ DOPPIA CONVERGENZA';
+
+      return `<div style="margin-bottom:16px;background:${bgColor};border:2px solid ${borderColor};border-radius:14px;padding:16px;animation:pulse 2s ease-in-out infinite;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:1rem;font-weight:900;color:${borderColor};">${label}</div>
+          <div style="font-size:0.7rem;background:${borderColor}20;color:${borderColor};padding:4px 12px;border-radius:20px;font-weight:800;">Pick: ${pick} ${teamName}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(0,0,0,0.15);border-radius:8px;border:1px solid ${gapSide === convSide ? borderColor+'60' : 'transparent'};">
+            <div style="font-size:0.6rem;color:var(--text-dark);">GAP Analyser</div>
+            <div style="font-size:0.85rem;font-weight:800;color:${gapSide === convSide ? borderColor : '#64748b'};">${gapSide === convSide ? '✅ Conferma' : '—'}</div>
+            <div style="font-size:0.5rem;color:var(--text-dark);">Δ ${gap > 0 ? '+' : ''}${gap.toFixed(2)}</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(0,0,0,0.15);border-radius:8px;border:1px solid ${valueSide === convSide ? borderColor+'60' : 'transparent'};">
+            <div style="font-size:0.6rem;color:var(--text-dark);">Value Bet</div>
+            <div style="font-size:0.85rem;font-weight:800;color:${valueSide === convSide ? borderColor : '#64748b'};">${valueSide === convSide ? '✅ Edge +' + valueEdge + '%' : '—'}</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(0,0,0,0.15);border-radius:8px;border:1px solid ${rxgSide === convSide ? borderColor+'60' : 'transparent'};">
+            <div style="font-size:0.6rem;color:var(--text-dark);">Reverse xG</div>
+            <div style="font-size:0.85rem;font-weight:800;color:${rxgSide === convSide ? borderColor : '#64748b'};">${rxgSide === convSide ? '✅ Sottostimato' : '—'}</div>
+          </div>
+        </div>
+        <div style="font-size:0.65rem;color:${borderColor};line-height:1.4;">${isTriple ? '🔥 Tutti e 3 i segnali indipendenti concordano: GAP xG, Value Bet e Reverse xG puntano su ' + teamName + '. Segnale molto forte.' : '⚡ 2 segnali su 3 concordano su ' + teamName + '. Verifica il terzo prima di puntare.'}</div>
+      </div>`;
     }
 
     // === AI ADVICE - Genera il consiglio intelligente ===
@@ -5795,6 +6247,9 @@
           </div>
         </div>
         
+        <!-- CONVERGENCE INDICATOR -->
+        ${renderConvergenceIndicator(m, d)}
+        
         <!-- DUAL ADVICE: AI + STATISTICAL -->
         <div class="dual-advice-container">
 
@@ -6155,6 +6610,12 @@
             </div>
           </div>
         </div>
+        
+        <!-- GAP ANALYSER + REVERSE xG + ODDS LAB + VALUE BETS -->
+        ${renderGAPAnalyser(m, d)}
+        ${state.reverseXG ? renderReverseXGPanel(state.reverseXG) : ''}
+        ${state.oddsLab ? renderOddsLabPanel(state.oddsLab) : '<div style="margin-top:16px;padding:14px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.1);border-radius:12px;text-align:center;font-size:0.7rem;color:var(--text-dark);">💰 Odds Lab in caricamento...</div>'}
+        ${state.valueBets ? renderValueBetsPanel(state.valueBets) : ''}
         
         <div class="predictions-panel">
           <div class="predictions-header">
