@@ -1838,6 +1838,23 @@
     .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+    /* ACCORDION SECTIONS */
+    .acc-section { margin-bottom:8px; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .acc-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; cursor:pointer; background:var(--bg-card); transition:background 0.2s; }
+    .acc-header:hover { background:rgba(255,255,255,0.03); }
+    .acc-title { font-size:0.85rem; font-weight:700; color:var(--text-light); display:flex; align-items:center; gap:8px; }
+    .acc-arrow { font-size:0.7rem; color:var(--text-dark); transition:transform 0.3s; }
+    .acc-header.open .acc-arrow { transform:rotate(180deg); }
+    .acc-body { display:none; }
+    .acc-body.open { display:block; }
+    /* NAVIGATION ARROWS */
+    .nav-arrows { display:flex; align-items:center; gap:6px; }
+    .nav-arrow-btn { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:5px 10px; cursor:pointer; color:var(--text-gray); font-size:0.75rem; transition:0.15s; }
+    .nav-arrow-btn:hover:not(:disabled) { border-color:var(--accent-cyan); color:var(--accent-cyan); }
+    .nav-arrow-btn:disabled { opacity:0.3; cursor:default; }
+    /* BEST PICK BUTTON */
+    .bestpick-btn { background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(16,185,129,0.1)); border:1.5px solid rgba(245,158,11,0.4); border-radius:12px; padding:10px 18px; cursor:pointer; color:#fbbf24; font-size:0.82rem; font-weight:800; display:flex; align-items:center; gap:8px; transition:0.2s; }
+    .bestpick-btn:hover { border-color:#fbbf24; box-shadow:0 0 15px rgba(245,158,11,0.15); }
     .loading-text { color: var(--text-gray); font-size: 0.9rem; }
     .empty { text-align: center; padding: 40px; color: var(--text-dark); }
     .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
@@ -2078,6 +2095,7 @@
       oddsLab: null,
       valueBets: null,
       reverseXG: null,
+      bestPickVisible: false,
       // Money Management - Sistema Obiettivo
       money: {
         bankroll: parseFloat(localStorage.getItem('bp_bankroll')) || 100,
@@ -6216,6 +6234,149 @@
       `;
     }
 
+    // ═══ NAVIGAZIONE TRA PARTITE ═══
+    function navigateMatch(dir) {
+      const m = state.selectedMatch;
+      if (!m) return;
+      const leagueMatches = state.matches.filter(x => x.league?.id === m.league?.id);
+      const idx = leagueMatches.findIndex(x => x.id === m.id);
+      const next = idx + dir;
+      if (next >= 0 && next < leagueMatches.length) {
+        analyzeMatch(leagueMatches[next]);
+      }
+    }
+    window.navigateMatch = navigateMatch;
+
+    // ═══ ACCORDION TOGGLE ═══
+    function toggleAcc(el) {
+      const body = el.nextElementSibling;
+      const isOpen = el.classList.contains('open');
+      el.classList.toggle('open');
+      if (body) body.classList.toggle('open');
+    }
+    window.toggleAcc = toggleAcc;
+
+    // ═══ BEST PICK — Analisi Convergenza Automatica ═══
+    function analyzeBestPick(match, analysis) {
+      if (!analysis) return null;
+      const ai = generateAIAdvice(match, analysis);
+      const stat = generateStatisticalAdvice(match, analysis);
+      const vb = state.valueBets;
+      const rxg = state.reverseXG;
+      const oddsLab = state.oddsLab;
+      const d = analysis;
+      const homeXG = d.xG?.home || 1.3, awayXG = d.xG?.away || 1.1;
+      const totXG = homeXG + awayXG;
+      const gap = homeXG - awayXG;
+      const p1X2 = d.p1X2 || { home: 33, draw: 33, away: 33 };
+      const pOU = d.pOU;
+      const pBTTS = d.pBTTS || 50;
+
+      // Raccogli tutti i candidati con score di convergenza
+      const candidates = [];
+
+      // 1X2 candidates
+      ['home', 'away'].forEach(side => {
+        const pick = side === 'home' ? '1' : '2';
+        const team = side === 'home' ? match.home.name : match.away.name;
+        const prob = side === 'home' ? p1X2.home : p1X2.away;
+        let score = 0, reasons = [];
+
+        // AI concorda?
+        if ((ai.pick.includes('1') && side === 'home' && !ai.pick.includes('1X')) || (ai.pick.includes('2') && side === 'away')) { score += 25; reasons.push('AI: ' + ai.pick + ' ' + ai.prob.toFixed(0) + '%'); }
+        // GAP
+        if ((gap >= 0.40 && side === 'home') || (gap <= -0.40 && side === 'away')) { score += 20; reasons.push('GAP: ' + (gap > 0 ? '+' : '') + gap.toFixed(2)); }
+        // Value Bet
+        if (vb && vb.bets) {
+          const vPick = vb.bets.find(b => ((b.pick === '1' || b.label === 'Casa') && side === 'home') || ((b.pick === '2' || b.label === 'Ospite') && side === 'away'));
+          if (vPick && vPick.isValue) { score += 20; reasons.push('Value Edge +' + vPick.edge + '%'); }
+        }
+        // Reverse xG
+        if (rxg) {
+          const delta = side === 'home' ? parseFloat(rxg.homeDelta) : parseFloat(rxg.awayDelta);
+          if (delta > 0.30) { score += 15; reasons.push('RxG sottostimato Δ+' + delta.toFixed(2)); }
+        }
+        // Bookmaker consensus
+        if (oddsLab && oddsLab.consensus) {
+          const bkProb = side === 'home' ? oddsLab.consensus.home : oddsLab.consensus.away;
+          if (bkProb > 50) { score += 10; reasons.push('Book: ' + bkProb.toFixed(0) + '%'); }
+        }
+        // Prob modello
+        if (prob >= 60) { score += 10; reasons.push('Modello: ' + prob.toFixed(0) + '%'); }
+
+        if (score >= 20) candidates.push({ pick: pick + ' (' + team + ')', score, reasons, prob, type: '1x2' });
+      });
+
+      // Over 2.5
+      if (pOU && pOU[2.5]) {
+        let score = 0, reasons = [];
+        if (pOU[2.5].over >= 60) { score += 20; reasons.push('Prob Over: ' + pOU[2.5].over.toFixed(0) + '%'); }
+        if (totXG >= 2.7) { score += 15; reasons.push('xG Tot: ' + totXG.toFixed(2)); }
+        if (vb && vb.bets) { const v = vb.bets.find(b => b.pick === 'Over 2.5' && b.isValue); if (v) { score += 20; reasons.push('Value Edge +' + v.edge + '%'); } }
+        if (pBTTS >= 55) { score += 10; reasons.push('GG ' + pBTTS.toFixed(0) + '% supporta gol'); }
+        if (score >= 20) candidates.push({ pick: 'Over 2.5', score, reasons, prob: pOU[2.5].over, type: 'ou' });
+      }
+
+      // Under 2.5
+      if (pOU && pOU[2.5]) {
+        let score = 0, reasons = [];
+        if (pOU[2.5].under >= 55) { score += 20; reasons.push('Prob Under: ' + pOU[2.5].under.toFixed(0) + '%'); }
+        if (totXG < 2.3) { score += 15; reasons.push('xG Tot basso: ' + totXG.toFixed(2)); }
+        if (vb && vb.bets) { const v = vb.bets.find(b => b.pick === 'Under 2.5' && b.isValue); if (v) { score += 20; reasons.push('Value Edge +' + v.edge + '%'); } }
+        if (pBTTS < 45) { score += 10; reasons.push('GG basso ' + pBTTS.toFixed(0) + '%'); }
+        if (score >= 20) candidates.push({ pick: 'Under 2.5', score, reasons, prob: pOU[2.5].under, type: 'ou' });
+      }
+
+      // GG
+      { let score = 0, reasons = [];
+        if (pBTTS >= 58) { score += 20; reasons.push('GG: ' + pBTTS.toFixed(0) + '%'); }
+        if (homeXG > 0.9 && awayXG > 0.8) { score += 15; reasons.push('Entrambe segnano (xG)'); }
+        if (vb && vb.bets) { const v = vb.bets.find(b => b.pick === 'GG' && b.isValue); if (v) { score += 20; reasons.push('Value Edge +' + v.edge + '%'); } }
+        if (score >= 20) candidates.push({ pick: 'GG', score, reasons, prob: pBTTS, type: 'gg' });
+      }
+
+      candidates.sort((a, b) => b.score - a.score);
+      if (candidates.length === 0) return { pick: 'Nessun pick sicuro', score: 0, reasons: ['Nessuna convergenza trovata'], confidence: 'low' };
+
+      const best = candidates[0];
+      best.confidence = best.score >= 60 ? 'high' : best.score >= 40 ? 'medium' : 'low';
+      best.alternatives = candidates.slice(1, 3);
+      return best;
+    }
+
+    function renderBestPickPanel() {
+      const m = state.selectedMatch;
+      const d = state.analysis;
+      if (!m || !d) return '';
+      const bp = analyzeBestPick(m, d);
+      if (!bp) return '';
+      
+      const confColors = { high: '#10b981', medium: '#f59e0b', low: '#ef4444' };
+      const confLabels = { high: '🟢 Alta Fiducia', medium: '🟡 Media', low: '🔴 Bassa' };
+      const c = confColors[bp.confidence] || '#94a3b8';
+
+      return `<div id="bestPickResult" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(16,185,129,0.06));border:2px solid ${c};border-radius:16px;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:1rem;font-weight:900;color:${c};">🎯 BEST PICK</div>
+          <span style="font-size:0.7rem;background:${c}20;color:${c};padding:4px 12px;border-radius:20px;font-weight:700;">${confLabels[bp.confidence] || 'N/A'}</span>
+        </div>
+        <div style="text-align:center;margin-bottom:14px;">
+          <div style="font-size:1.8rem;font-weight:900;color:white;">${bp.pick}</div>
+          <div style="font-size:1rem;color:${c};font-weight:700;">${bp.prob ? bp.prob.toFixed(0) + '% probabilità' : ''} · Convergenza: ${bp.score}/100</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+          ${bp.reasons.map(r => '<div style="font-size:0.7rem;color:var(--text-gray);padding:4px 8px;background:rgba(0,0,0,0.15);border-radius:6px;">✅ ' + r + '</div>').join('')}
+        </div>
+        ${bp.alternatives && bp.alternatives.length > 0 ? `<div style="font-size:0.65rem;color:var(--text-dark);border-top:1px solid var(--border);padding-top:8px;">Alternative: ${bp.alternatives.map(a => a.pick + ' (' + a.score + 'pts)').join(' · ')}</div>` : ''}
+      </div>`;
+    }
+    
+    function showBestPick() {
+      state.bestPickVisible = !state.bestPickVisible;
+      render();
+    }
+    window.showBestPick = showBestPick;
+
     function renderAnalysis() {
       const m = state.selectedMatch;
       const d = state.analysis;
@@ -6226,7 +6387,26 @@
       const stat = generateStatisticalAdvice(m, d);
 
       return `
-        <div class="back-btn" id="backToMatches">← Partite</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="back-btn" id="backToMatches" style="margin:0;">← Partite</div>
+            ${(() => {
+              const lm = state.matches.filter(x => x.league?.id === m.league?.id);
+              const idx = lm.findIndex(x => x.id === m?.id);
+              if (lm.length < 2) return '';
+              return '<div class="nav-arrows">' +
+                '<button class="nav-arrow-btn" onclick="navigateMatch(-1)" ' + (idx <= 0 ? 'disabled' : '') + '>‹</button>' +
+                '<span style="font-size:0.62rem;color:var(--text-dark);">' + (idx+1) + '/' + lm.length + '</span>' +
+                '<button class="nav-arrow-btn" onclick="navigateMatch(1)" ' + (idx >= lm.length-1 ? 'disabled' : '') + '>›</button>' +
+              '</div>';
+            })()}
+          </div>
+          <button class="bestpick-btn" onclick="showBestPick()">
+            🎯 ${state.bestPickVisible ? 'Chiudi Best Pick' : 'Analizza Best Pick'}
+          </button>
+        </div>
+        
+        ${state.bestPickVisible ? renderBestPickPanel() : ''}
         
         <div class="analysis-hero">
           <div class="hero-league">${esc(m.league.country)} • ${esc(m.league.name)} • ${formatDateFull(m.date)} ${formatTime(m.date)}</div>
@@ -6251,6 +6431,12 @@
         ${renderConvergenceIndicator(m, d)}
         
         <!-- DUAL ADVICE: AI + STATISTICAL -->
+        <div class="acc-section">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <div class="acc-title">🤖 Pronostici AI & Statistico <span style="font-size:0.6rem;color:var(--text-dark);margin-left:8px;">${ai.pick} ${ai.prob.toFixed(0)}%</span></div>
+            <span class="acc-arrow">▼</span>
+          </div>
+          <div class="acc-body">
         <div class="dual-advice-container">
 
           <!-- AI CONSIGLIO -->
@@ -6362,7 +6548,14 @@
             `).join('')}
           </div>
         </div>
+        </div></div>
         
+        <div class="acc-section">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <div class="acc-title">📊 Statistiche & Mercati <span style="font-size:0.6rem;color:var(--text-dark);margin-left:8px;">xG ${d.xG.total.toFixed(2)}</span></div>
+            <span class="acc-arrow">▼</span>
+          </div>
+          <div class="acc-body">
         <div class="analysis-grid">
           <div class="analysis-card">
             <div class="card-title">
@@ -6610,13 +6803,27 @@
             </div>
           </div>
         </div>
+        </div></div>
         
-        <!-- GAP ANALYSER + REVERSE xG + ODDS LAB + VALUE BETS -->
+        <!-- GAP + REVERSE xG + ODDS LAB + VALUE BETS -->
+        <div class="acc-section">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <div class="acc-title">📐 GAP + Reverse xG + Odds Lab + Value ${state.valueBets && state.valueBets.totalValue > 0 ? '<span style="font-size:0.55rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 6px;border-radius:6px;margin-left:6px;">' + state.valueBets.totalValue + ' VALUE</span>' : ''}</div>
+            <span class="acc-arrow">▼</span>
+          </div>
+          <div class="acc-body">
         ${renderGAPAnalyser(m, d)}
         ${state.reverseXG ? renderReverseXGPanel(state.reverseXG) : ''}
-        ${state.oddsLab ? renderOddsLabPanel(state.oddsLab) : '<div style="margin-top:16px;padding:14px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.1);border-radius:12px;text-align:center;font-size:0.7rem;color:var(--text-dark);">💰 Odds Lab in caricamento...</div>'}
+        ${state.oddsLab ? renderOddsLabPanel(state.oddsLab) : '<div style="padding:14px;text-align:center;font-size:0.7rem;color:var(--text-dark);">💰 Odds Lab in caricamento...</div>'}
         ${state.valueBets ? renderValueBetsPanel(state.valueBets) : ''}
+        </div></div>
         
+        <div class="acc-section">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <div class="acc-title">⚽ Pronostici AI</div>
+            <span class="acc-arrow">▼</span>
+          </div>
+          <div class="acc-body">
         <div class="predictions-panel">
           <div class="predictions-header">
             <div class="predictions-title">⚽ PRONOSTICI AI</div>
@@ -6637,6 +6844,7 @@
             `).join('')}
           </div>
         </div>
+        </div></div>
       `;
     }
 
