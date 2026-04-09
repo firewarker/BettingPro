@@ -1855,6 +1855,27 @@
     /* BEST PICK BUTTON */
     .bestpick-btn { background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(16,185,129,0.1)); border:1.5px solid rgba(245,158,11,0.4); border-radius:12px; padding:10px 18px; cursor:pointer; color:#fbbf24; font-size:0.82rem; font-weight:800; display:flex; align-items:center; gap:8px; transition:0.2s; }
     .bestpick-btn:hover { border-color:#fbbf24; box-shadow:0 0 15px rgba(245,158,11,0.15); }
+    /* RISULTATO FINALE */
+    .real-result-banner { background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(0,212,255,0.05)); border:1.5px solid rgba(16,185,129,0.25); border-radius:14px; padding:14px 16px; margin-top:12px; }
+    .real-result-banner.lost { background:linear-gradient(135deg,rgba(239,68,68,0.06),rgba(251,191,36,0.03)); border-color:rgba(239,68,68,0.2); }
+    .real-result-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .real-result-badge { font-size:0.68rem; font-weight:800; padding:3px 10px; border-radius:8px; }
+    .real-result-badge.ft { background:rgba(16,185,129,0.15); color:#10b981; }
+    .real-result-score-row { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px; }
+    .real-result-score { font-size:2rem; font-weight:900; color:white; background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(0,212,255,0.1)); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:6px 18px; min-width:46px; text-align:center; }
+    .real-result-vs { font-size:0.72rem; color:var(--text-dark); font-weight:700; }
+    .real-result-predicted { display:flex; align-items:center; justify-content:center; gap:6px; font-size:0.72rem; color:var(--text-dark); margin-bottom:12px; }
+    .verifica-grid { display:flex; flex-direction:column; gap:5px; }
+    .verifica-row { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-radius:8px; font-size:0.72rem; background:rgba(255,255,255,0.02); }
+    .verifica-row .v-label { color:var(--text-gray); font-weight:600; }
+    .verifica-row .v-pick { color:white; font-weight:700; }
+    .verifica-row .v-result { font-weight:800; }
+    .verifica-row .v-result.win { color:#10b981; }
+    .verifica-row .v-result.lose { color:#ef4444; }
+    .verifica-summary { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); }
+    .verifica-stat { text-align:center; }
+    .verifica-stat-num { font-size:1.2rem; font-weight:900; }
+    .verifica-stat-label { font-size:0.6rem; color:var(--text-dark); }
     .loading-text { color: var(--text-gray); font-size: 0.9rem; }
     .empty { text-align: center; padding: 40px; color: var(--text-dark); }
     .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
@@ -6234,6 +6255,185 @@
       `;
     }
 
+    // ═══ REFRESH MATCH RESULTS ═══
+    async function refreshMatchResults() {
+      if (!state.matches || state.matches.length === 0) return;
+      const now = Date.now();
+      const stale = state.matches.some(m => {
+        if (['FT','AET','PEN'].includes(m.status) && m.goals?.home != null) return false;
+        return now - new Date(m.date).getTime() > 100 * 60 * 1000;
+      });
+      if (!stale) return;
+      try {
+        const dateStr = getDateString(state.selectedDate);
+        const data = await callAPIFootball('/fixtures', { date: dateStr, timezone: 'Europe/Rome' });
+        if (!data?.response || !Array.isArray(data.response)) return;
+        let updated = 0;
+        data.response.forEach(f => {
+          const ex = state.matches.find(m => m.id === f.fixture.id);
+          if (ex) {
+            const wasFinished = ['FT','AET','PEN'].includes(ex.status);
+            ex.status = f.fixture.status.short;
+            ex.elapsed = f.fixture.status.elapsed;
+            ex.goals = f.goals;
+            ex.score = f.score;
+            if (!wasFinished && ['FT','AET','PEN'].includes(ex.status)) updated++;
+          }
+        });
+        if (updated > 0) { console.log('✅ ' + updated + ' risultati aggiornati'); render(); }
+      } catch(e) { console.debug('Result refresh skip:', e.message); }
+    }
+
+    // ═══ CHECK PICK RESULT ═══
+    function checkPickResult(matchId, pick) {
+      try {
+        var m = state.matches.find(function(x) { return x.id === matchId; });
+        if (!m) return null;
+        if (!['FT','AET','PEN'].includes(m.status)) return null;
+        var hg = m.goals?.home, ag = m.goals?.away;
+        if (hg == null || ag == null) return null;
+        var totalGoals = hg + ag;
+        var p = (pick || '').toLowerCase().trim();
+        var won = false;
+        if (p.includes('over 3.5') && totalGoals >= 4) won = true;
+        else if (p.includes('over 2.5') && totalGoals >= 3) won = true;
+        else if (p.includes('over 1.5') && totalGoals >= 2) won = true;
+        else if (p.includes('over 0.5') && totalGoals >= 1) won = true;
+        else if (p.includes('under 1.5') && totalGoals < 2) won = true;
+        else if (p.includes('under 2.5') && totalGoals < 3) won = true;
+        else if (p.includes('under 3.5') && totalGoals < 4) won = true;
+        else if ((p === 'gg' || p.includes('entrambe segnano')) && hg > 0 && ag > 0) won = true;
+        else if ((p === 'ng' || p.includes('no gol')) && (hg === 0 || ag === 0)) won = true;
+        else if ((p === '1x' || p.includes('casa o pareggio')) && hg >= ag) won = true;
+        else if ((p === 'x2' || p.includes('pareggio o ospite')) && hg <= ag) won = true;
+        else if ((p === '1' || p.includes('vittoria casa') || (p.startsWith('1 ') && !p.startsWith('1x'))) && hg > ag) won = true;
+        else if ((p === 'x' || p === 'pareggio' || p.includes('pareggio)')) && hg === ag) won = true;
+        else if ((p === '2' || p.includes('vittoria ospite') || (p.startsWith('2 ') && !p.startsWith('2x'))) && hg < ag) won = true;
+        else if (p.includes('multigol 1-3') && totalGoals >= 1 && totalGoals <= 3) won = true;
+        else if (p.includes('multigol 2-4') && totalGoals >= 2 && totalGoals <= 4) won = true;
+        return { won: won, score: hg + '-' + ag };
+      } catch(e) { return null; }
+    }
+
+    function renderPickResultBadge(matchId, pick) {
+      var r = checkPickResult(matchId, pick);
+      if (!r) return '';
+      if (r.won) return '<span style="font-size:0.6rem;background:rgba(16,185,129,0.15);color:#10b981;padding:2px 6px;border-radius:6px;font-weight:800;">✅</span>';
+      return '<span style="font-size:0.6rem;background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 6px;border-radius:6px;font-weight:800;">❌</span>';
+    }
+
+    // ═══ VERIFY PREDICTIONS ═══
+    function verifyPredictions(match, analysis, result) {
+      var hg = result.hg, ag = result.ag, totalGoals = hg + ag;
+      var checks = [], d = analysis;
+      // AI Advice
+      var ai = generateAIAdvice(match, analysis);
+      if (ai && ai.pick) {
+        var p = ai.pick.toLowerCase();
+        var won = null;
+        if (p.includes('over 2.5')) won = totalGoals >= 3;
+        else if (p.includes('over 1.5')) won = totalGoals >= 2;
+        else if (p.includes('under 2.5')) won = totalGoals < 3;
+        else if (p.includes('under 1.5')) won = totalGoals < 2;
+        else if (p.includes('gg') || p.includes('entrambe')) won = hg > 0 && ag > 0;
+        else if (p.includes('ng') || p.includes('no gol')) won = hg === 0 || ag === 0;
+        else if (p.includes('1x')) won = hg >= ag;
+        else if (p.includes('x2')) won = ag >= hg;
+        else if (p === '1' || p.startsWith('1 ')) won = hg > ag;
+        else if (p === '2' || p.startsWith('2 ')) won = ag > hg;
+        else if (p === 'x' || p.includes('pareggio')) won = hg === ag;
+        if (won !== null) checks.push({ label: '🤖 Consiglio AI', pick: ai.pick, won: won, prob: ai.prob });
+      }
+      // Statistico
+      var stat = generateStatisticalAdvice(match, analysis);
+      if (stat && stat.pick) {
+        var p2 = stat.pick.toLowerCase();
+        var won2 = null;
+        if (p2.includes('over 2.5')) won2 = totalGoals >= 3;
+        else if (p2.includes('over 1.5')) won2 = totalGoals >= 2;
+        else if (p2.includes('under 2.5')) won2 = totalGoals < 3;
+        else if (p2.includes('gg')) won2 = hg > 0 && ag > 0;
+        else if (p2.includes('ng')) won2 = hg === 0 || ag === 0;
+        else if (p2 === '1' || p2.startsWith('1 ')) won2 = hg > ag;
+        else if (p2 === '2' || p2.startsWith('2 ')) won2 = ag > hg;
+        else if (p2 === 'x' || p2.includes('pareggio')) won2 = hg === ag;
+        if (won2 !== null) checks.push({ label: '📊 Statistico', pick: stat.pick, won: won2, prob: stat.prob });
+      }
+      // 1X2
+      checks.push({ label: '1X2', pick: d.p1X2.home > d.p1X2.draw && d.p1X2.home > d.p1X2.away ? '1' : d.p1X2.away > d.p1X2.draw ? '2' : 'X',
+        won: (d.p1X2.home > d.p1X2.draw && d.p1X2.home > d.p1X2.away && hg > ag) || (d.p1X2.away > d.p1X2.draw && d.p1X2.away > d.p1X2.home && ag > hg) || (d.p1X2.draw >= d.p1X2.home && d.p1X2.draw >= d.p1X2.away && hg === ag),
+        prob: Math.max(d.p1X2.home, d.p1X2.draw, d.p1X2.away) });
+      // Over/Under 2.5
+      checks.push({ label: 'Over 2.5', pick: d.pOU[2.5].over >= 50 ? 'Over 2.5' : 'Under 2.5',
+        won: d.pOU[2.5].over >= 50 ? totalGoals >= 3 : totalGoals <= 2,
+        prob: Math.max(d.pOU[2.5].over, d.pOU[2.5].under) });
+      // GG/NG
+      checks.push({ label: 'GG/NG', pick: d.pBTTS >= 50 ? 'GG' : 'NG',
+        won: d.pBTTS >= 50 ? (hg > 0 && ag > 0) : (hg === 0 || ag === 0),
+        prob: Math.max(d.pBTTS, 100 - d.pBTTS) });
+      // Esatto #1
+      if (d.exactScores && d.exactScores[0]) {
+        var es = d.exactScores[0];
+        checks.push({ label: 'Esatto #1', pick: es.h + '-' + es.a, won: es.h === hg && es.a === ag, prob: es.p });
+      }
+      var wins = checks.filter(function(c) { return c.won; }).length;
+      var losses = checks.filter(function(c) { return !c.won; }).length;
+      return { checks: checks, wins: wins, losses: losses, accuracy: ((wins / (wins + losses)) * 100).toFixed(0) };
+    }
+
+    // ═══ RENDER REAL RESULT ═══
+    function renderRealResult(match, d) {
+      if (!match || !d) return '';
+      var m = match;
+      var hg = m.goals?.home, ag = m.goals?.away;
+      if (hg == null || ag == null) return '';
+      var isFT = ['FT','AET','PEN'].includes(m.status);
+      if (!isFT) return '';
+      var predictedScore = d.exactScores ? d.exactScores[0].h + '-' + d.exactScores[0].a : '?';
+      var realScore = hg + '-' + ag;
+      var exactMatch = d.exactScores && d.exactScores[0] && d.exactScores[0].h === hg && d.exactScores[0].a === ag;
+      var statusLabel = m.status === 'FT' ? 'FINALE' : m.status === 'AET' ? 'SUPPLEMENTARI' : 'RIGORI';
+      var htHome = m.score?.halftime?.home, htAway = m.score?.halftime?.away;
+      var verification = verifyPredictions(match, d, { hg: hg, ag: ag, htHome: htHome, htAway: htAway, status: m.status });
+
+      var html = '<div class="real-result-banner' + (verification && parseInt(verification.accuracy) < 40 ? ' lost' : '') + '">';
+      html += '<div class="real-result-header">';
+      html += '<span style="font-size:0.78rem;font-weight:800;color:white;">🏆 Risultato FINALE</span>';
+      html += '<span class="real-result-badge ft">' + statusLabel + '</span>';
+      html += '</div>';
+      html += '<div class="real-result-score-row">';
+      html += '<div class="real-result-score">' + hg + '</div>';
+      html += '<div class="real-result-vs">-</div>';
+      html += '<div class="real-result-score">' + ag + '</div>';
+      html += '</div>';
+      if (htHome != null && htAway != null) {
+        html += '<div style="text-align:center;font-size:0.68rem;color:var(--text-dark);margin-bottom:6px;">Primo Tempo: ' + htHome + ' - ' + htAway + '</div>';
+      }
+      html += '<div class="real-result-predicted">';
+      html += '<span>Previsto: <strong>' + predictedScore + '</strong></span>';
+      html += '<span style="font-size:1rem;">' + (exactMatch ? '✅' : '❌') + '</span>';
+      html += '<span>Reale: <strong>' + realScore + '</strong></span>';
+      html += '</div>';
+      if (verification) {
+        html += '<div class="verifica-grid">';
+        verification.checks.forEach(function(c) {
+          html += '<div class="verifica-row">';
+          html += '<span class="v-label">' + c.label + '</span>';
+          html += '<span class="v-pick">' + esc(c.pick) + (c.prob ? ' (' + (typeof c.prob === 'number' ? c.prob.toFixed(0) : c.prob) + '%)' : '') + '</span>';
+          html += '<span class="v-result ' + (c.won ? 'win' : 'lose') + '">' + (c.won ? '✅' : '❌') + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+        html += '<div class="verifica-summary">';
+        html += '<div class="verifica-stat"><div class="verifica-stat-num" style="color:#10b981;">' + verification.wins + '</div><div class="verifica-stat-label">✅ Azzeccati</div></div>';
+        html += '<div class="verifica-stat"><div class="verifica-stat-num" style="color:#ef4444;">' + verification.losses + '</div><div class="verifica-stat-label">❌ Sbagliati</div></div>';
+        html += '<div class="verifica-stat"><div class="verifica-stat-num" style="color:' + (parseInt(verification.accuracy) >= 60 ? '#10b981' : parseInt(verification.accuracy) >= 40 ? '#fbbf24' : '#ef4444') + ';">' + verification.accuracy + '%</div><div class="verifica-stat-label">Accuratezza</div></div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
     // ═══ NAVIGAZIONE TRA PARTITE ═══
     function navigateMatch(dir) {
       const m = state.selectedMatch;
@@ -6426,6 +6626,9 @@
             </div>
           </div>
         </div>
+        
+        <!-- RISULTATO FINALE (se la partita è finita) -->
+        ${renderRealResult(m, d)}
         
         <!-- CONVERGENCE INDICATOR -->
         ${renderConvergenceIndicator(m, d)}
@@ -7034,6 +7237,9 @@
       render();
       await loadMatches(0);
       
+      // Refresh risultati partite finite
+      refreshMatchResults();
+      
       // Avvia monitoraggio LIVE in background
       startLiveBackgroundMonitoring();
       console.log('📡 LIVE background monitoring started');
@@ -7045,7 +7251,8 @@
       // Controlla risultati ogni 10 minuti
       setInterval(() => {
         checkPendingResults();
-        console.log('🔄 Auto-check pending results');
+        refreshMatchResults();
+        console.log('🔄 Auto-check results');
       }, 10 * 60 * 1000);
     }
 
