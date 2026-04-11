@@ -2100,6 +2100,8 @@
       leagues: [],
       matches: [],
       selectedLeague: null,
+      leagueFilter: 'all',
+      favoriteLeagues: JSON.parse(localStorage.getItem('bp_fav_leagues') || '[]'),
       selectedMatch: null,
       analysis: null,
       loading: false,
@@ -5782,6 +5784,58 @@
       return `<div class="loading"><div class="spinner"></div><div class="loading-text">Caricamento...</div></div>`;
     }
 
+    // ═══ LEAGUE FILTER SYSTEM ═══
+    const LEAGUE_GROUPS = {
+      top5: { label: '🇪🇺 Top 5', countries: ['England', 'Italy', 'Spain', 'Germany', 'France'], leagueNames: ['Premier League', 'Serie A', 'La Liga', 'Bundesliga', 'Ligue 1'] }
+    };
+    const COUNTRY_FLAGS = {
+      'Albania':'🇦🇱','Algeria':'🇩🇿','Andorra':'🇦🇩','Angola':'🇦🇴','Argentina':'🇦🇷','Armenia':'🇦🇲','Australia':'🇦🇺','Austria':'🇦🇹','Azerbaijan':'🇦🇿','Bahrain':'🇧🇭','Bangladesh':'🇧🇩','Belarus':'🇧🇾','Belgium':'🇧🇪','Bolivia':'🇧🇴','Bosnia':'🇧🇦','Bosnia and Herzegovina':'🇧🇦','Brazil':'🇧🇷','Bulgaria':'🇧🇬','Cameroon':'🇨🇲','Canada':'🇨🇦','Chile':'🇨🇱','China':'🇨🇳','Colombia':'🇨🇴','Costa-Rica':'🇨🇷','Costa Rica':'🇨🇷','Croatia':'🇭🇷','Cyprus':'🇨🇾','Czech-Republic':'🇨🇿','Czech Republic':'🇨🇿','Denmark':'🇩🇰','Ecuador':'🇪🇨','Egypt':'🇪🇬','El-Salvador':'🇸🇻','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Estonia':'🇪🇪','Ethiopia':'🇪🇹','Faroe-Islands':'🇫🇴','Finland':'🇫🇮','France':'🇫🇷','Georgia':'🇬🇪','Germany':'🇩🇪','Ghana':'🇬🇭','Greece':'🇬🇷','Guatemala':'🇬🇹','Honduras':'🇭🇳','Hungary':'🇭🇺','Iceland':'🇮🇸','India':'🇮🇳','Indonesia':'🇮🇩','Iran':'🇮🇷','Iraq':'🇮🇶','Ireland':'🇮🇪','Israel':'🇮🇱','Italy':'🇮🇹','Ivory-Coast':'🇨🇮','Jamaica':'🇯🇲','Japan':'🇯🇵','Jordan':'🇯🇴','Kazakhstan':'🇰🇿','Kenya':'🇰🇪','Kosovo':'🇽🇰','Kuwait':'🇰🇼','Latvia':'🇱🇻','Lebanon':'🇱🇧','Lithuania':'🇱🇹','Luxembourg':'🇱🇺','Malaysia':'🇲🇾','Malta':'🇲🇹','Mexico':'🇲🇽','Moldova':'🇲🇩','Montenegro':'🇲🇪','Morocco':'🇲🇦','Netherlands':'🇳🇱','New-Zealand':'🇳🇿','Nicaragua':'🇳🇮','Nigeria':'🇳🇬','North-Macedonia':'🇲🇰','Northern-Ireland':'🇬🇧','Norway':'🇳🇴','Oman':'🇴🇲','Palestine':'🇵🇸','Panama':'🇵🇦','Paraguay':'🇵🇾','Peru':'🇵🇪','Philippines':'🇵🇭','Poland':'🇵🇱','Portugal':'🇵🇹','Qatar':'🇶🇦','Romania':'🇷🇴','Russia':'🇷🇺','Saudi-Arabia':'🇸🇦','Saudi Arabia':'🇸🇦','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Senegal':'🇸🇳','Serbia':'🇷🇸','Singapore':'🇸🇬','Slovakia':'🇸🇰','Slovenia':'🇸🇮','South-Africa':'🇿🇦','South Africa':'🇿🇦','South-Korea':'🇰🇷','South Korea':'🇰🇷','Spain':'🇪🇸','Sweden':'🇸🇪','Switzerland':'🇨🇭','Thailand':'🇹🇭','Tunisia':'🇹🇳','Turkey':'🇹🇷','Ukraine':'🇺🇦','UAE':'🇦🇪','Uruguay':'🇺🇾','USA':'🇺🇸','Uzbekistan':'🇺🇿','Venezuela':'🇻🇪','Vietnam':'🇻🇳','Wales':'🏴󠁧󠁢󠁷󠁬󠁳󠁿','World':'🌍','Zambia':'🇿🇲','Zimbabwe':'🇿🇼'
+    };
+
+    function toggleFavoriteLeague(leagueId) {
+      const idx = state.favoriteLeagues.indexOf(leagueId);
+      if (idx >= 0) state.favoriteLeagues.splice(idx, 1);
+      else state.favoriteLeagues.push(leagueId);
+      localStorage.setItem('bp_fav_leagues', JSON.stringify(state.favoriteLeagues));
+      render();
+    }
+    window.toggleFavoriteLeague = toggleFavoriteLeague;
+
+    function setLeagueFilter(filter) {
+      state.leagueFilter = filter;
+      render();
+    }
+    window.setLeagueFilter = setLeagueFilter;
+
+    function selectLeague(leagueId) {
+      state.selectedLeague = state.leagues.find(l => l.id === leagueId);
+      if (state.selectedLeague) { state.view = 'matches'; render(); }
+    }
+    window.selectLeague = selectLeague;
+
+    function getFilteredLeagues() {
+      const filter = state.leagueFilter;
+      let filtered = state.leagues;
+      if (filter === 'favorites') {
+        filtered = filtered.filter(l => state.favoriteLeagues.includes(l.id));
+      } else if (LEAGUE_GROUPS[filter]) {
+        const group = LEAGUE_GROUPS[filter];
+        filtered = filtered.filter(l => {
+          if (group.countries && group.countries.includes(l.country)) return true;
+          if (group.leagueNames && group.leagueNames.some(n => l.name.includes(n))) return true;
+          return false;
+        });
+      } else if (filter.startsWith('country:')) {
+        filtered = filtered.filter(l => l.country === filter.substring(8));
+      }
+      return filtered.sort((a, b) => {
+        const aFav = state.favoriteLeagues.includes(a.id) ? 0 : 1;
+        const bFav = state.favoriteLeagues.includes(b.id) ? 0 : 1;
+        if (aFav !== bFav) return aFav - bFav;
+        return (a.country + ' ' + a.name).localeCompare(b.country + ' ' + b.name);
+      });
+    }
+
     function renderLeagues() {
       const picks = state.dailyPicks;
       const money = getMoneyStats();
@@ -5799,15 +5853,52 @@
         </div>
         
         ${state.liveMode ? renderLiveSection() : `
-        <!-- SELEZIONA CAMPIONATO - SPOSTATO IN ALTO -->
+        <!-- CAMPIONATI CON FILTRI -->
         <div class="panel" style="margin-bottom: 16px;">
-          <div class="panel-title">📋 Seleziona Campionato (${state.matches.length} partite)</div>
-          ${state.leagues.length === 0 ? `<div class="empty"><div class="empty-icon">📭</div>Nessuna partita</div>` : `
-            <select class="select-field" id="leagueSelect">
-              <option value="">-- Scegli un campionato --</option>
-              ${state.leagues.map(l => `<option value="${l.id}">${esc(l.country)} - ${esc(l.name)} (${l.matchCount})</option>`).join('')}
-            </select>
-          `}
+          <div class="panel-title">📋 Campionati (${state.matches.length} partite)</div>
+          ${(() => {
+            const filtered = getFilteredLeagues();
+            const hasFavs = state.favoriteLeagues.length > 0;
+            const countrySet = {};
+            state.leagues.forEach(l => { if (l.country && !countrySet[l.country]) countrySet[l.country] = state.matches.filter(m => m.league && m.league.country === l.country).length; });
+            const top5C = ['Italy','England','Spain','Germany','France'];
+            const countryList = Object.keys(countrySet).sort((a,b) => { const aT=top5C.indexOf(a),bT=top5C.indexOf(b); if(aT>=0&&bT<0)return -1;if(bT>=0&&aT<0)return 1;if(aT>=0&&bT>=0)return aT-bT; return countrySet[b]-countrySet[a]||a.localeCompare(b); });
+
+            let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
+            // Tutti
+            html += '<button onclick="setLeagueFilter(\'all\')" style="padding:6px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ' + (state.leagueFilter==='all'?'var(--accent-cyan)':'var(--border)') + ';background:' + (state.leagueFilter==='all'?'rgba(0,212,255,0.12)':'var(--bg-input)') + ';color:' + (state.leagueFilter==='all'?'var(--accent-cyan)':'var(--text-gray)') + ';white-space:nowrap;">🌍 Tutti (' + state.leagues.length + ')</button>';
+            // Preferiti
+            if (hasFavs) html += '<button onclick="setLeagueFilter(\'favorites\')" style="padding:6px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ' + (state.leagueFilter==='favorites'?'var(--accent-cyan)':'var(--border)') + ';background:' + (state.leagueFilter==='favorites'?'rgba(0,212,255,0.12)':'var(--bg-input)') + ';color:' + (state.leagueFilter==='favorites'?'var(--accent-cyan)':'var(--text-gray)') + ';white-space:nowrap;">⭐ Preferiti</button>';
+            // Top 5
+            html += '<button onclick="setLeagueFilter(\'top5\')" style="padding:6px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ' + (state.leagueFilter==='top5'?'var(--accent-cyan)':'var(--border)') + ';background:' + (state.leagueFilter==='top5'?'rgba(0,212,255,0.12)':'var(--bg-input)') + ';color:' + (state.leagueFilter==='top5'?'var(--accent-cyan)':'var(--text-gray)') + ';white-space:nowrap;">🇪🇺 Top 5</button>';
+            // Nazioni toggle
+            html += '<button onclick="(function(){var el=document.getElementById(\'countryFlagsPanel\');if(el){el.style.display=el.style.display===\'none\'?\'flex\':\'none\';}})()" style="padding:6px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ' + (state.leagueFilter.startsWith('country:')?'var(--accent-cyan)':'var(--border)') + ';background:' + (state.leagueFilter.startsWith('country:')?'rgba(0,212,255,0.12)':'var(--bg-input)') + ';color:' + (state.leagueFilter.startsWith('country:')?'var(--accent-cyan)':'var(--text-gray)') + ';white-space:nowrap;">' + (state.leagueFilter.startsWith('country:')?(COUNTRY_FLAGS[state.leagueFilter.substring(8)]||'🏳️')+' '+state.leagueFilter.substring(8):'🏳️ Nazioni ▾') + '</button>';
+            html += '</div>';
+            // Flags panel
+            html += '<div id="countryFlagsPanel" style="display:' + (state.leagueFilter.startsWith('country:')?'flex':'none') + ';gap:5px;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:rgba(0,0,0,0.15);border-radius:10px;border:1px solid var(--border);">';
+            countryList.forEach(c => {
+              html += '<button onclick="setLeagueFilter(\'country:' + c.replace(/'/g,"\\'") + '\')" title="' + c + '" style="width:32px;height:32px;border-radius:50%;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;border:1.5px solid ' + (state.leagueFilter==='country:'+c?'var(--accent-cyan)':'transparent') + ';background:' + (state.leagueFilter==='country:'+c?'rgba(0,212,255,0.15)':'rgba(255,255,255,0.04)') + ';">' + (COUNTRY_FLAGS[c]||'🏳️') + '</button>';
+            });
+            html += '</div>';
+            // League list
+            if (filtered.length === 0) {
+              html += '<div style="text-align:center;padding:20px;color:var(--text-dark);">Nessun campionato trovato.</div>';
+            } else {
+              html += '<div style="display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow-y:auto;">';
+              filtered.forEach(l => {
+                const isFav = state.favoriteLeagues.includes(l.id);
+                html += '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:' + (isFav?'rgba(251,191,36,0.06)':'var(--bg-card)') + ';border:1px solid ' + (isFav?'rgba(251,191,36,0.2)':'var(--border)') + ';border-radius:10px;cursor:pointer;transition:all 0.15s;" onclick="selectLeague(' + l.id + ')">';
+                html += '<button onclick="event.stopPropagation();toggleFavoriteLeague(' + l.id + ')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;flex-shrink:0;opacity:' + (isFav?'1':'0.35') + ';">' + (isFav?'⭐':'☆') + '</button>';
+                if (l.logo) html += '<img src="' + l.logo + '" style="width:28px;height:28px;border-radius:4px;flex-shrink:0;" onerror="this.style.display=\'none\'">';
+                html += '<div style="flex:1;min-width:0;"><div style="font-size:0.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(l.name) + '</div><div style="font-size:0.75rem;color:var(--text-dark);">' + esc(l.country) + '</div></div>';
+                html += '<div style="font-size:0.85rem;font-weight:800;color:var(--accent-cyan);flex-shrink:0;">' + l.matchCount + '</div>';
+                html += '<span style="font-size:0.7rem;color:var(--text-dark);flex-shrink:0;">▶</span>';
+                html += '</div>';
+              });
+              html += '</div>';
+            }
+            return html;
+          })()}
         </div>
         
         <!-- HOME SECTIONS - PICKS DEL GIORNO -->
