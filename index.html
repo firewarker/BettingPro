@@ -2113,7 +2113,9 @@
       slip: [], // Schedina
       slipModal: false,
       // Picks del giorno
-      dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [], multigol24: [], multigol13: [], ggOver: [], casaSegna: [] },
+      dailyPicks: { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [] },
+      activeScreener: null,
+      screenerResults: null,
       // v7: Odds Lab + Value Bets + Reverse xG
       oddsLab: null,
       valueBets: null,
@@ -2333,7 +2335,7 @@
     function calculateDailyPicks() {
       if (state.matches.length === 0) return;
       
-      const picks = { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [], multigol24: [], multigol13: [], ggOver: [], casaSegna: [] };
+      const picks = { raddoppi: [], gg: [], over25: [], pareggi: [], over1T: [] };
       const safeBets = []; // Per costruire i raddoppi
       
       state.matches.forEach(match => {
@@ -2451,37 +2453,6 @@
         if (pOver15_1T >= 35 && totXG >= 2.5) {
           picks.over1T.push({ ...matchInfo, bet: 'Over 1.5 1T', prob: pOver15_1T, xg1T: totXG_1T.toFixed(2), xgTotal: totXG.toFixed(2), confidence: pOver15_1T >= 50 ? 'high' : pOver15_1T >= 40 ? 'medium' : 'low' });
         }
-        
-        // === MULTIGOAL 2-4 — P(2 gol) + P(3 gol) + P(4 gol) ===
-        const pMG24 = quickCalcMultigoal(homeXG, awayXG, 2, 4);
-        if (pMG24 >= 55) {
-          picks.multigol24.push({ ...matchInfo, bet: 'MG 2-4', prob: pMG24, xgTotal: totXG.toFixed(2), fairOdds: (100 / pMG24).toFixed(2) });
-        }
-        
-        // === MULTIGOAL 1-3 — versione più sicura ===
-        const pMG13 = quickCalcMultigoal(homeXG, awayXG, 1, 3);
-        if (pMG13 >= 65) {
-          picks.multigol13.push({ ...matchInfo, bet: 'MG 1-3', prob: pMG13, xgTotal: totXG.toFixed(2), fairOdds: (100 / pMG13).toFixed(2) });
-        }
-        
-        // === GG + OVER 2.5 — combo esplosiva ===
-        // P(GG & Over 2.5) = somma di tutte le (i,j) dove i>=1, j>=1 e i+j>=3
-        let pGGOver = 0;
-        for (let i = 1; i <= 6; i++) {
-          for (let j = 1; j <= 6; j++) {
-            if (i + j >= 3) pGGOver += poisson(homeXG, i) * poisson(awayXG, j);
-          }
-        }
-        pGGOver = clamp(5, pGGOver * 100, 80);
-        if (pGGOver >= 35 && totXG >= 2.8) {
-          picks.ggOver.push({ ...matchInfo, bet: 'GG+Over 2.5', prob: pGGOver, xgTotal: totXG.toFixed(2), fairOdds: (100 / pGGOver).toFixed(2) });
-        }
-        
-        // === CASA SEGNA (almeno 1 gol) — alta probabilità ===
-        const pCasaSegna = quickCalcTeamScores(homeXG);
-        if (pCasaSegna >= 75) {
-          picks.casaSegna.push({ ...matchInfo, bet: 'Casa Segna', prob: pCasaSegna, xgTotal: homeXG.toFixed(2), fairOdds: (100 / pCasaSegna).toFixed(2) });
-        }
       });
       
       // === COSTRUISCI RADDOPPI (combinazioni che fanno quota ~2.00) ===
@@ -2492,10 +2463,6 @@
       picks.over25 = picks.over25.sort((a, b) => b.prob - a.prob).slice(0, 6);
       picks.pareggi = picks.pareggi.sort((a, b) => b.prob - a.prob).slice(0, 6);
       picks.over1T = picks.over1T.sort((a, b) => b.prob - a.prob).slice(0, 6);
-      picks.multigol24 = picks.multigol24.sort((a, b) => b.prob - a.prob).slice(0, 10);
-      picks.multigol13 = picks.multigol13.sort((a, b) => b.prob - a.prob).slice(0, 10);
-      picks.ggOver = picks.ggOver.sort((a, b) => b.prob - a.prob).slice(0, 6);
-      picks.casaSegna = picks.casaSegna.sort((a, b) => b.prob - a.prob).slice(0, 8);
       
       state.dailyPicks = picks;
       console.log('🎯 Daily picks:', Object.keys(picks).map(k => `${k}: ${picks[k].length}`).join(', '));
@@ -2619,6 +2586,103 @@
     function quickCalcTeamScores(lambda) {
       return clamp(10, (1 - poisson(lambda, 0)) * 100, 95);
     }
+    
+    // === SCREENER META ===
+    const screenerMeta = {
+      mg24: { icon: '🎯', label: 'Multigoal 2-4', bet: 'MG 2-4', desc: 'hit rate ~65%, quote ~1.50-1.60', color: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
+      mg13: { icon: '🛡️', label: 'Multigoal 1-3', bet: 'MG 1-3', desc: 'hit rate ~80%, quote ~1.30-1.45', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
+      mg35: { icon: '🔥', label: 'Multigoal 3-5', bet: 'MG 3-5', desc: 'hit rate ~50%, quote ~1.70-1.90', color: '#eab308', bg: 'rgba(234,179,8,0.15)' },
+      ggOver: { icon: '💥', label: 'GG + Over 2.5', bet: 'GG+O2.5', desc: 'quote ~1.80-2.20', color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
+      casaSegna: { icon: '🏠', label: 'Casa Segna', bet: 'Casa ⚽', desc: 'prob ~75-90%, ideale accumulator', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
+      over15gg: { icon: '⚡', label: 'Over 1.5 + GG', bet: 'O1.5+GG', desc: 'almeno 2 gol + entrambe segnano', color: '#ec4899', bg: 'rgba(236,72,153,0.15)' }
+    };
+    
+    function runScreener(type) {
+      // Toggle: se già attivo, chiudi
+      if (state.activeScreener === type) {
+        state.activeScreener = null;
+        state.screenerResults = null;
+        render();
+        return;
+      }
+      
+      state.activeScreener = type;
+      const results = [];
+      
+      state.matches.forEach(match => {
+        if (['1H','2H','HT','ET','P','LIVE','FT','AET','PEN'].includes(match.status)) return;
+        
+        // Stima xG
+        let homeXG = 1.35, awayXG = 1.10;
+        const fsKeys = [
+          (match.home.name.toLowerCase() + '_' + match.away.name.toLowerCase()),
+          match.home.name.toLowerCase().replace(/\s+/g, '') + '_' + match.away.name.toLowerCase().replace(/\s+/g, '')
+        ];
+        let fsMatch = null;
+        for (const k of fsKeys) { if (state.fsData.has(k)) { fsMatch = state.fsData.get(k); break; } }
+        if (fsMatch) {
+          if (fsMatch.home_xg) homeXG = fsMatch.home_xg;
+          else if (fsMatch.home_ppg) homeXG = fsMatch.home_ppg * 0.8;
+          else if (fsMatch.avg_goals_home) homeXG = fsMatch.avg_goals_home;
+          if (fsMatch.away_xg) awayXG = fsMatch.away_xg;
+          else if (fsMatch.away_ppg) awayXG = fsMatch.away_ppg * 0.7;
+          else if (fsMatch.avg_goals_away) awayXG = fsMatch.avg_goals_away;
+        }
+        homeXG = clamp(0.3, homeXG * 1.10, 3.5);
+        awayXG = clamp(0.2, awayXG * 0.93, 3.0);
+        const totXG = homeXG + awayXG;
+        
+        const matchInfo = {
+          match,
+          matchName: match.home.name + ' vs ' + match.away.name,
+          league: (match.league.country || '') + ' - ' + (match.league.name || ''),
+          time: formatTime(match.date),
+          xgTotal: totXG.toFixed(2)
+        };
+        
+        let prob = 0;
+        let minProb = 0;
+        let bet = '';
+        
+        if (type === 'mg24') {
+          prob = quickCalcMultigoal(homeXG, awayXG, 2, 4);
+          minProb = 50; bet = 'MG 2-4';
+        } else if (type === 'mg13') {
+          prob = quickCalcMultigoal(homeXG, awayXG, 1, 3);
+          minProb = 60; bet = 'MG 1-3';
+        } else if (type === 'mg35') {
+          prob = quickCalcMultigoal(homeXG, awayXG, 3, 5);
+          minProb = 40; bet = 'MG 3-5';
+        } else if (type === 'ggOver') {
+          let p = 0;
+          for (let i = 1; i <= 6; i++) { for (let j = 1; j <= 6; j++) { if (i+j >= 3) p += poisson(homeXG, i) * poisson(awayXG, j); } }
+          prob = clamp(5, p * 100, 80);
+          minProb = 30; bet = 'GG+O2.5';
+        } else if (type === 'casaSegna') {
+          prob = quickCalcTeamScores(homeXG);
+          minProb = 70; bet = 'Casa ⚽';
+          matchInfo.xgTotal = homeXG.toFixed(2);
+        } else if (type === 'over15gg') {
+          // P(Over 1.5 AND GG) = P(i>=1, j>=1, i+j>=2) 
+          let p = 0;
+          for (let i = 1; i <= 6; i++) { for (let j = 1; j <= 6; j++) { if (i+j >= 2) p += poisson(homeXG, i) * poisson(awayXG, j); } }
+          prob = clamp(5, p * 100, 85);
+          minProb = 35; bet = 'O1.5+GG';
+        }
+        
+        if (prob >= minProb) {
+          results.push({ ...matchInfo, bet, prob, fairOdds: (100 / prob).toFixed(2) });
+        }
+      });
+      
+      // Ordina per probabilità decrescente, SENZA LIMITI
+      results.sort((a, b) => b.prob - a.prob);
+      state.screenerResults = results;
+      render();
+      
+      console.log('🔎 Screener ' + type + ':', results.length + ' partite trovate');
+    }
+    window.runScreener = runScreener;
     
     // === MONEY MANAGEMENT ===
     // === MONEY MANAGEMENT - SISTEMA OBIETTIVO ===
@@ -6131,109 +6195,44 @@
           </div>
           ` : ''}
           
-          <!-- MULTIGOAL 2-4 DEL GIORNO -->
-          ${picks.multigol24.length > 0 ? `
+          <!-- SCREENER MERCATI — On Demand -->
           <div class="picks-section" style="border-color: rgba(168,85,247,0.3);">
             <div class="picks-header">
-              <div class="picks-title"><span class="picks-title-icon">🎯</span> Multigoal 2-4</div>
-              <span class="picks-count">${picks.multigol24.length} picks</span>
+              <div class="picks-title"><span class="picks-title-icon">🔎</span> Screener Mercati</div>
             </div>
-            <div style="font-size:0.62rem;color:var(--text-dark);margin:-6px 0 8px;padding:0 2px;">Partite con 2, 3 o 4 gol totali — hit rate storico ~65%</div>
-            <div class="picks-grid">
-              ${picks.multigol24.map(p => `
-                <div class="pick-card ${isInSlip(p.match.id, 'pick_MG24') ? 'selected' : ''}" 
-                     data-matchid="${p.match.id}" data-market="pick_MG24" data-value="MG 2-4" data-prob="${p.prob.toFixed(0)}">
-                  <div class="pick-info">
-                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
-                    <div class="pick-league">${p.time} • xG: ${p.xgTotal} • fair @${p.fairOdds}</div>
-                  </div>
-                  <div class="pick-bet">
-                    <span class="pick-value" style="background:rgba(168,85,247,0.15);color:#a855f7;">MG 2-4</span>
-                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
-                  </div>
-                </div>
-              `).join('')}
+            <div style="font-size:0.65rem;color:var(--text-dark);margin:-4px 0 10px;padding:0 2px;">Clicca su un mercato per trovare tutte le partite profittevoli del giorno</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <button onclick="runScreener('mg24')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='mg24'?'#a855f7':'var(--border)'};background:${state.activeScreener==='mg24'?'rgba(168,85,247,0.15)':'var(--bg-input)'};color:${state.activeScreener==='mg24'?'#a855f7':'var(--text-gray)'};">🎯 MG 2-4</button>
+              <button onclick="runScreener('mg13')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='mg13'?'#22c55e':'var(--border)'};background:${state.activeScreener==='mg13'?'rgba(34,197,94,0.15)':'var(--bg-input)'};color:${state.activeScreener==='mg13'?'#22c55e':'var(--text-gray)'};">🛡️ MG 1-3</button>
+              <button onclick="runScreener('ggOver')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='ggOver'?'#f97316':'var(--border)'};background:${state.activeScreener==='ggOver'?'rgba(249,115,22,0.15)':'var(--bg-input)'};color:${state.activeScreener==='ggOver'?'#f97316':'var(--text-gray)'};">💥 GG+O2.5</button>
+              <button onclick="runScreener('casaSegna')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='casaSegna'?'#3b82f6':'var(--border)'};background:${state.activeScreener==='casaSegna'?'rgba(59,130,246,0.15)':'var(--bg-input)'};color:${state.activeScreener==='casaSegna'?'#3b82f6':'var(--text-gray)'};">🏠 Casa Segna</button>
+              <button onclick="runScreener('over15gg')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='over15gg'?'#ec4899':'var(--border)'};background:${state.activeScreener==='over15gg'?'rgba(236,72,153,0.15)':'var(--bg-input)'};color:${state.activeScreener==='over15gg'?'#ec4899':'var(--text-gray)'};">⚡ O1.5+GG</button>
+              <button onclick="runScreener('mg35')" style="padding:8px 14px;border-radius:10px;font-size:0.72rem;font-weight:800;cursor:pointer;border:1.5px solid ${state.activeScreener==='mg35'?'#eab308':'var(--border)'};background:${state.activeScreener==='mg35'?'rgba(234,179,8,0.15)':'var(--bg-input)'};color:${state.activeScreener==='mg35'?'#eab308':'var(--text-gray)'};">🔥 MG 3-5</button>
             </div>
+            ${state.screenerResults && state.screenerResults.length > 0 ? `
+              <div style="font-size:0.68rem;color:var(--text-gray);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                <span>${screenerMeta[state.activeScreener]?.icon || '🔎'} <strong style="color:white;">${state.screenerResults.length}</strong> partite trovate — ordinate per probabilità</span>
+                <span style="font-size:0.6rem;color:var(--text-dark);">${screenerMeta[state.activeScreener]?.desc || ''}</span>
+              </div>
+              <div class="picks-grid">
+                ${state.screenerResults.map(p => `
+                  <div class="pick-card ${isInSlip(p.match.id, 'pick_'+state.activeScreener) ? 'selected' : ''}" 
+                       data-matchid="${p.match.id}" data-market="pick_${state.activeScreener}" data-value="${p.bet}" data-prob="${p.prob.toFixed(0)}">
+                    <div class="pick-info">
+                      <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
+                      <div class="pick-league">${p.time} • xG: ${p.xgTotal} • fair @${p.fairOdds} • ${esc(p.league)}</div>
+                    </div>
+                    <div class="pick-bet">
+                      <span class="pick-value" style="background:${screenerMeta[state.activeScreener]?.bg || 'rgba(168,85,247,0.15)'};color:${screenerMeta[state.activeScreener]?.color || '#a855f7'};">${p.bet}</span>
+                      <span class="pick-prob">${p.prob.toFixed(0)}%</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : state.activeScreener && state.screenerResults && state.screenerResults.length === 0 ? `
+              <div style="text-align:center;padding:16px;color:var(--text-dark);font-size:0.78rem;">Nessuna partita trovata per questo mercato oggi.</div>
+            ` : ''}
           </div>
-          ` : ''}
-          
-          <!-- MULTIGOAL 1-3 (SICURO) -->
-          ${picks.multigol13.length > 0 ? `
-          <div class="picks-section" style="border-color: rgba(34,197,94,0.3);">
-            <div class="picks-header">
-              <div class="picks-title"><span class="picks-title-icon">🛡️</span> Multigoal 1-3</div>
-              <span class="picks-count">${picks.multigol13.length} picks</span>
-            </div>
-            <div style="font-size:0.62rem;color:var(--text-dark);margin:-6px 0 8px;padding:0 2px;">Versione sicura — almeno 1 gol, massimo 3 • hit rate ~80%</div>
-            <div class="picks-grid">
-              ${picks.multigol13.map(p => `
-                <div class="pick-card ${isInSlip(p.match.id, 'pick_MG13') ? 'selected' : ''}" 
-                     data-matchid="${p.match.id}" data-market="pick_MG13" data-value="MG 1-3" data-prob="${p.prob.toFixed(0)}">
-                  <div class="pick-info">
-                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
-                    <div class="pick-league">${p.time} • xG: ${p.xgTotal} • fair @${p.fairOdds}</div>
-                  </div>
-                  <div class="pick-bet">
-                    <span class="pick-value" style="background:rgba(34,197,94,0.15);color:#22c55e;">MG 1-3</span>
-                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          ` : ''}
-          
-          <!-- GG + OVER 2.5 COMBO -->
-          ${picks.ggOver.length > 0 ? `
-          <div class="picks-section" style="border-color: rgba(249,115,22,0.3);">
-            <div class="picks-header">
-              <div class="picks-title"><span class="picks-title-icon">💥</span> GG + Over 2.5</div>
-              <span class="picks-count">${picks.ggOver.length} picks</span>
-            </div>
-            <div style="font-size:0.62rem;color:var(--text-dark);margin:-6px 0 8px;padding:0 2px;">Entrambe segnano e almeno 3 gol totali — quote ~1.80-2.20</div>
-            <div class="picks-grid">
-              ${picks.ggOver.map(p => `
-                <div class="pick-card ${isInSlip(p.match.id, 'pick_GGO25') ? 'selected' : ''}" 
-                     data-matchid="${p.match.id}" data-market="pick_GGO25" data-value="GG+O2.5" data-prob="${p.prob.toFixed(0)}">
-                  <div class="pick-info">
-                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
-                    <div class="pick-league">${p.time} • xG: ${p.xgTotal} • fair @${p.fairOdds}</div>
-                  </div>
-                  <div class="pick-bet">
-                    <span class="pick-value" style="background:rgba(249,115,22,0.15);color:#f97316;">GG+O2.5</span>
-                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          ` : ''}
-          
-          <!-- CASA SEGNA -->
-          ${picks.casaSegna.length > 0 ? `
-          <div class="picks-section" style="border-color: rgba(59,130,246,0.3);">
-            <div class="picks-header">
-              <div class="picks-title"><span class="picks-title-icon">🏠</span> Casa Segna</div>
-              <span class="picks-count">${picks.casaSegna.length} picks</span>
-            </div>
-            <div style="font-size:0.62rem;color:var(--text-dark);margin:-6px 0 8px;padding:0 2px;">La squadra di casa segna almeno 1 gol — quote ~1.25-1.45, ideale per accumulator</div>
-            <div class="picks-grid">
-              ${picks.casaSegna.map(p => `
-                <div class="pick-card ${isInSlip(p.match.id, 'pick_CS') ? 'selected' : ''}" 
-                     data-matchid="${p.match.id}" data-market="pick_CS" data-value="Casa Segna" data-prob="${p.prob.toFixed(0)}">
-                  <div class="pick-info">
-                    <div class="pick-match">${esc(p.match.home.name)} vs ${esc(p.match.away.name)}</div>
-                    <div class="pick-league">${p.time} • xG casa: ${p.xgTotal} • fair @${p.fairOdds}</div>
-                  </div>
-                  <div class="pick-bet">
-                    <span class="pick-value" style="background:rgba(59,130,246,0.15);color:#3b82f6;">Casa ⚽</span>
-                    <span class="pick-prob">${p.prob.toFixed(0)}%</span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          ` : ''}
         </div>
       `}
       `;
